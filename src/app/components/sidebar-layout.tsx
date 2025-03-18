@@ -1,82 +1,168 @@
 'use client'
 
-import * as Headless from '@headlessui/react'
-import React, { useState } from 'react'
-import { NavbarItem } from './navbar'
+import { useState } from 'react'
+import {
+  Dialog,
+  DialogBackdrop,
+  DialogPanel,
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuItems,
+  TransitionChild,
+} from '@headlessui/react'
+import {
+  Bars3Icon,
+  BellIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline'
+import { ChevronDownIcon } from '@heroicons/react/20/solid'
+import { SearchAutocomplete } from './search-autocomplete'
 
-function OpenMenuIcon() {
-  return (
-    <svg data-slot="icon" viewBox="0 0 20 20" aria-hidden="true">
-      <path d="M2 6.75C2 6.33579 2.33579 6 2.75 6H17.25C17.6642 6 18 6.33579 18 6.75C18 7.16421 17.6642 7.5 17.25 7.5H2.75C2.33579 7.5 2 7.16421 2 6.75ZM2 13.25C2 12.8358 2.33579 12.5 2.75 12.5H17.25C17.6642 12.5 18 12.8358 18 13.25C18 13.6642 17.6642 14 17.25 14H2.75C2.33579 14 2 13.6642 2 13.25Z" />
-    </svg>
-  )
-}
-
-function CloseMenuIcon() {
-  return (
-    <svg data-slot="icon" viewBox="0 0 20 20" aria-hidden="true">
-      <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
-    </svg>
-  )
-}
-
-function MobileSidebar({ open, close, children }: React.PropsWithChildren<{ open: boolean; close: () => void }>) {
-  return (
-    <Headless.Dialog open={open} onClose={close} className="lg:hidden">
-      <Headless.DialogBackdrop
-        transition
-        className="fixed inset-0 bg-black/30 transition data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in"
-      />
-      <Headless.DialogPanel
-        transition
-        className="fixed inset-y-0 w-full max-w-80 p-2 transition duration-300 ease-in-out data-closed:-translate-x-full"
-      >
-        <div className="flex h-full flex-col rounded-lg bg-white ring-1 shadow-xs ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
-          <div className="-mb-3 px-4 pt-3">
-            <Headless.CloseButton as={NavbarItem} aria-label="Close navigation">
-              <CloseMenuIcon />
-            </Headless.CloseButton>
-          </div>
-          {children}
-        </div>
-      </Headless.DialogPanel>
-    </Headless.Dialog>
-  )
+function classNames(...classes: string[]) {
+  return classes.filter(Boolean).join(' ')
 }
 
 export function SidebarLayout({
-  navbar,
   sidebar,
   children,
-}: React.PropsWithChildren<{ navbar: React.ReactNode; sidebar: React.ReactNode }>) {
-  let [showSidebar, setShowSidebar] = useState(false)
+  searchValue = '',
+  onSearchChange,
+  isOnboarding = false,
+}: React.PropsWithChildren<{ 
+  sidebar: React.ReactNode;
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
+  isOnboarding?: boolean;
+}>) {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [localSearchValue, setLocalSearchValue] = useState('')
+
+  // Use provided search value and handler if available, otherwise use local state
+  const searchText = onSearchChange ? searchValue : localSearchValue
+  const handleSearchChange = (value: string) => {
+    if (onSearchChange) {
+      onSearchChange(value)
+    } else {
+      setLocalSearchValue(value)
+    }
+  }
 
   return (
-    <div className="relative isolate flex min-h-svh w-full bg-white max-lg:flex-col lg:bg-zinc-100 dark:bg-zinc-900 dark:lg:bg-zinc-950">
-      {/* Sidebar on desktop */}
-      <div className="fixed inset-y-0 left-0 w-64 max-lg:hidden">{sidebar}</div>
+    <>
+      <div>
+        <Dialog open={sidebarOpen} onClose={setSidebarOpen} className="relative z-50 lg:hidden">
+          <DialogBackdrop
+            transition
+            className="fixed inset-0 bg-gray-900/80 transition-opacity duration-300 ease-linear data-closed:opacity-0"
+          />
 
-      {/* Sidebar on mobile */}
-      <MobileSidebar open={showSidebar} close={() => setShowSidebar(false)}>
-        {sidebar}
-      </MobileSidebar>
+          <div className="fixed inset-0 flex">
+            <DialogPanel
+              transition
+              className="relative mr-16 flex w-full max-w-xs flex-1 transform transition duration-300 ease-in-out data-closed:-translate-x-full"
+            >
+              <TransitionChild>
+                <div className="absolute top-0 left-full flex w-16 justify-center pt-5 duration-300 ease-in-out data-closed:opacity-0">
+                  <button type="button" onClick={() => setSidebarOpen(false)} className="-m-2.5 p-2.5">
+                    <span className="sr-only">Close sidebar</span>
+                    <XMarkIcon aria-hidden="true" className="size-6 text-white" />
+                  </button>
+                </div>
+              </TransitionChild>
+              {/* Sidebar component */}
+              {sidebar}
+            </DialogPanel>
+          </div>
+        </Dialog>
 
-      {/* Navbar on mobile */}
-      <header className="flex items-center px-4 lg:hidden">
-        <div className="py-2.5">
-          <NavbarItem onClick={() => setShowSidebar(true)} aria-label="Open navigation">
-            <OpenMenuIcon />
-          </NavbarItem>
+        {/* Static sidebar for desktop */}
+        <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
+          {/* Sidebar component */}
+          {sidebar}
         </div>
-        <div className="min-w-0 flex-1">{navbar}</div>
-      </header>
 
-      {/* Content */}
-      <main className="flex flex-1 flex-col pb-2 lg:min-w-0 lg:pt-2 lg:pr-2 lg:pl-64">
-        <div className="grow p-6 lg:rounded-lg lg:bg-white lg:p-10 lg:ring-1 lg:shadow-xs lg:ring-zinc-950/5 dark:lg:bg-zinc-900 dark:lg:ring-white/10">
-          <div className="mx-auto max-w-6xl">{children}</div>
+        <div className="lg:pl-72">
+          <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+            <button type="button" onClick={() => setSidebarOpen(true)} className="-m-2.5 p-2.5 text-gray-700 lg:hidden">
+              <span className="sr-only">Open sidebar</span>
+              <Bars3Icon aria-hidden="true" className="size-6" />
+            </button>
+
+            {/* Separator */}
+            <div aria-hidden="true" className="h-6 w-px bg-gray-200 lg:hidden" />
+
+            <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
+              {!isOnboarding && (
+                <div className="flex flex-1 items-center">
+                  <label htmlFor="search-field" className="sr-only">
+                    Search
+                  </label>
+                  <SearchAutocomplete 
+                    searchValue={searchText}
+                    onSearchChange={handleSearchChange}
+                  />
+                </div>
+              )}
+              
+              {!isOnboarding && (
+                <div className="flex items-center gap-x-4 lg:gap-x-6">
+                  <button type="button" className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500">
+                    <span className="sr-only">View notifications</span>
+                    <BellIcon aria-hidden="true" className="size-6" />
+                  </button>
+
+                  {/* Separator */}
+                  <div aria-hidden="true" className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200" />
+
+                  {/* Profile dropdown */}
+                  <Menu as="div" className="relative">
+                    <MenuButton className="-m-1.5 flex items-center p-1.5">
+                      <span className="sr-only">Open user menu</span>
+                      <img
+                        alt=""
+                        src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+                        className="size-8 rounded-full bg-gray-50"
+                      />
+                      <span className="hidden lg:flex lg:items-center">
+                        <span aria-hidden="true" className="ml-4 text-sm/6 font-semibold text-gray-900">
+                          Alex Morgan
+                        </span>
+                        <ChevronDownIcon aria-hidden="true" className="ml-2 size-5 text-gray-400" />
+                      </span>
+                    </MenuButton>
+                    <MenuItems
+                      transition
+                      className="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 ring-1 shadow-lg ring-gray-900/5 transition focus:outline-hidden data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
+                    >
+                      <MenuItem>
+                        <a
+                          href="#"
+                          className="block px-3 py-1 text-sm/6 text-gray-900 data-focus:bg-gray-50 data-focus:outline-hidden"
+                        >
+                          Your profile
+                        </a>
+                      </MenuItem>
+                      <MenuItem>
+                        <a
+                          href="#"
+                          className="block px-3 py-1 text-sm/6 text-gray-900 data-focus:bg-gray-50 data-focus:outline-hidden"
+                        >
+                          Sign out
+                        </a>
+                      </MenuItem>
+                    </MenuItems>
+                  </Menu>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <main className="py-8">
+            <div className="px-4 sm:px-8 lg:px-8">{children}</div>
+          </main>
         </div>
-      </main>
-    </div>
+      </div>
+    </>
   )
 }

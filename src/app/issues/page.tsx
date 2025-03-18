@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { SidebarLayout } from '../components/sidebar-layout'
 import { Heading } from '../components/heading'
 import { Text } from '../components/text'
@@ -23,7 +24,9 @@ import {
   CodeBracketIcon,
   PlusIcon,
   AdjustmentsHorizontalIcon,
-  FunnelIcon
+  FunnelIcon,
+  XMarkIcon,
+  CheckIcon
 } from '@heroicons/react/24/solid'
 import {
   Card,
@@ -34,6 +37,27 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { SidebarContent } from '../components/sidebar-content'
+import { IssuesBoard } from "@/components/issues/IssuesBoard"
+import { IssueDetailsDrawer } from "@/components/issues/IssueDetailsDrawer"
+import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
+
+// Define Issue type
+type Issue = {
+  id: string;
+  title: string;
+  type: "Bug" | "Documentation" | "Feature";
+  status: "Todo" | "In Progress" | "Backlog" | "Done";
+  priority: "Low" | "Medium" | "High";
+  property?: string;
+  reported?: string;
+  assignedTo?: string;
+}
+
+// Define filter options
+const statusFilters = ["All", "Todo", "In Progress", "Backlog", "Done"]
+const priorityFilters = ["All", "Low", "Medium", "High"]
+const typeFilters = ["All", "Bug", "Documentation", "Feature"]
 
 // Icons for navigation items
 function DashboardIcon() {
@@ -69,73 +93,140 @@ function IntegrationsIcon() {
 }
 
 export default function Issues() {
+  // State for the selected issue and drawer open state
+  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [issuesData, setIssuesData] = useState<Issue[]>([
+    {
+      id: "1254",
+      title: "Water leak in bathroom ceiling",
+      type: "Bug" as const,
+      status: "Todo" as const,
+      priority: "High" as const,
+      property: "Sunset Apartments Room 204",
+      reported: "Mar 8, 2024",
+      assignedTo: "JS"
+    },
+    {
+      id: "1253", 
+      title: "Broken heating system",
+      type: "Bug" as const,
+      status: "In Progress" as const,
+      priority: "High" as const,
+      property: "Oakwood Heights Room 103",
+      reported: "Mar 7, 2024",
+      assignedTo: "RW"
+    },
+    {
+      id: "1252",
+      title: "Mailbox key replacement",
+      type: "Feature" as const,
+      status: "Todo" as const,
+      priority: "Low" as const,
+      property: "Sunset Apartments Room 112",
+      reported: "Mar 6, 2024",
+      assignedTo: ""
+    },
+    {
+      id: "1251",
+      title: "Noisy neighbors complaint",
+      type: "Bug" as const,
+      status: "Todo" as const,
+      priority: "Medium" as const,
+      property: "Parkview Residences Room 305",
+      reported: "Mar 5, 2024",
+      assignedTo: "SJ"
+    },
+    {
+      id: "1250",
+      title: "Parking spot dispute",
+      type: "Documentation" as const,
+      status: "Done" as const,
+      priority: "Medium" as const,
+      property: "Oakwood Heights Room 210",
+      reported: "Mar 4, 2024",
+      assignedTo: "MA"
+    }
+  ]);
+  const [newIssue, setNewIssue] = useState({
+    title: '',
+    description: '',
+    propertyId: '',
+    unitNumber: '',
+    category: 'maintenance',
+    priority: 'medium',
+    status: 'open',
+    reportedBy: '',
+    assignedTo: '',
+    dueDate: '',
+    images: [],
+    estimatedCost: '',
+    notes: ''
+  });
+
+  // Filter states
+  const [statusFilter, setStatusFilter] = useState("All")
+  const [priorityFilter, setPriorityFilter] = useState("All")
+  const [typeFilter, setTypeFilter] = useState("All")
+
+  // Function to handle opening the drawer
+  const openDrawer = (issue: Issue) => {
+    setSelectedIssue(issue);
+    setIsDrawerOpen(true);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setNewIssue(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Here you would typically save the issue to your backend
+    console.log('New issue:', newIssue);
+    setIsDrawerOpen(false);
+    setNewIssue({
+      title: '',
+      description: '',
+      propertyId: '',
+      unitNumber: '',
+      category: 'maintenance',
+      priority: 'medium',
+      status: 'open',
+      reportedBy: '',
+      assignedTo: '',
+      dueDate: '',
+      images: [],
+      estimatedCost: '',
+      notes: ''
+    });
+  };
+
+  const handleIssuesUpdate = (updatedIssues: Issue[]) => {
+    setIssuesData(updatedIssues);
+  };
+
+  // Function to filter issues
+  const filterIssues = (issues: Issue[]): Issue[] => {
+    return issues.filter(issue => {
+      const matchesStatus = statusFilter === "All" || issue.status === statusFilter
+      const matchesPriority = priorityFilter === "All" || issue.priority === priorityFilter
+      const matchesType = typeFilter === "All" || issue.type === typeFilter
+      return matchesStatus && matchesPriority && matchesType
+    })
+  }
+
+  // Filter the issues
+  const filteredIssues = filterIssues(issuesData)
+
   return (
     <SidebarLayout
-      navbar={
-        <div className="flex items-center justify-between py-4">
-          <Heading level={1} className="text-xl font-semibold">Issues</Heading>
-        </div>
-      }
-      sidebar={
-        <Sidebar>
-          <SidebarHeader>
-            <div className="flex items-center gap-3 px-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white">
-                <Image src="/next.svg" alt="PropBot Logo" width={24} height={24} className="dark:invert" />
-              </div>
-              <Heading level={2} className="text-lg font-semibold">PropBot</Heading>
-            </div>
-          </SidebarHeader>
-          <SidebarBody className="space-y-1">
-            <SidebarItem href="/dashboard" className="justify-start gap-3 pl-2">
-              <DashboardIcon />
-              <span>Dashboard</span>
-            </SidebarItem>
-            <SidebarItem href="/properties" className="justify-start gap-3 pl-2">
-              <PropertiesIcon />
-              <span>Properties</span>
-            </SidebarItem>
-            <SidebarItem href="/residents" className="justify-start gap-3 pl-2">
-              <ResidentsIcon />
-              <span>Residents</span>
-            </SidebarItem>
-            <SidebarItem href="/calendar" className="justify-start gap-3 pl-2">
-              <CalendarIconComponent />
-              <span>Calendar</span>
-            </SidebarItem>
-            <SidebarItem href="/issues" current className="justify-start gap-3 pl-2">
-              <IssuesIcon />
-              <span>Issues</span>
-            </SidebarItem>
-            <SidebarItem href="/financial" className="justify-start gap-3 pl-2">
-              <FinancialIcon />
-              <span>Financial</span>
-            </SidebarItem>
-            <SidebarItem href="/suppliers" className="justify-start gap-3 pl-2">
-              <SuppliersIcon />
-              <span>Suppliers</span>
-            </SidebarItem>
-            <SidebarItem href="/integrations" className="justify-start gap-3 pl-2">
-              <IntegrationsIcon />
-              <span>Integrations</span>
-            </SidebarItem>
-          </SidebarBody>
-          <SidebarFooter>
-            <div className="px-2 py-2">
-              <Text className="text-xs text-zinc-500">© 2024 PropBot</Text>
-            </div>
-          </SidebarFooter>
-        </Sidebar>
-      }
+      sidebar={<SidebarContent currentPath="/issues" />}
     >
       <div className="space-y-6">
-        {/* Breadcrumb */}
-        <div className="flex items-center text-sm text-gray-500">
-          <Link href="/" className="hover:text-gray-700">Home</Link>
-          <span className="mx-2">/</span>
-          <span className="text-gray-900 font-medium">Issues</span>
-        </div>
-        
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
@@ -143,11 +234,99 @@ export default function Issues() {
             <Text className="text-gray-500 mt-1">Track and manage property maintenance requests and issues.</Text>
           </div>
           <div className="mt-4 md:mt-0 flex space-x-3">
-            <button className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
-              <FunnelIcon className="h-5 w-5 inline-block mr-1" />
-              Filter
-            </button>
-            <button className="px-4 py-2 bg-gray-900 rounded-md text-sm font-medium text-white hover:bg-gray-800">
+            <div className="flex space-x-2">
+              {/* Status Filter */}
+              <Menu as="div" className="relative">
+                <MenuButton className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center">
+                  <FunnelIcon className="h-5 w-5 mr-1" />
+                  Status: {statusFilter}
+                </MenuButton>
+                <MenuItems className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                  {statusFilters.map((status) => (
+                    <MenuItem key={status}>
+                      {({ active }) => (
+                        <button
+                          onClick={() => setStatusFilter(status)}
+                          className={`flex w-full items-center px-4 py-2 text-sm ${
+                            active ? 'bg-gray-100' : ''
+                          }`}
+                        >
+                          {status === statusFilter && (
+                            <CheckIcon className="mr-2 h-4 w-4" />
+                          )}
+                          <span className={status === statusFilter ? 'font-semibold' : ''}>
+                            {status}
+                          </span>
+                        </button>
+                      )}
+                    </MenuItem>
+                  ))}
+                </MenuItems>
+              </Menu>
+
+              {/* Priority Filter */}
+              <Menu as="div" className="relative">
+                <MenuButton className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center">
+                  <FunnelIcon className="h-5 w-5 mr-1" />
+                  Priority: {priorityFilter}
+                </MenuButton>
+                <MenuItems className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                  {priorityFilters.map((priority) => (
+                    <MenuItem key={priority}>
+                      {({ active }) => (
+                        <button
+                          onClick={() => setPriorityFilter(priority)}
+                          className={`flex w-full items-center px-4 py-2 text-sm ${
+                            active ? 'bg-gray-100' : ''
+                          }`}
+                        >
+                          {priority === priorityFilter && (
+                            <CheckIcon className="mr-2 h-4 w-4" />
+                          )}
+                          <span className={priority === priorityFilter ? 'font-semibold' : ''}>
+                            {priority}
+                          </span>
+                        </button>
+                      )}
+                    </MenuItem>
+                  ))}
+                </MenuItems>
+              </Menu>
+
+              {/* Type Filter */}
+              <Menu as="div" className="relative">
+                <MenuButton className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center">
+                  <FunnelIcon className="h-5 w-5 mr-1" />
+                  Type: {typeFilter}
+                </MenuButton>
+                <MenuItems className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                  {typeFilters.map((type) => (
+                    <MenuItem key={type}>
+                      {({ active }) => (
+                        <button
+                          onClick={() => setTypeFilter(type)}
+                          className={`flex w-full items-center px-4 py-2 text-sm ${
+                            active ? 'bg-gray-100' : ''
+                          }`}
+                        >
+                          {type === typeFilter && (
+                            <CheckIcon className="mr-2 h-4 w-4" />
+                          )}
+                          <span className={type === typeFilter ? 'font-semibold' : ''}>
+                            {type}
+                          </span>
+                        </button>
+                      )}
+                    </MenuItem>
+                  ))}
+                </MenuItems>
+              </Menu>
+            </div>
+
+            <button
+              onClick={() => setIsDrawerOpen(true)}
+              className="px-4 py-2 bg-gray-900 rounded-md text-sm font-medium text-white hover:bg-gray-800"
+            >
               <PlusIcon className="h-5 w-5 inline-block mr-1" />
               Create Issue
             </button>
@@ -162,7 +341,7 @@ export default function Issues() {
               <CardTitle className="text-sm font-medium text-gray-500">Total Issues</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-gray-900">35</p>
+              <p className="text-3xl font-bold text-gray-900">{issuesData.length}</p>
             </CardContent>
           </Card>
           
@@ -172,7 +351,9 @@ export default function Issues() {
               <CardTitle className="text-sm font-medium text-gray-500">Open Issues</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-blue-600">24</p>
+              <p className="text-3xl font-bold text-blue-600">
+                {issuesData.filter(issue => issue.status !== "Done").length}
+              </p>
             </CardContent>
           </Card>
           
@@ -182,17 +363,21 @@ export default function Issues() {
               <CardTitle className="text-sm font-medium text-gray-500">In Progress</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-amber-600">8</p>
+              <p className="text-3xl font-bold text-yellow-600">
+                {issuesData.filter(issue => issue.status === "In Progress").length}
+              </p>
             </CardContent>
           </Card>
           
           {/* Completed */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Completed (This Month)</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-500">Completed</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-green-600">12</p>
+              <p className="text-3xl font-bold text-green-600">
+                {issuesData.filter(issue => issue.status === "Done").length}
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -241,86 +426,49 @@ export default function Issues() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">#1254</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Water leak in bathroom ceiling</td>
+                    {filteredIssues.map((issue) => (
+                      <tr 
+                        key={issue.id}
+                        onClick={() => openDrawer(issue)}
+                        className="cursor-pointer hover:bg-gray-50"
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">#{issue.id}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{issue.title}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Open</span>
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            issue.status === 'Todo' ? 'bg-yellow-100 text-yellow-800' :
+                            issue.status === 'In Progress' ? 'bg-blue-100 text-blue-800' :
+                            issue.status === 'Done' ? 'bg-green-100 text-green-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {issue.status}
+                          </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">High</span>
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            issue.priority === 'High' ? 'bg-red-100 text-red-800' :
+                            issue.priority === 'Medium' ? 'bg-blue-100 text-blue-800' :
+                            'bg-green-100 text-green-800'
+                          }`}>
+                            {issue.priority}
+                          </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Sunset Apartments Unit 204</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 8, 2024</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">John Smith</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{issue.property}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{issue.reported}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{issue.assignedTo || 'Unassigned'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <a href="#" className="text-blue-600 hover:text-blue-900">View</a>
+                          <button 
+                            className="text-blue-600 hover:text-blue-900"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openDrawer(issue);
+                            }}
+                          >
+                            View
+                          </button>
                       </td>
                     </tr>
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">#1253</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Broken heating system</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">In Progress</span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Critical</span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Oakwood Heights Unit 103</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 7, 2024</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Robert Wilson</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <a href="#" className="text-blue-600 hover:text-blue-900">View</a>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">#1252</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Mailbox key replacement</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Open</span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Low</span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Sunset Apartments Unit 112</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 6, 2024</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Unassigned</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <a href="#" className="text-blue-600 hover:text-blue-900">View</a>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">#1251</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Noisy neighbors complaint</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Open</span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Medium</span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Parkview Residences Unit 305</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 5, 2024</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Sarah Johnson</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <a href="#" className="text-blue-600 hover:text-blue-900">View</a>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">#1250</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Parking spot dispute</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Resolved</span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Medium</span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Oakwood Heights Unit 210</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 4, 2024</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Michael Adams</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <a href="#" className="text-blue-600 hover:text-blue-900">View</a>
-                      </td>
-                    </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -363,7 +511,13 @@ export default function Issues() {
                         ...
                       </span>
                       <a href="#" className="bg-white border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 border text-sm font-medium">
-                        7
+                        8
+                      </a>
+                      <a href="#" className="bg-white border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 border text-sm font-medium">
+                        9
+                      </a>
+                      <a href="#" className="bg-white border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 border text-sm font-medium">
+                        10
                       </a>
                       <a href="#" className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
                         <span className="sr-only">Next</span>
@@ -380,157 +534,264 @@ export default function Issues() {
           </TabsContent>
           
           <TabsContent value="board">
-            {/* Kanban Board View */}
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-medium text-gray-900">Issues Board</h3>
-                <div className="flex items-center space-x-2">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Filter cards..."
-                      className="w-64 px-4 py-2 border border-gray-300 rounded-md text-sm"
-                    />
-                  </div>
-                  <button className="p-2 text-gray-500 hover:text-gray-700">
-                    <AdjustmentsHorizontalIcon className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Open Column */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex justify-between items-center mb-4">
-                    <h4 className="font-medium text-gray-900 flex items-center">
-                      <span className="w-3 h-3 rounded-full bg-yellow-400 mr-2"></span>
-                      Open
-                      <span className="ml-2 bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full text-xs">15</span>
-                    </h4>
-                    <button className="text-gray-500 hover:text-gray-700">
-                      <PlusIcon className="h-5 w-5" />
-                    </button>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    {/* Card 1 */}
-                    <div className="bg-white p-3 rounded-md border border-gray-200 shadow-sm">
-                      <div className="flex justify-between items-start">
-                        <span className="text-xs font-medium text-gray-500">#1254</span>
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">High</span>
-                      </div>
-                      <h5 className="mt-2 text-sm font-medium text-gray-900">Water leak in bathroom ceiling</h5>
-                      <p className="mt-1 text-xs text-gray-500">Sunset Apartments Unit 204</p>
-                      <div className="mt-3 flex justify-between items-center">
-                        <span className="text-xs text-gray-500">Mar 8, 2024</span>
-                        <div className="flex items-center">
-                          <span className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-xs font-medium text-blue-800">JS</span>
-                        </div>
+            <IssuesBoard 
+              issues={filteredIssues} 
+              onUpdateIssues={handleIssuesUpdate}
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      {/* Issue Details Drawer */}
+      <IssueDetailsDrawer
+        issue={selectedIssue}
+        open={isDrawerOpen}
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setSelectedIssue(null);
+        }}
+      />
+
+      {/* Issue Form Drawer */}
+      {isDrawerOpen && (
+        <div className="fixed inset-0 overflow-hidden z-50">
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute inset-0 bg-transparent transition-opacity" onClick={() => setIsDrawerOpen(false)} />
+            <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
+              <div className="pointer-events-auto w-screen max-w-md">
+                <div className="flex h-full flex-col bg-white shadow-xl">
+                  <div className="flex-1 h-0 overflow-y-auto">
+                    <div className="py-6 px-4 bg-gray-50 sm:px-6">
+                      <div className="flex items-center justify-between">
+                        <h2 className="text-lg font-medium text-gray-900">Create New Issue</h2>
+                        <button
+                          type="button"
+                          className="rounded-md text-gray-400 hover:text-gray-500 focus:outline-none"
+                          onClick={() => setIsDrawerOpen(false)}
+                        >
+                          <XMarkIcon className="h-6 w-6" />
+                        </button>
                       </div>
                     </div>
-                    
-                    {/* Card 2 */}
-                    <div className="bg-white p-3 rounded-md border border-gray-200 shadow-sm">
-                      <div className="flex justify-between items-start">
-                        <span className="text-xs font-medium text-gray-500">#1252</span>
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Low</span>
-                      </div>
-                      <h5 className="mt-2 text-sm font-medium text-gray-900">Mailbox key replacement</h5>
-                      <p className="mt-1 text-xs text-gray-500">Sunset Apartments Unit 112</p>
-                      <div className="mt-3 flex justify-between items-center">
-                        <span className="text-xs text-gray-500">Mar 6, 2024</span>
-                        <div className="flex items-center">
-                          <span className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-800">?</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Card 3 */}
-                    <div className="bg-white p-3 rounded-md border border-gray-200 shadow-sm">
-                      <div className="flex justify-between items-start">
-                        <span className="text-xs font-medium text-gray-500">#1251</span>
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Medium</span>
-                      </div>
-                      <h5 className="mt-2 text-sm font-medium text-gray-900">Noisy neighbors complaint</h5>
-                      <p className="mt-1 text-xs text-gray-500">Parkview Residences Unit 305</p>
-                      <div className="mt-3 flex justify-between items-center">
-                        <span className="text-xs text-gray-500">Mar 5, 2024</span>
-                        <div className="flex items-center">
-                          <span className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-xs font-medium text-purple-800">SJ</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* In Progress Column */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex justify-between items-center mb-4">
-                    <h4 className="font-medium text-gray-900 flex items-center">
-                      <span className="w-3 h-3 rounded-full bg-blue-400 mr-2"></span>
-                      In Progress
-                      <span className="ml-2 bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full text-xs">8</span>
-                    </h4>
-                    <button className="text-gray-500 hover:text-gray-700">
-                      <PlusIcon className="h-5 w-5" />
-                    </button>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    {/* Card 1 */}
-                    <div className="bg-white p-3 rounded-md border border-gray-200 shadow-sm">
-                      <div className="flex justify-between items-start">
-                        <span className="text-xs font-medium text-gray-500">#1253</span>
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Critical</span>
-                      </div>
-                      <h5 className="mt-2 text-sm font-medium text-gray-900">Broken heating system</h5>
-                      <p className="mt-1 text-xs text-gray-500">Oakwood Heights Unit 103</p>
-                      <div className="mt-3 flex justify-between items-center">
-                        <span className="text-xs text-gray-500">Mar 7, 2024</span>
-                        <div className="flex items-center">
-                          <span className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-xs font-medium text-green-800">RW</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Resolved Column */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex justify-between items-center mb-4">
-                    <h4 className="font-medium text-gray-900 flex items-center">
-                      <span className="w-3 h-3 rounded-full bg-green-400 mr-2"></span>
-                      Resolved
-                      <span className="ml-2 bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full text-xs">12</span>
-                    </h4>
-                    <button className="text-gray-500 hover:text-gray-700">
-                      <PlusIcon className="h-5 w-5" />
-                    </button>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    {/* Card 1 */}
-                    <div className="bg-white p-3 rounded-md border border-gray-200 shadow-sm">
-                      <div className="flex justify-between items-start">
-                        <span className="text-xs font-medium text-gray-500">#1250</span>
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Medium</span>
-                      </div>
-                      <h5 className="mt-2 text-sm font-medium text-gray-900">Parking spot dispute</h5>
-                      <p className="mt-1 text-xs text-gray-500">Oakwood Heights Unit 210</p>
-                      <div className="mt-3 flex justify-between items-center">
-                        <span className="text-xs text-gray-500">Mar 4, 2024</span>
-                        <div className="flex items-center">
-                          <span className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center text-xs font-medium text-orange-800">MA</span>
-                        </div>
+                    <div className="flex-1 flex flex-col justify-between">
+                      <div className="px-4 sm:px-6">
+                        <form onSubmit={handleSubmit} className="space-y-6 pt-6 pb-5">
+                          <div>
+                            <label htmlFor="title" className="block text-sm font-medium text-gray-900">
+                              Issue Title
+                            </label>
+                            <input
+                              type="text"
+                              name="title"
+                              id="title"
+                              required
+                              value={newIssue.title}
+                              onChange={handleInputChange}
+                              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                              placeholder="Brief description of the issue"
+                            />
+                          </div>
+
+                          <div>
+                            <label htmlFor="description" className="block text-sm font-medium text-gray-900">
+                              Detailed Description
+                            </label>
+                            <textarea
+                              name="description"
+                              id="description"
+                              rows={4}
+                              required
+                              value={newIssue.description}
+                              onChange={handleInputChange}
+                              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                              placeholder="Provide detailed information about the issue..."
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label htmlFor="propertyId" className="block text-sm font-medium text-gray-900">
+                                Property
+                              </label>
+                              <select
+                                name="propertyId"
+                                id="propertyId"
+                                required
+                                value={newIssue.propertyId}
+                                onChange={handleInputChange}
+                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                              >
+                                <option value="">Select Property</option>
+                                <option value="123-main">123 Main Street</option>
+                                <option value="456-park">456 Park Avenue</option>
+                                <option value="789-ocean">789 Ocean Drive</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label htmlFor="unitNumber" className="block text-sm font-medium text-gray-900">
+                                Room Number
+                              </label>
+                              <input
+                                type="text"
+                                name="unitNumber"
+                                id="unitNumber"
+                                required
+                                value={newIssue.unitNumber}
+                                onChange={handleInputChange}
+                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label htmlFor="category" className="block text-sm font-medium text-gray-900">
+                                Category
+                              </label>
+                              <select
+                                name="category"
+                                id="category"
+                                required
+                                value={newIssue.category}
+                                onChange={handleInputChange}
+                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                              >
+                                <option value="maintenance">Maintenance</option>
+                                <option value="plumbing">Plumbing</option>
+                                <option value="electrical">Electrical</option>
+                                <option value="hvac">HVAC</option>
+                                <option value="appliance">Appliance</option>
+                                <option value="structural">Structural</option>
+                                <option value="pest">Pest Control</option>
+                                <option value="other">Other</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label htmlFor="priority" className="block text-sm font-medium text-gray-900">
+                                Priority
+                              </label>
+                              <select
+                                name="priority"
+                                id="priority"
+                                required
+                                value={newIssue.priority}
+                                onChange={handleInputChange}
+                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                              >
+                                <option value="low">Low</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                                <option value="urgent">Urgent</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label htmlFor="reportedBy" className="block text-sm font-medium text-gray-900">
+                                Reported By
+                              </label>
+                              <input
+                                type="text"
+                                name="reportedBy"
+                                id="reportedBy"
+                                required
+                                value={newIssue.reportedBy}
+                                onChange={handleInputChange}
+                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label htmlFor="assignedTo" className="block text-sm font-medium text-gray-900">
+                                Assigned To
+                              </label>
+                              <input
+                                type="text"
+                                name="assignedTo"
+                                id="assignedTo"
+                                value={newIssue.assignedTo}
+                                onChange={handleInputChange}
+                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label htmlFor="dueDate" className="block text-sm font-medium text-gray-900">
+                              Due Date
+                            </label>
+                            <input
+                              type="date"
+                              name="dueDate"
+                              id="dueDate"
+                              value={newIssue.dueDate}
+                              onChange={handleInputChange}
+                              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                            />
+                          </div>
+
+                          <div>
+                            <label htmlFor="estimatedCost" className="block text-sm font-medium text-gray-900">
+                              Estimated Cost ($)
+                            </label>
+                            <input
+                              type="number"
+                              name="estimatedCost"
+                              id="estimatedCost"
+                              value={newIssue.estimatedCost}
+                              onChange={handleInputChange}
+                              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                              placeholder="0.00"
+                            />
+                          </div>
+
+                          <div>
+                            <label htmlFor="images" className="block text-sm font-medium text-gray-900">
+                              Upload Images
+                            </label>
+                            <input
+                              type="file"
+                              name="images"
+                              id="images"
+                              multiple
+                              accept="image/*"
+                              className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
+                            />
+                          </div>
+
+                          <div>
+                            <label htmlFor="notes" className="block text-sm font-medium text-gray-900">
+                              Additional Notes
+                            </label>
+                            <textarea
+                              name="notes"
+                              id="notes"
+                              rows={3}
+                              value={newIssue.notes}
+                              onChange={handleInputChange}
+                              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                              placeholder="Any additional information or special instructions..."
+                            />
+                          </div>
+
+                          <div className="mt-5 sm:mt-6">
+                            <button
+                              type="submit"
+                              className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-gray-900 text-base font-medium text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 sm:text-sm"
+                            >
+                              Create Issue
+                            </button>
+                          </div>
+                        </form>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </TabsContent>
-        </Tabs>
-      </div>
+          </div>
+        </div>
+      )}
     </SidebarLayout>
-  )
+  );
 } 

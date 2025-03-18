@@ -44,10 +44,15 @@ import {
   CartesianGrid,
   Tooltip, 
   XAxis, 
-  YAxis 
+  YAxis,
+  PieChart,
+  Pie,
+  Legend,
+  LabelList
 } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { SidebarContent } from '../components/sidebar-content'
 
 // Icons for navigation items
 function DashboardIcon() {
@@ -106,71 +111,9 @@ const chartConfig = {
 export default function Financial() {
   return (
     <SidebarLayout
-      navbar={
-        <div className="flex items-center justify-between py-4">
-          <Heading level={1} className="text-xl font-semibold">Financial</Heading>
-        </div>
-      }
-      sidebar={
-        <Sidebar>
-          <SidebarHeader>
-            <div className="flex items-center gap-3 px-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white">
-                <Image src="/next.svg" alt="PropBot Logo" width={24} height={24} className="dark:invert" />
-              </div>
-              <Heading level={2} className="text-lg font-semibold">PropBot</Heading>
-            </div>
-          </SidebarHeader>
-          <SidebarBody className="space-y-1">
-            <SidebarItem href="/dashboard" className="justify-start gap-3 pl-2">
-              <DashboardIcon />
-              <span>Dashboard</span>
-            </SidebarItem>
-            <SidebarItem href="/properties" className="justify-start gap-3 pl-2">
-              <PropertiesIcon />
-              <span>Properties</span>
-            </SidebarItem>
-            <SidebarItem href="/residents" className="justify-start gap-3 pl-2">
-              <ResidentsIcon />
-              <span>Residents</span>
-            </SidebarItem>
-            <SidebarItem href="/calendar" className="justify-start gap-3 pl-2">
-              <CalendarIconComponent />
-              <span>Calendar</span>
-            </SidebarItem>
-            <SidebarItem href="/issues" className="justify-start gap-3 pl-2">
-              <IssuesIcon />
-              <span>Issues</span>
-            </SidebarItem>
-            <SidebarItem href="/financial" current className="justify-start gap-3 pl-2">
-              <FinancialIcon />
-              <span>Financial</span>
-            </SidebarItem>
-            <SidebarItem href="/suppliers" className="justify-start gap-3 pl-2">
-              <SuppliersIcon />
-              <span>Suppliers</span>
-            </SidebarItem>
-            <SidebarItem href="/integrations" className="justify-start gap-3 pl-2">
-              <IntegrationsIcon />
-              <span>Integrations</span>
-            </SidebarItem>
-          </SidebarBody>
-          <SidebarFooter>
-            <div className="px-2 py-2">
-              <Text className="text-xs text-zinc-500">© 2024 PropBot</Text>
-            </div>
-          </SidebarFooter>
-        </Sidebar>
-      }
+      sidebar={<SidebarContent currentPath="/financial" />}
     >
       <div className="space-y-6">
-        {/* Breadcrumb */}
-        <div className="flex items-center text-sm text-gray-500">
-          <Link href="/" className="hover:text-gray-700">Home</Link>
-          <span className="mx-2">/</span>
-          <span className="text-gray-900 font-medium">Financial</span>
-        </div>
-        
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
@@ -192,7 +135,7 @@ export default function Financial() {
           {/* Total Revenue */}
           <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
             <h3 className="text-sm font-medium text-gray-500">Total Revenue (YTD)</h3>
-            <p className="mt-2 text-3xl font-bold text-gray-900">$788,800</p>
+            <p className="mt-2 text-3xl font-bold text-gray-900">£788,800</p>
             <div className="mt-4 flex items-center text-sm text-green-600">
               <ArrowUpIcon className="h-4 w-4 mr-1" />
               <span>8.2% from last year</span>
@@ -202,7 +145,7 @@ export default function Financial() {
           {/* Total Expenses */}
           <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
             <h3 className="text-sm font-medium text-gray-500">Total Expenses (YTD)</h3>
-            <p className="mt-2 text-3xl font-bold text-gray-900">$329,100</p>
+            <p className="mt-2 text-3xl font-bold text-gray-900">£329,100</p>
             <div className="mt-4 flex items-center text-sm text-red-600">
               <ArrowUpIcon className="h-4 w-4 mr-1" />
               <span>5.4% from last year</span>
@@ -212,7 +155,7 @@ export default function Financial() {
           {/* Net Operating Income */}
           <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
             <h3 className="text-sm font-medium text-gray-500">Net Operating Income</h3>
-            <p className="mt-2 text-3xl font-bold text-gray-900">$459,700</p>
+            <p className="mt-2 text-3xl font-bold text-gray-900">£459,700</p>
             <div className="mt-4 flex items-center text-sm text-green-600">
               <ArrowUpIcon className="h-4 w-4 mr-1" />
               <span>10.3% from last year</span>
@@ -279,6 +222,143 @@ export default function Financial() {
               </CardFooter>
             </Card>
             
+            {/* Charts Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+              {/* Expense Breakdown by Category */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Expense Breakdown by Category</CardTitle>
+                  <CardDescription>January - June 2024</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer
+                    config={{
+                      maintenance: {
+                        label: "Maintenance",
+                        color: "hsl(var(--chart-1))",
+                      },
+                      utilities: {
+                        label: "Utilities",
+                        color: "hsl(var(--chart-2))",
+                      },
+                      taxes: {
+                        label: "Property Taxes",
+                        color: "hsl(var(--chart-3))",
+                      },
+                      insurance: {
+                        label: "Insurance",
+                        color: "hsl(var(--chart-4))",
+                      },
+                      other: {
+                        label: "Other",
+                        color: "hsl(var(--chart-5))",
+                      }
+                    }}
+                    className="mx-auto aspect-square max-h-[300px]"
+                  >
+                    <PieChart>
+                      <Pie 
+                        data={[
+                          { name: "Maintenance", value: 18300, fill: "var(--color-maintenance)" },
+                          { name: "Utilities", value: 10000, fill: "var(--color-utilities)" },
+                          { name: "Property Taxes", value: 8000, fill: "var(--color-taxes)" },
+                          { name: "Insurance", value: 5000, fill: "var(--color-insurance)" },
+                          { name: "Other", value: 20000, fill: "var(--color-other)" }
+                        ]} 
+                        dataKey="value"
+                        nameKey="name"
+                      />
+                      <Legend 
+                        verticalAlign="bottom" 
+                        height={36}
+                        wrapperStyle={{
+                          paddingTop: "20px",
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: "8px",
+                          justifyContent: "center"
+                        }}
+                      />
+                    </PieChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+
+              {/* Occupancy Trend */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Occupancy Trend</CardTitle>
+                  <CardDescription>January - June 2024</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer config={{
+                    occupancy: {
+                      label: "Occupancy Rate (%)",
+                      color: "hsl(var(--chart-1))",
+                    }
+                  }}>
+                    <LineChart
+                      accessibilityLayer
+                      data={[
+                        { month: "January", occupancy: 89 },
+                        { month: "February", occupancy: 91 },
+                        { month: "March", occupancy: 92 },
+                        { month: "April", occupancy: 92 },
+                        { month: "May", occupancy: 93 },
+                        { month: "June", occupancy: 94 }
+                      ]}
+                      margin={{
+                        top: 20,
+                        left: 12,
+                        right: 12,
+                      }}
+                    >
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey="month"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        tickFormatter={(value) => value.slice(0, 3)}
+                      />
+                      <ChartTooltip
+                        cursor={false}
+                        content={<ChartTooltipContent indicator="line" />}
+                      />
+                      <Line
+                        dataKey="occupancy"
+                        type="natural"
+                        stroke="var(--color-occupancy)"
+                        strokeWidth={2}
+                        dot={{
+                          fill: "var(--color-occupancy)",
+                        }}
+                        activeDot={{
+                          r: 6,
+                        }}
+                      >
+                        <LabelList
+                          position="top"
+                          offset={12}
+                          className="fill-foreground"
+                          fontSize={12}
+                        />
+                      </Line>
+                    </LineChart>
+                  </ChartContainer>
+                </CardContent>
+                <CardFooter className="flex-col items-start gap-2 text-sm">
+                  <div className="flex gap-2 font-medium leading-none text-green-600">
+                    <TrendingUp className="h-4 w-4" />
+                    <span>Occupancy trending up by 5.2% this month</span>
+                  </div>
+                  <div className="leading-none text-muted-foreground">
+                    Showing occupancy rates for the last 6 months
+                  </div>
+                </CardFooter>
+              </Card>
+            </div>
+            
             {/* Financial Data Table */}
             <div className="bg-white rounded-lg border border-gray-200 shadow-sm mt-6">
               <div className="px-6 py-4 border-b border-gray-200">
@@ -291,7 +371,7 @@ export default function Financial() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Units</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rooms</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monthly Revenue</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monthly Expenses</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">NOI</th>
@@ -302,9 +382,9 @@ export default function Financial() {
                     <tr>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Sunset Apartments</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">48</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">$58,400</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">$22,100</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">$36,300</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">£58,400</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">£22,100</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">£36,300</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">8.2%</span>
                       </td>
@@ -312,9 +392,9 @@ export default function Financial() {
                     <tr>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Oakwood Heights</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">36</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">$43,200</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">$18,900</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">$24,300</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">£43,200</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">£18,900</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">£24,300</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">7.5%</span>
                       </td>
@@ -322,9 +402,9 @@ export default function Financial() {
                     <tr>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Parkview Residences</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">24</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">$28,800</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">$11,600</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">$17,200</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">£28,800</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">£11,600</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">£17,200</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">6.9%</span>
                       </td>
@@ -332,9 +412,9 @@ export default function Financial() {
                     <tr>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Royal Gardens</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">18</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">$21,600</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">$8,900</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">$12,700</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">£21,600</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">£8,900</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">£12,700</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">8.0%</span>
                       </td>
@@ -342,9 +422,9 @@ export default function Financial() {
                     <tr>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">The Metropolitan</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">12</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">$16,800</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">$6,600</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">$10,200</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">£16,800</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">£6,600</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">£10,200</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">7.8%</span>
                       </td>
@@ -510,9 +590,9 @@ export default function Financial() {
                     <tr>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 8, 2024</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Income</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Monthly Rent - Unit 204</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Monthly Rent - Room 204</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Sunset Apartments</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">+$1,850.00</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">+£1,850.00</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Completed</span>
                       </td>
@@ -525,7 +605,7 @@ export default function Financial() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Expense</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Emergency Plumbing Repair</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Oakwood Heights</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">-$850.00</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">-£850.00</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Completed</span>
                       </td>
@@ -536,9 +616,9 @@ export default function Financial() {
                     <tr>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 5, 2024</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Income</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Late Fee - Unit 112</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Late Fee - Room 112</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Sunset Apartments</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">+$75.00</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">+£75.00</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Completed</span>
                       </td>
@@ -551,7 +631,7 @@ export default function Financial() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Expense</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Landscaping Services</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Royal Gardens</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">-$450.00</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">-£450.00</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Pending</span>
                       </td>
@@ -562,9 +642,9 @@ export default function Financial() {
                     <tr>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 1, 2024</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Income</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Monthly Rent - Unit 305</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Monthly Rent - Room 305</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Parkview Residences</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">+$2,100.00</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">+£2,100.00</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Completed</span>
                       </td>
@@ -667,21 +747,21 @@ export default function Financial() {
                       High Performance
                     </span>
                   </div>
-                  <CardDescription>48 Units • Class B</CardDescription>
+                  <CardDescription>48 Rooms • Class B</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-xs text-gray-500">Monthly Revenue</p>
-                      <p className="text-lg font-bold text-gray-900">$58,400</p>
+                      <p className="text-lg font-bold text-gray-900">£58,400</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">Expenses</p>
-                      <p className="text-lg font-bold text-gray-900">$22,100</p>
+                      <p className="text-lg font-bold text-gray-900">£22,100</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">NOI</p>
-                      <p className="text-lg font-bold text-gray-900">$36,300</p>
+                      <p className="text-lg font-bold text-gray-900">£36,300</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">Cap Rate</p>
@@ -703,21 +783,21 @@ export default function Financial() {
                       High Performance
                     </span>
                   </div>
-                  <CardDescription>36 Units • Class B</CardDescription>
+                  <CardDescription>36 Rooms • Class B</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-xs text-gray-500">Monthly Revenue</p>
-                      <p className="text-lg font-bold text-gray-900">$43,200</p>
+                      <p className="text-lg font-bold text-gray-900">£43,200</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">Expenses</p>
-                      <p className="text-lg font-bold text-gray-900">$18,900</p>
+                      <p className="text-lg font-bold text-gray-900">£18,900</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">NOI</p>
-                      <p className="text-lg font-bold text-gray-900">$24,300</p>
+                      <p className="text-lg font-bold text-gray-900">£24,300</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">Cap Rate</p>
@@ -739,21 +819,21 @@ export default function Financial() {
                       Moderate Performance
                     </span>
                   </div>
-                  <CardDescription>24 Units • Class A</CardDescription>
+                  <CardDescription>24 Rooms • Class A</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-xs text-gray-500">Monthly Revenue</p>
-                      <p className="text-lg font-bold text-gray-900">$28,800</p>
+                      <p className="text-lg font-bold text-gray-900">£28,800</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">Expenses</p>
-                      <p className="text-lg font-bold text-gray-900">$11,600</p>
+                      <p className="text-lg font-bold text-gray-900">£11,600</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">NOI</p>
-                      <p className="text-lg font-bold text-gray-900">$17,200</p>
+                      <p className="text-lg font-bold text-gray-900">£17,200</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">Cap Rate</p>

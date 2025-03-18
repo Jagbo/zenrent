@@ -1,20 +1,17 @@
-import clsx from 'clsx'
+import { cn } from '@/lib/utils'
 
-export function Divider({
-  soft = false,
-  className,
-  ...props
-}: { soft?: boolean } & React.ComponentPropsWithoutRef<'hr'>) {
+interface DividerProps {
+  className?: string
+}
+
+export function Divider({ className }: DividerProps) {
   return (
-    <hr
-      role="presentation"
-      {...props}
-      className={clsx(
-        className,
-        'w-full border-t',
-        soft && 'border-zinc-950/5 dark:border-white/5',
-        !soft && 'border-zinc-950/10 dark:border-white/10'
+    <div
+      className={cn(
+        'h-px w-full bg-zinc-200 dark:bg-zinc-800',
+        className
       )}
+      role="separator"
     />
   )
 }

@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { MoreHorizontal, ChevronDown } from "lucide-react";
+import { IssueDetailsDrawer } from "./IssueDetailsDrawer";
 
 type Issue = {
   id: string;
@@ -28,6 +29,9 @@ type Issue = {
   type: "Bug" | "Documentation" | "Feature";
   status: "Todo" | "In Progress" | "Backlog" | "Done";
   priority: "Low" | "Medium" | "High";
+  property?: string;
+  reported?: string;
+  assignedTo?: string;
 };
 
 const mockIssues: Issue[] = [
@@ -37,6 +41,9 @@ const mockIssues: Issue[] = [
     type: "Documentation",
     status: "In Progress",
     priority: "Medium",
+    property: "Frontend",
+    reported: "2024-03-20",
+    assignedTo: "JS"
   },
   {
     id: "TASK-7878",
@@ -44,6 +51,9 @@ const mockIssues: Issue[] = [
     type: "Documentation",
     status: "Backlog",
     priority: "Medium",
+    property: "Backend",
+    reported: "2024-03-19",
+    assignedTo: "RW"
   },
   {
     id: "TASK-7839",
@@ -51,11 +61,16 @@ const mockIssues: Issue[] = [
     type: "Bug",
     status: "Todo",
     priority: "High",
+    property: "API",
+    reported: "2024-03-18",
+    assignedTo: "SJ"
   },
 ];
 
 export function IssuesList() {
   const [selectedIssues, setSelectedIssues] = useState<string[]>([]);
+  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const toggleIssue = (issueId: string) => {
     setSelectedIssues((current) =>
@@ -101,6 +116,11 @@ export function IssuesList() {
     }
   };
 
+  const openDrawer = (issue: Issue) => {
+    setSelectedIssue(issue);
+    setIsDrawerOpen(true);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-4">
@@ -134,15 +154,24 @@ export function IssuesList() {
           </TableHeader>
           <TableBody>
             {mockIssues.map((issue) => (
-              <TableRow key={issue.id}>
-                <TableCell>
-                  <Checkbox
-                    checked={selectedIssues.includes(issue.id)}
-                    onCheckedChange={() => toggleIssue(issue.id)}
-                  />
+              <TableRow 
+                key={issue.id}
+                className="cursor-pointer hover:bg-muted/50"
+              >
+                <TableCell className="p-0">
+                  <div className="flex items-center justify-center h-full px-4 py-3">
+                    <Checkbox
+                      checked={selectedIssues.includes(issue.id)}
+                      onCheckedChange={() => toggleIssue(issue.id)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
                 </TableCell>
-                <TableCell>
-                  <div>
+                <TableCell className="p-0">
+                  <div 
+                    className="px-4 py-3 h-full w-full"
+                    onClick={() => openDrawer(issue)}
+                  >
                     <div className="font-medium">{issue.title}</div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <span>{issue.id}</span>
@@ -155,22 +184,49 @@ export function IssuesList() {
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>
-                  <Badge variant="secondary" className={getStatusColor(issue.status)}>
-                    {issue.status}
-                  </Badge>
+                <TableCell className="p-0">
+                  <div 
+                    className="px-4 py-3 h-full w-full"
+                    onClick={() => openDrawer(issue)}
+                  >
+                    <Badge variant="secondary" className={getStatusColor(issue.status)}>
+                      {issue.status}
+                    </Badge>
+                  </div>
                 </TableCell>
-                <TableCell>{issue.priority}</TableCell>
-                <TableCell>
-                  <Button variant="ghost" size="icon">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
+                <TableCell className="p-0">
+                  <div 
+                    className="px-4 py-3 h-full w-full"
+                    onClick={() => openDrawer(issue)}
+                  >
+                    {issue.priority}
+                  </div>
+                </TableCell>
+                <TableCell className="p-0">
+                  <div className="flex items-center justify-center h-full px-4 py-3">
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
+
+      <IssueDetailsDrawer
+        issue={selectedIssue}
+        open={isDrawerOpen}
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setSelectedIssue(null);
+        }}
+      />
     </div>
   );
 } 

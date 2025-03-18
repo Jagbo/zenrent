@@ -7,18 +7,26 @@ import {
   SidebarHeader, 
   SidebarBody, 
   SidebarFooter, 
-  SidebarItem 
+  SidebarItem,
+  SidebarSection,
+  SidebarHeading,
+  SidebarLabel
 } from '../components/sidebar'
 import { Heading } from '../components/heading'
 import { Text } from '../components/text'
 import { Link } from '../../components/link'
 import Image from 'next/image'
+import { BuildingOffice2Icon } from '@heroicons/react/24/outline'
+import { Square2StackIcon } from '@heroicons/react/24/outline'
+import { SidebarContent } from '../components/sidebar-content'
+import { PaperClipIcon } from '@heroicons/react/20/solid'
+import { PlusIcon, XMarkIcon } from '@heroicons/react/24/solid'
 
 // Icons for navigation items (same as in dashboard)
 function DashboardIcon() {
   return (
     <svg data-slot="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-      <path d="M11.47 3.841a.75.75 0 0 1 1.06 0l8.69 8.69a.75.75 0 1 0 1.06-1.061l-8.689-8.69a2.25 2.25 0 0 0-3.182 0l-8.69 8.69a.75.75 0 1 0 1.061 1.06l8.69-8.689Z" />
+      <path d="M11.47 3.841a.75.75 0 0 1 1.06 0l8.69 8.69a.75.75 0 1 0 1.061-1.061l-8.689-8.69a2.25 2.25 0 0 0-3.182 0l-8.69 8.69a.75.75 0 1 0 1.061 1.06l8.69-8.689Z" />
       <path d="m12 5.432 8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 0 1-.75-.75v-4.5a.75.75 0 0 0-.75-.75h-3a.75.75 0 0 0-.75.75V21a.75.75 0 0 1-.75.75H5.625a1.875 1.875 0 0 1-1.875-1.875v-6.198a2.29 2.29 0 0 0 .091-.086L12 5.432Z" />
     </svg>
   )
@@ -61,7 +69,7 @@ function FinancialIcon() {
   return (
     <svg data-slot="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
       <path d="M12 7.5a2.25 2.25 0 1 0 0 4.5 2.25 2.25 0 0 0 0-4.5Z" />
-      <path fillRule="evenodd" d="M1.5 4.875C1.5 3.839 2.34 3 3.375 3h17.25c1.035 0 1.875.84 1.875 1.875v9.75c0 1.036-.84 1.875-1.875 1.875H3.375A1.875 1.875 0 0 1 1.5 14.625v-9.75ZM8.25 9.75a3.75 3.75 0 1 1 7.5 0 3.75 3.75 0 0 1-7.5 0ZM18.75 9a.75.75 0 0 0-.75.75v.008c0 .414.336.75.75.75h.008a.75.75 0 0 0 .75-.75V9.75a.75.75 0 0 0-.75-.75h-.008ZM4.5 9.75A.75.75 0 0 1 5.25 9h.008a.75.75 0 0 1 .75.75v.008a.75.75 0 0 1-.75.75H5.25a.75.75 0 0 1-.75-.75V9.75Z" clipRule="evenodd" />
+      <path fillRule="evenodd" d="M1.5 4.875C1.5 3.839 2.34 3 3.375 3h17.25c1.035 0 1.875.84 1.875 1.875v9.75c0 1.036-.84 1.875-1.875 1.875H3.375A1.875 1.875 0 0 1 1.5 14.625v-9.75ZM8.25 9.75a3.75 3.75 0 1 1 7.5 0 3.75 3.75 0 0 1-7.5 0ZM18.75 9a.75.75 0 0 0-.75.75v.008c0 .414.336.75.75.75h.008a.75.75 0 0 0 .75-.75V9a.75.75 0 0 0-.75-.75h-.008ZM4.5 9.75A.75.75 0 0 1 5.25 9h.008a.75.75 0 0 1 .75.75v.008a.75.75 0 0 1-.75.75H5.25a.75.75 0 0 1-.75-.75V9.75Z" clipRule="evenodd" />
       <path d="M2.25 18a.75.75 0 0 0 0 1.5c5.4 0 10.63.722 15.6 2.075 1.19.324 2.4-.558 2.4-1.82V18.75a.75.75 0 0 0-.75-.75H2.25Z" />
     </svg>
   )
@@ -115,9 +123,9 @@ const properties: Property[] = [
       {
         id: '1',
         name: 'Leslie Abbott',
-        unit: 'Unit 101',
+        unit: 'Room 101',
         email: 'leslie.abbott@example.com',
-        image: '/avatars/leslie.jpg',
+        image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
         phone: '(555) 123-4567',
         leaseEnd: '8/15/2024',
         about: 'Tenant has been residing at the property since 2022. Consistently pays rent on time and maintains the unit well. Has requested permission for a small pet which is under review.',
@@ -129,9 +137,9 @@ const properties: Property[] = [
       {
         id: '2',
         name: 'Hector Adams',
-        unit: 'Unit 102',
+        unit: 'Room 102',
         email: 'hector.adams@example.com',
-        image: '/avatars/hector.jpg',
+        image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
         phone: '(555) 234-5678',
         leaseEnd: '9/30/2024',
         about: 'New tenant since January 2024. Works remotely as a software engineer.',
@@ -143,9 +151,9 @@ const properties: Property[] = [
       {
         id: '3',
         name: 'Blake Alexander',
-        unit: 'Unit 103',
+        unit: 'Room 103',
         email: 'blake.alexander@example.com',
-        image: '/avatars/blake.jpg',
+        image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
         phone: '(555) 345-6789',
         leaseEnd: '12/31/2024',
         about: 'Long-term tenant since 2020. Active in community events.',
@@ -163,9 +171,9 @@ const properties: Property[] = [
       {
         id: '4',
         name: 'Angela Beaver',
-        unit: 'Unit 201',
+        unit: 'Room 201',
         email: 'angela.beaver@example.com',
-        image: '/avatars/angela.jpg',
+        image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
         phone: '(555) 456-7890',
         leaseEnd: '7/31/2024',
         about: 'Tenant since 2023. Works as a teacher at the local school.',
@@ -177,9 +185,9 @@ const properties: Property[] = [
       {
         id: '5',
         name: 'Yvette Blanchard',
-        unit: 'Unit 202',
+        unit: 'Room 202',
         email: 'yvette.blanchard@example.com',
-        image: '/avatars/yvette.jpg',
+        image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
         phone: '(555) 567-8901',
         leaseEnd: '10/15/2024',
         about: 'New tenant as of March 2024. Professional chef.',
@@ -197,9 +205,9 @@ const properties: Property[] = [
       {
         id: '6',
         name: 'Jeffrey Clark',
-        unit: 'Unit 301',
+        unit: 'Room 301',
         email: 'jeffrey.clark@example.com',
-        image: '/avatars/jeffrey.jpg',
+        image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
         phone: '(555) 678-9012',
         leaseEnd: '6/30/2024',
         about: 'Tenant since 2021. Works in finance.',
@@ -211,9 +219,9 @@ const properties: Property[] = [
       {
         id: '7',
         name: 'Kathryn Cooper',
-        unit: 'Unit 302',
+        unit: 'Room 302',
         email: 'kathryn.cooper@example.com',
-        image: '/avatars/kathryn.jpg',
+        image: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
         phone: '(555) 789-0123',
         leaseEnd: '11/30/2024',
         about: 'Recent tenant. Medical resident at nearby hospital.',
@@ -225,9 +233,9 @@ const properties: Property[] = [
       {
         id: '8',
         name: 'Alicia Edwards',
-        unit: 'Unit 303',
+        unit: 'Room 303',
         email: 'alicia.edwards@example.com',
-        image: '/avatars/alicia.jpg',
+        image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
         phone: '(555) 890-1234',
         leaseEnd: '5/31/2024',
         about: 'Tenant since 2022. Graphic designer working remotely.',
@@ -243,93 +251,434 @@ const properties: Property[] = [
 export default function Residents() {
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null)
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>('all')
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [newResident, setNewResident] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    propertyId: '',
+    unitNumber: '',
+    leaseStartDate: '',
+    leaseEndDate: '',
+    rentAmount: '',
+    securityDeposit: '',
+    emergencyContactName: '',
+    emergencyContactPhone: '',
+    occupants: '',
+    pets: '',
+    vehicleInfo: '',
+    moveInDate: '',
+    status: 'active',
+    paymentMethod: 'bank_transfer',
+    notes: ''
+  });
 
   const filteredProperties = selectedPropertyId === 'all' 
     ? properties 
     : properties.filter(p => p.id === selectedPropertyId)
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setNewResident(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Here you would typically save the resident to your backend
+    console.log('New resident:', newResident);
+    setIsDrawerOpen(false);
+    setNewResident({
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      propertyId: '',
+      unitNumber: '',
+      leaseStartDate: '',
+      leaseEndDate: '',
+      rentAmount: '',
+      securityDeposit: '',
+      emergencyContactName: '',
+      emergencyContactPhone: '',
+      occupants: '',
+      pets: '',
+      vehicleInfo: '',
+      moveInDate: '',
+      status: 'active',
+      paymentMethod: 'bank_transfer',
+      notes: ''
+    });
+  };
+
   return (
     <SidebarLayout
-      navbar={
-        <div className="flex items-center justify-between py-4">
-          <Heading level={1} className="text-xl font-semibold">Residents</Heading>
-        </div>
-      }
-      sidebar={
-        <Sidebar>
-          <SidebarHeader>
-            <div className="flex items-center gap-3 px-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white">
-                <Image src="/next.svg" alt="PropBot Logo" width={24} height={24} className="dark:invert" />
-              </div>
-              <Heading level={2} className="text-lg font-semibold">PropBot</Heading>
-            </div>
-          </SidebarHeader>
-          <SidebarBody className="space-y-1">
-            <SidebarItem href="/dashboard" className="justify-start gap-3 pl-2">
-              <DashboardIcon />
-              <span>Dashboard</span>
-            </SidebarItem>
-            <SidebarItem href="/properties" className="justify-start gap-3 pl-2">
-              <PropertiesIcon />
-              <span>Properties</span>
-            </SidebarItem>
-            <SidebarItem href="/residents" current className="justify-start gap-3 pl-2">
-              <ResidentsIcon />
-              <span>Residents</span>
-            </SidebarItem>
-            <SidebarItem href="/calendar" className="justify-start gap-3 pl-2">
-              <CalendarIcon />
-              <span>Calendar</span>
-            </SidebarItem>
-            <SidebarItem href="/issues" className="justify-start gap-3 pl-2">
-              <IssuesIcon />
-              <span>Issues</span>
-            </SidebarItem>
-            <SidebarItem href="/financial" className="justify-start gap-3 pl-2">
-              <FinancialIcon />
-              <span>Financial</span>
-            </SidebarItem>
-            <SidebarItem href="/suppliers" className="justify-start gap-3 pl-2">
-              <SuppliersIcon />
-              <span>Suppliers</span>
-            </SidebarItem>
-            <SidebarItem href="/integrations" className="justify-start gap-3 pl-2">
-              <IntegrationsIcon />
-              <span>Integrations</span>
-            </SidebarItem>
-          </SidebarBody>
-          <SidebarFooter>
-            <div className="px-2 py-2">
-              <Text className="text-xs text-zinc-500">© 2024 PropBot</Text>
-            </div>
-          </SidebarFooter>
-        </Sidebar>
-      }
+      sidebar={<SidebarContent currentPath="/residents" />}
     >
       <div className="space-y-6">
-        {/* Breadcrumb */}
-        <div className="flex items-center text-sm text-gray-500">
-          <Link href="/" className="hover:text-gray-700">Dashboard</Link>
-          <span className="mx-2">/</span>
-          <span className="text-gray-900 font-medium">Residents</span>
-        </div>
-
-        {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
             <Heading level={1} className="text-2xl font-bold">Residents</Heading>
-            <Text className="text-gray-500 mt-1">Manage your residents and view tenant details.</Text>
+            <Text className="text-gray-500 mt-1">Manage your property residents and tenants.</Text>
           </div>
-          <div className="mt-4 md:mt-0 flex space-x-3">
-            <button className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
-              Export
-            </button>
-            <button className="px-4 py-2 bg-gray-900 rounded-md text-sm font-medium text-white hover:bg-gray-800">
+          <div className="mt-4 md:mt-0">
+            <button
+              onClick={() => setIsDrawerOpen(true)}
+              className="inline-flex items-center px-4 py-2 bg-gray-900 rounded-md text-sm font-medium text-white hover:bg-gray-800"
+            >
+              <PlusIcon className="h-5 w-5 mr-1" />
               Add Resident
             </button>
           </div>
         </div>
+
+        {/* Resident Form Drawer */}
+        {isDrawerOpen && (
+          <div className="fixed inset-0 overflow-hidden z-50">
+            <div className="absolute inset-0 overflow-hidden">
+              <div className="absolute inset-0 bg-transparent transition-opacity" onClick={() => setIsDrawerOpen(false)} />
+              <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
+                <div className="pointer-events-auto w-screen max-w-md">
+                  <div className="flex h-full flex-col bg-white shadow-xl">
+                    <div className="flex-1 h-0 overflow-y-auto">
+                      <div className="py-6 px-4 bg-gray-50 sm:px-6">
+                        <div className="flex items-center justify-between">
+                          <h2 className="text-lg font-medium text-gray-900">Add New Resident</h2>
+                          <button
+                            type="button"
+                            className="rounded-md text-gray-400 hover:text-gray-500 focus:outline-none"
+                            onClick={() => setIsDrawerOpen(false)}
+                          >
+                            <XMarkIcon className="h-6 w-6" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex-1 flex flex-col justify-between">
+                        <div className="px-4 sm:px-6">
+                          <form onSubmit={handleSubmit} className="space-y-6 pt-6 pb-5">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label htmlFor="firstName" className="block text-sm font-medium text-gray-900">
+                                  First Name
+                                </label>
+                                <input
+                                  type="text"
+                                  name="firstName"
+                                  id="firstName"
+                                  required
+                                  value={newResident.firstName}
+                                  onChange={handleInputChange}
+                                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                                />
+                              </div>
+                              <div>
+                                <label htmlFor="lastName" className="block text-sm font-medium text-gray-900">
+                                  Last Name
+                                </label>
+                                <input
+                                  type="text"
+                                  name="lastName"
+                                  id="lastName"
+                                  required
+                                  value={newResident.lastName}
+                                  onChange={handleInputChange}
+                                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label htmlFor="email" className="block text-sm font-medium text-gray-900">
+                                Email Address
+                              </label>
+                              <input
+                                type="email"
+                                name="email"
+                                id="email"
+                                required
+                                value={newResident.email}
+                                onChange={handleInputChange}
+                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                              />
+                            </div>
+
+                            <div>
+                              <label htmlFor="phone" className="block text-sm font-medium text-gray-900">
+                                Phone Number
+                              </label>
+                              <input
+                                type="tel"
+                                name="phone"
+                                id="phone"
+                                required
+                                value={newResident.phone}
+                                onChange={handleInputChange}
+                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label htmlFor="propertyId" className="block text-sm font-medium text-gray-900">
+                                  Property
+                                </label>
+                                <select
+                                  name="propertyId"
+                                  id="propertyId"
+                                  required
+                                  value={newResident.propertyId}
+                                  onChange={handleInputChange}
+                                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                                >
+                                  <option value="">Select Property</option>
+                                  <option value="123-main">123 Main Street</option>
+                                  <option value="456-park">456 Park Avenue</option>
+                                  <option value="789-ocean">789 Ocean Drive</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label htmlFor="unitNumber" className="block text-sm font-medium text-gray-900">
+                                  Room Number
+                                </label>
+                                <input
+                                  type="text"
+                                  name="unitNumber"
+                                  id="unitNumber"
+                                  required
+                                  value={newResident.unitNumber}
+                                  onChange={handleInputChange}
+                                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label htmlFor="leaseStartDate" className="block text-sm font-medium text-gray-900">
+                                  Lease Start Date
+                                </label>
+                                <input
+                                  type="date"
+                                  name="leaseStartDate"
+                                  id="leaseStartDate"
+                                  required
+                                  value={newResident.leaseStartDate}
+                                  onChange={handleInputChange}
+                                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                                />
+                              </div>
+                              <div>
+                                <label htmlFor="leaseEndDate" className="block text-sm font-medium text-gray-900">
+                                  Lease End Date
+                                </label>
+                                <input
+                                  type="date"
+                                  name="leaseEndDate"
+                                  id="leaseEndDate"
+                                  required
+                                  value={newResident.leaseEndDate}
+                                  onChange={handleInputChange}
+                                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label htmlFor="rentAmount" className="block text-sm font-medium text-gray-900">
+                                  Monthly Rent ($)
+                                </label>
+                                <input
+                                  type="number"
+                                  name="rentAmount"
+                                  id="rentAmount"
+                                  required
+                                  value={newResident.rentAmount}
+                                  onChange={handleInputChange}
+                                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                                />
+                              </div>
+                              <div>
+                                <label htmlFor="securityDeposit" className="block text-sm font-medium text-gray-900">
+                                  Security Deposit ($)
+                                </label>
+                                <input
+                                  type="number"
+                                  name="securityDeposit"
+                                  id="securityDeposit"
+                                  required
+                                  value={newResident.securityDeposit}
+                                  onChange={handleInputChange}
+                                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label htmlFor="emergencyContactName" className="block text-sm font-medium text-gray-900">
+                                  Emergency Contact Name
+                                </label>
+                                <input
+                                  type="text"
+                                  name="emergencyContactName"
+                                  id="emergencyContactName"
+                                  required
+                                  value={newResident.emergencyContactName}
+                                  onChange={handleInputChange}
+                                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                                />
+                              </div>
+                              <div>
+                                <label htmlFor="emergencyContactPhone" className="block text-sm font-medium text-gray-900">
+                                  Emergency Contact Phone
+                                </label>
+                                <input
+                                  type="tel"
+                                  name="emergencyContactPhone"
+                                  id="emergencyContactPhone"
+                                  required
+                                  value={newResident.emergencyContactPhone}
+                                  onChange={handleInputChange}
+                                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label htmlFor="occupants" className="block text-sm font-medium text-gray-900">
+                                Additional Occupants
+                              </label>
+                              <input
+                                type="text"
+                                name="occupants"
+                                id="occupants"
+                                value={newResident.occupants}
+                                onChange={handleInputChange}
+                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                                placeholder="Names of additional occupants"
+                              />
+                            </div>
+
+                            <div>
+                              <label htmlFor="pets" className="block text-sm font-medium text-gray-900">
+                                Pets
+                              </label>
+                              <input
+                                type="text"
+                                name="pets"
+                                id="pets"
+                                value={newResident.pets}
+                                onChange={handleInputChange}
+                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                                placeholder="Type and number of pets"
+                              />
+                            </div>
+
+                            <div>
+                              <label htmlFor="vehicleInfo" className="block text-sm font-medium text-gray-900">
+                                Vehicle Information
+                              </label>
+                              <input
+                                type="text"
+                                name="vehicleInfo"
+                                id="vehicleInfo"
+                                value={newResident.vehicleInfo}
+                                onChange={handleInputChange}
+                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                                placeholder="Make, model, and license plate"
+                              />
+                            </div>
+
+                            <div>
+                              <label htmlFor="moveInDate" className="block text-sm font-medium text-gray-900">
+                                Move-in Date
+                              </label>
+                              <input
+                                type="date"
+                                name="moveInDate"
+                                id="moveInDate"
+                                required
+                                value={newResident.moveInDate}
+                                onChange={handleInputChange}
+                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                              />
+                            </div>
+
+                            <div>
+                              <label htmlFor="status" className="block text-sm font-medium text-gray-900">
+                                Status
+                              </label>
+                              <select
+                                name="status"
+                                id="status"
+                                required
+                                value={newResident.status}
+                                onChange={handleInputChange}
+                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                              >
+                                <option value="active">Active</option>
+                                <option value="pending">Pending</option>
+                                <option value="inactive">Inactive</option>
+                                <option value="notice_given">Notice Given</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label htmlFor="paymentMethod" className="block text-sm font-medium text-gray-900">
+                                Preferred Payment Method
+                              </label>
+                              <select
+                                name="paymentMethod"
+                                id="paymentMethod"
+                                required
+                                value={newResident.paymentMethod}
+                                onChange={handleInputChange}
+                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                              >
+                                <option value="bank_transfer">Bank Transfer</option>
+                                <option value="credit_card">Credit Card</option>
+                                <option value="direct_debit">Direct Debit</option>
+                                <option value="check">Check</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label htmlFor="notes" className="block text-sm font-medium text-gray-900">
+                                Additional Notes
+                              </label>
+                              <textarea
+                                name="notes"
+                                id="notes"
+                                rows={3}
+                                value={newResident.notes}
+                                onChange={handleInputChange}
+                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+                                placeholder="Any additional information..."
+                              />
+                            </div>
+
+                            <div className="mt-5 sm:mt-6">
+                              <button
+                                type="submit"
+                                className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-gray-900 text-base font-medium text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 sm:text-sm"
+                              >
+                                Add Resident
+                              </button>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Main Content */}
         <div className="flex flex-col lg:flex-row gap-6">
@@ -350,7 +699,7 @@ export default function Residents() {
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                All Properties
+                All
               </button>
               {properties.map((property) => (
                 <button
@@ -402,70 +751,77 @@ export default function Residents() {
           </div>
 
           {/* Right Panel - Tenant Details */}
-          <div className="flex-1 bg-white rounded-lg border border-gray-200 shadow-sm">
+          <div className="flex-1">
             {selectedTenant ? (
-              <div>
-                <div className="p-6 border-b border-gray-200">
+              <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg border border-gray-200">
+                <div className="px-4 py-6 sm:px-6">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-medium text-gray-900">Tenant Information</h2>
-                    <button className="text-sm text-blue-600 hover:text-blue-500">View more</button>
+                    <div>
+                      <h3 className="text-base/7 font-semibold text-gray-900">Tenant Information</h3>
+                      <p className="mt-1 max-w-2xl text-sm/6 text-gray-500">Personal details and lease information.</p>
+                    </div>
+                    <Link
+                      href={`/residents/${selectedTenant.id}`}
+                      className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+                    >
+                      View more
+                    </Link>
                   </div>
-                  <p className="mt-1 text-sm text-gray-500">Personal details and lease information.</p>
                 </div>
-
-                <div className="p-6 space-y-6">
-                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Full name</label>
-                      <p className="mt-1 text-sm text-gray-900">{selectedTenant.name}</p>
+                <div className="border-t border-gray-100">
+                  <dl className="divide-y divide-gray-100">
+                    <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                      <dt className="text-sm font-medium text-gray-900">Full name</dt>
+                      <dd className="mt-1 text-sm/6 text-gray-700 sm:col-span-2 sm:mt-0">{selectedTenant.name}</dd>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Unit</label>
-                      <p className="mt-1 text-sm text-gray-900">{selectedTenant.unit}</p>
+                    <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                      <dt className="text-sm font-medium text-gray-900">Room</dt>
+                      <dd className="mt-1 text-sm/6 text-gray-700 sm:col-span-2 sm:mt-0">{selectedTenant.unit}</dd>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Email address</label>
-                      <p className="mt-1 text-sm text-gray-900">{selectedTenant.email}</p>
+                    <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                      <dt className="text-sm font-medium text-gray-900">Email address</dt>
+                      <dd className="mt-1 text-sm/6 text-gray-700 sm:col-span-2 sm:mt-0">{selectedTenant.email}</dd>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Phone number</label>
-                      <p className="mt-1 text-sm text-gray-900">{selectedTenant.phone}</p>
+                    <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                      <dt className="text-sm font-medium text-gray-900">Phone number</dt>
+                      <dd className="mt-1 text-sm/6 text-gray-700 sm:col-span-2 sm:mt-0">{selectedTenant.phone}</dd>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Lease end date</label>
-                      <p className="mt-1 text-sm text-gray-900">{selectedTenant.leaseEnd}</p>
+                    <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                      <dt className="text-sm font-medium text-gray-900">Lease end date</dt>
+                      <dd className="mt-1 text-sm/6 text-gray-700 sm:col-span-2 sm:mt-0">{selectedTenant.leaseEnd}</dd>
                     </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">About</label>
-                    <p className="mt-1 text-sm text-gray-900">{selectedTenant.about}</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Attachments</label>
-                    <div className="mt-1 space-y-2">
-                      {selectedTenant.attachments.map((attachment, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between py-2 pl-3 pr-4 text-sm border rounded-md"
-                        >
-                          <div className="flex items-center">
-                            <svg className="w-5 h-5 text-gray-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z" clipRule="evenodd" />
-                            </svg>
-                            <span className="text-gray-900">{attachment.name}</span>
-                            <span className="ml-2 text-gray-500">{attachment.size}</span>
-                          </div>
-                          <button className="text-blue-600 hover:text-blue-500">Download</button>
-                        </div>
-                      ))}
+                    <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                      <dt className="text-sm font-medium text-gray-900">About</dt>
+                      <dd className="mt-1 text-sm/6 text-gray-700 sm:col-span-2 sm:mt-0">{selectedTenant.about}</dd>
                     </div>
-                  </div>
+                    <div className="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                      <dt className="text-sm/6 font-medium text-gray-900">Attachments</dt>
+                      <dd className="mt-2 text-sm text-gray-900 sm:col-span-2 sm:mt-0">
+                        <ul role="list" className="divide-y divide-gray-100 rounded-md border border-gray-200">
+                          {selectedTenant.attachments.map((attachment, index) => (
+                            <li key={index} className="flex items-center justify-between py-4 pr-5 pl-4 text-sm/6">
+                              <div className="flex w-0 flex-1 items-center">
+                                <PaperClipIcon className="size-5 shrink-0 text-gray-400" aria-hidden="true" />
+                                <div className="ml-4 flex min-w-0 flex-1 gap-2">
+                                  <span className="truncate font-medium">{attachment.name}</span>
+                                  <span className="shrink-0 text-gray-400">{attachment.size}</span>
+                                </div>
+                              </div>
+                              <div className="ml-4 shrink-0">
+                                <a href="#" className="font-medium text-indigo-600 hover:text-indigo-500">
+                                  Download
+                                </a>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </dd>
+                    </div>
+                  </dl>
                 </div>
               </div>
             ) : (
-              <div className="h-full flex items-center justify-center">
+              <div className="h-full flex items-center justify-center bg-white shadow-sm sm:rounded-lg">
                 <div className="text-center">
                   <div className="mx-auto h-12 w-12 text-gray-400">
                     <svg className="h-full w-full" fill="none" viewBox="0 0 24 24" stroke="currentColor">

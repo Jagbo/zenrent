@@ -1,38 +1,114 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ZenRent - Property Management System
+
+ZenRent is a modern, full-featured property management system built with Next.js that helps property managers and owners streamline their operations. The system provides comprehensive tools for managing properties, tenants, maintenance requests, and financial transactions.
+
+## Features
+
+- **Maintenance Issue Tracking**
+  - Create and manage maintenance requests
+  - Prioritize issues (Low, Medium, High)
+  - Track issue status (Todo, In Progress, Backlog, Done)
+  - Assign issues to team members
+  - Attach images and documentation
+  - Filter and search capabilities
+  - Board and list views for issue management
+
+- **Property Management**
+  - Track multiple properties and units
+  - Resident information management
+  - Financial tracking
+  - Supplier management
+
+- **Modern UI/UX**
+  - Responsive design
+  - Dark/light mode support
+  - Interactive dashboards
+  - Real-time updates
+  - Drag-and-drop interfaces
+
+## Technology Stack
+
+- **Frontend**
+  - Next.js 14+ (App Router)
+  - React
+  - TypeScript
+  - Tailwind CSS
+  - Headless UI Components
+  - Hero Icons
+
+- **UI Components**
+  - Custom Card components
+  - Responsive tables
+  - Interactive forms
+  - Modal and drawer systems
+  - Dynamic filtering
 
 ## Getting Started
 
-First, run the development server:
+1. **Prerequisites**
+   - Node.js 18+ 
+   - npm or yarn or pnpm or bun
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+2. **Installation**
+   ```bash
+   # Clone the repository
+   git clone https://github.com/yourusername/zenrent.git
+   
+   # Navigate to project directory
+   cd zenrent
+   
+   # Install dependencies
+   npm install
+   # or
+   yarn install
+   # or
+   pnpm install
+   # or
+   bun install
+   ```
+
+3. **Development**
+   ```bash
+   # Start the development server
+   npm run dev
+   # or
+   yarn dev
+   # or
+   pnpm dev
+   # or
+   bun dev
+   ```
+
+4. **Open your browser**
+   Navigate to [http://localhost:3000](http://localhost:3000) to see the application.
+
+## Project Structure
+
+```
+zenrent/
+├── src/
+│   ├── app/                 # Next.js app directory
+│   │   ├── components/      # Reusable UI components
+│   │   ├── issues/         # Issues management pages
+│   │   └── ...
+│   ├── components/         # Shared components
+│   └── ...
+├── public/                 # Static files
+└── ...
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Contributing
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+We welcome contributions! Please feel free to submit a Pull Request.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## License
 
-## Learn More
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-To learn more about Next.js, take a look at the following resources:
+## Support
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+For support, please open an issue in the GitHub repository or contact the maintenance team.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-# propbot
-# propbot
+Built with ❤️ using [Next.js](https://nextjs.org/) and deployed on [Vercel](https://vercel.com/).

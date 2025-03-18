@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { SidebarLayout } from '../components/sidebar-layout'
 import { Heading } from '../components/heading'
 import { Text } from '../components/text'
@@ -8,7 +9,10 @@ import {
   SidebarHeader, 
   SidebarBody, 
   SidebarFooter, 
-  SidebarItem 
+  SidebarItem,
+  SidebarSection,
+  SidebarHeading,
+  SidebarLabel
 } from '../components/sidebar'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -26,7 +30,8 @@ import {
   MapPinIcon,
   EllipsisVerticalIcon,
   ChevronLeftIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  ArrowDownIcon
 } from '@heroicons/react/24/solid'
 import { CheckIcon as CheckIcon20, HandThumbUpIcon, UserIcon } from '@heroicons/react/20/solid'
 import { TrendingUp, TrendingDown } from "lucide-react"
@@ -37,7 +42,7 @@ import {
   BarChart, 
   Line, 
   LineChart, 
-  ResponsiveContainer, 
+  ResponsiveContainer,
   CartesianGrid,
   Tooltip, 
   XAxis, 
@@ -53,6 +58,8 @@ import {
 } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { SidebarContent } from '../components/sidebar-content'
+import { IssueDetailsDrawer } from "@/components/issues/IssueDetailsDrawer"
 
 // Icons for navigation items
 function DashboardIcon() {
@@ -297,108 +304,132 @@ const chartConfigs = {
   }
 }
 
+// Define Issue type
+type Issue = {
+  id: string;
+  title: string;
+  type: "Bug" | "Documentation" | "Feature";
+  status: "Todo" | "In Progress" | "Backlog" | "Done";
+  priority: "Low" | "Medium" | "High";
+  property?: string;
+  reported?: string;
+  assignedTo?: string;
+}
+
 export default function Dashboard() {
+  // Add state for selected issue and drawer open state
+  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  // Function to handle opening the drawer
+  const openDrawer = (issue: Issue) => {
+    setSelectedIssue(issue);
+    setIsDrawerOpen(true);
+  };
+
+  // Dashboard open issues data
+  const openIssues: Issue[] = [
+    {
+      id: "1254",
+      title: "Water leak in bathroom ceiling",
+      type: "Bug",
+      status: "Todo",
+      priority: "High",
+      property: "Sunset Apartments Room 204",
+      reported: "Mar 8, 2024",
+      assignedTo: "JS"
+    },
+    {
+      id: "1253", 
+      title: "Broken heating system",
+      type: "Bug",
+      status: "In Progress",
+      priority: "High",
+      property: "Oakwood Heights Room 103",
+      reported: "Mar 7, 2024",
+      assignedTo: "RW"
+    },
+    {
+      id: "1252",
+      title: "Mailbox key replacement",
+      type: "Feature",
+      status: "Todo",
+      priority: "Low",
+      property: "Sunset Apartments Room 112",
+      reported: "Mar 6, 2024",
+      assignedTo: ""
+    },
+    {
+      id: "1251",
+      title: "Noisy neighbors complaint",
+      type: "Bug",
+      status: "Todo",
+      priority: "Medium",
+      property: "Parkview Residences Room 305",
+      reported: "Mar 5, 2024",
+      assignedTo: ""
+    },
+    {
+      id: "1250",
+      title: "Parking spot dispute",
+      type: "Bug",
+      status: "Todo",
+      priority: "Medium",
+      property: "Oakwood Heights Room 210",
+      reported: "Mar 4, 2024",
+      assignedTo: ""
+    }
+  ];
+
   return (
     <SidebarLayout
-      navbar={
-        <div className="flex items-center justify-between py-4">
-          <Heading level={1} className="text-xl font-semibold">Dashboard</Heading>
-        </div>
-      }
-      sidebar={
-        <Sidebar>
-          <SidebarHeader>
-            <div className="flex items-center gap-3 px-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white">
-                <Image src="/next.svg" alt="PropBot Logo" width={24} height={24} className="dark:invert" />
-              </div>
-              <Heading level={2} className="text-lg font-semibold">PropBot</Heading>
-            </div>
-          </SidebarHeader>
-          <SidebarBody className="space-y-1">
-            <SidebarItem href="/dashboard" current className="justify-start gap-3 pl-2">
-              <HomeIcon data-slot="icon" className="w-5 h-5" />
-              <span>Dashboard</span>
-            </SidebarItem>
-            <SidebarItem href="/properties" className="justify-start gap-3 pl-2">
-              <BuildingOfficeIcon data-slot="icon" className="w-5 h-5" />
-              <span>Properties</span>
-            </SidebarItem>
-            <SidebarItem href="/residents" className="justify-start gap-3 pl-2">
-              <UsersIcon data-slot="icon" className="w-5 h-5" />
-              <span>Residents</span>
-            </SidebarItem>
-            <SidebarItem href="/calendar" className="justify-start gap-3 pl-2">
-              <CalendarIcon data-slot="icon" className="w-5 h-5" />
-              <span>Calendar</span>
-            </SidebarItem>
-            <SidebarItem href="/issues" className="justify-start gap-3 pl-2">
-              <ExclamationCircleIcon data-slot="icon" className="w-5 h-5" />
-              <span>Issues</span>
-            </SidebarItem>
-            <SidebarItem href="/financial" className="justify-start gap-3 pl-2">
-              <BanknotesIcon data-slot="icon" className="w-5 h-5" />
-              <span>Financial</span>
-            </SidebarItem>
-            <SidebarItem href="/suppliers" className="justify-start gap-3 pl-2">
-              <ShoppingBagIcon data-slot="icon" className="w-5 h-5" />
-              <span>Suppliers</span>
-            </SidebarItem>
-            <SidebarItem href="/integrations" className="justify-start gap-3 pl-2">
-              <CodeBracketIcon data-slot="icon" className="w-5 h-5" />
-              <span>Integrations</span>
-            </SidebarItem>
-          </SidebarBody>
-          <SidebarFooter>
-            <div className="px-2 py-2">
-              <Text className="text-xs text-zinc-500">© 2024 PropBot</Text>
-            </div>
-          </SidebarFooter>
-        </Sidebar>
-      }
+      sidebar={<SidebarContent currentPath="/dashboard" />}
     >
       <div className="space-y-6">
-        {/* Breadcrumb */}
-        <div className="flex items-center text-sm text-gray-500">
-          <Link href="/" className="hover:text-gray-700">Home</Link>
-          <span className="mx-2">/</span>
-          <span className="text-gray-900 font-medium">Dashboard</span>
-        </div>
-        
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
-            <Heading level={1} className="text-2xl font-bold">Property Dashboard</Heading>
+            <Heading level={1} className="text-4xl font-bold">Property Dashboard</Heading>
             <Text className="text-gray-500 mt-1">Welcome back! Here's an overview of your properties and recent activities.</Text>
           </div>
           <div className="mt-4 md:mt-0 flex space-x-3">
-            <button className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
-              Export
-            </button>
-            <button className="px-4 py-2 bg-gray-900 rounded-md text-sm font-medium text-white hover:bg-gray-800">
+            <Link 
+              href="/properties" 
+              className="px-4 py-2 bg-gray-900 rounded-md text-sm font-medium text-white hover:bg-gray-800"
+            >
               View Properties
-            </button>
+            </Link>
           </div>
         </div>
         
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {/* Total Properties */}
           <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
             <h3 className="text-sm font-medium text-gray-500">Total Properties</h3>
-            <p className="mt-2 text-3xl font-bold text-gray-900">12</p>
+            <p className="mt-2 text-4xl font-bold text-gray-900">12</p>
           </div>
           
-          {/* Total Units */}
+          {/* Total Rooms */}
           <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Total Units</h3>
-            <p className="mt-2 text-3xl font-bold text-gray-900">143</p>
+            <h3 className="text-sm font-medium text-gray-500">Total Rooms</h3>
+            <p className="mt-2 text-4xl font-bold text-gray-900">143</p>
           </div>
           
           {/* Occupancy Rate */}
           <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
             <h3 className="text-sm font-medium text-gray-500">Occupancy Rate</h3>
-            <p className="mt-2 text-3xl font-bold text-gray-900">94%</p>
+            <p className="mt-2 text-4xl font-bold text-gray-900">94%</p>
+          </div>
+
+          {/* Subscription Plan */}
+          <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+            <h3 className="text-sm font-medium text-gray-500">Subscription Plan</h3>
+            <p className="mt-2 text-4xl font-bold text-gray-900">Professional</p>
+            <div className="mt-4 flex items-center text-sm text-green-600">
+              <ArrowDownIcon className="h-4 w-4 mr-1" />
+              <span>Save £48/year with annual billing</span>
+            </div>
           </div>
         </div>
         
@@ -566,7 +597,7 @@ export default function Dashboard() {
                     <span>4% from last month</span>
                   </div>
                   <div className="leading-none text-muted-foreground">
-                    Total current income: $145,800
+                    Total current income: £145,800
                   </div>
                 </CardFooter>
               </Card>
@@ -603,7 +634,7 @@ export default function Dashboard() {
                     <span>3% from last month</span>
                   </div>
                   <div className="leading-none text-muted-foreground">
-                    Total current expenses: $41,300
+                    Total current expenses: £41,300
                   </div>
                 </CardFooter>
               </Card>
@@ -645,7 +676,7 @@ export default function Dashboard() {
                     <span>5% from last month</span>
                   </div>
                   <div className="leading-none text-muted-foreground">
-                    Current arrears: $12,400
+                    Current arrears: £12,400
                   </div>
                 </CardFooter>
               </Card>
@@ -782,13 +813,15 @@ export default function Dashboard() {
         </Tabs>
         
         {/* Open Issues Table and Recent Updates Row */}
-        <div className="grid grid-cols-3 gap-6 mt-6">
-          {/* Open Issues Table - 2/3 width */}
-          <div className="col-span-2 bg-white rounded-lg border border-gray-200 shadow-sm">
-            <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">Open Issues</h3>
-              <p className="text-sm text-gray-500">Recent maintenance requests and issues that need attention.</p>
-              <button className="px-4 py-2 bg-gray-900 rounded-md text-sm font-medium text-white hover:bg-gray-800">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+          {/* Open Issues Table - 2/3 width on desktop, full width on mobile */}
+          <div className="col-span-1 md:col-span-2 bg-white rounded-lg border border-gray-200 shadow-sm">
+            <div className="px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-200">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900">Open Issues</h3>
+                <p className="text-sm text-gray-500 mt-1">Recent maintenance requests and issues that need attention.</p>
+              </div>
+              <button className="mt-4 sm:mt-0 px-4 py-2 bg-gray-900 rounded-md text-sm font-medium text-white hover:bg-gray-800">
                 Add issue
               </button>
             </div>
@@ -804,66 +837,50 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  <tr>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Water leak in bathroom ceiling</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">High</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Sunset Apartments Unit 204</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <a href="#" className="text-blue-600 hover:text-blue-900">View</a>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Broken heating system</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Critical</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Oakwood Heights Unit 103</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <a href="#" className="text-blue-600 hover:text-blue-900">View</a>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Mailbox key replacement</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Low</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Sunset Apartments Unit 112</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <a href="#" className="text-blue-600 hover:text-blue-900">View</a>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Noisy neighbors complaint</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Medium</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Parkview Residences Unit 305</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <a href="#" className="text-blue-600 hover:text-blue-900">View</a>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Parking spot dispute</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Medium</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Oakwood Heights Unit 210</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <a href="#" className="text-blue-600 hover:text-blue-900">View</a>
-                    </td>
-                  </tr>
+                  {openIssues.map((issue) => (
+                    <tr 
+                      key={issue.id}
+                      onClick={() => openDrawer(issue)}
+                      className="cursor-pointer hover:bg-gray-50"
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{issue.title}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          issue.priority === "High" ? "bg-red-100 text-red-800" :
+                          issue.priority === "Medium" ? "bg-blue-100 text-blue-800" :
+                          "bg-green-100 text-green-800"
+                        }`}>
+                          {issue.priority}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{issue.property}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button 
+                          className="text-blue-600 hover:text-blue-900"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDrawer(issue);
+                          }}
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
+            
+            <div className="px-6 py-4 border-t border-gray-200">
+              <a href="/issues" className="text-sm text-indigo-600 hover:text-indigo-900">View all issues →</a>
+            </div>
           </div>
           
-          {/* Recent Updates - 1/3 width */}
+          {/* Recent Updates - 1/3 width on desktop, full width on mobile */}
           <div className="col-span-1 bg-white rounded-lg border border-gray-200 shadow-sm">
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-medium text-gray-900">Recent Updates</h3>
-              <p className="text-sm text-gray-500">Latest activities across your properties.</p>
+              <p className="text-sm text-gray-500 mt-1">Latest activities across your properties.</p>
             </div>
             
             <div className="px-6 py-4">
@@ -929,7 +946,7 @@ export default function Dashboard() {
                 </div>
                 <div className="mt-1 flex items-center text-sm text-gray-500">
                   <MapPinIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
-                  <span>Sunset Apartments Unit 204</span>
+                  <span>Sunset Apartments Room 204</span>
                 </div>
               </div>
               <div className="ml-4">
@@ -951,7 +968,7 @@ export default function Dashboard() {
                 </div>
                 <div className="mt-1 flex items-center text-sm text-gray-500">
                   <MapPinIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
-                  <span>Oakwood Heights Unit 103</span>
+                  <span>Oakwood Heights Room 103</span>
                 </div>
               </div>
               <div className="ml-4">
@@ -980,6 +997,16 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Issue Details Drawer */}
+      <IssueDetailsDrawer
+        issue={selectedIssue}
+        open={isDrawerOpen}
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setSelectedIssue(null);
+        }}
+      />
     </SidebarLayout>
   )
 } 

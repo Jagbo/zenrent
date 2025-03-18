@@ -71,71 +71,23 @@ export function SidebarHeading({ className, ...props }: React.ComponentPropsWith
   )
 }
 
-export const SidebarItem = forwardRef(function SidebarItem(
-  {
-    current,
-    className,
-    children,
-    ...props
-  }: { current?: boolean; className?: string; children: React.ReactNode } & (
-    | Omit<Headless.ButtonProps, 'as' | 'className'>
-    | Omit<Headless.ButtonProps<typeof Link>, 'as' | 'className'>
-  ),
-  ref: React.ForwardedRef<HTMLAnchorElement | HTMLButtonElement>
-) {
-  let classes = clsx(
-    // Base
-    'flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left text-base/6 font-medium text-zinc-950 sm:py-2 sm:text-sm/5',
-    // Leading icon/icon-only
-    '*:data-[slot=icon]:size-6 *:data-[slot=icon]:shrink-0 *:data-[slot=icon]:fill-zinc-500 sm:*:data-[slot=icon]:size-5',
-    // Trailing icon (down chevron or similar)
-    '*:last:data-[slot=icon]:ml-auto *:last:data-[slot=icon]:size-5 sm:*:last:data-[slot=icon]:size-4',
-    // Avatar
-    '*:data-[slot=avatar]:-m-0.5 *:data-[slot=avatar]:size-7 *:data-[slot=avatar]:[--ring-opacity:10%] sm:*:data-[slot=avatar]:size-6',
-    // Hover
-    'data-hover:bg-zinc-950/5 data-hover:*:data-[slot=icon]:fill-zinc-950',
-    // Active
-    'data-active:bg-zinc-950/5 data-active:*:data-[slot=icon]:fill-zinc-950',
-    // Current
-    'data-current:*:data-[slot=icon]:fill-zinc-950',
-    // Dark mode
-    'dark:text-white dark:*:data-[slot=icon]:fill-zinc-400',
-    'dark:data-hover:bg-white/5 dark:data-hover:*:data-[slot=icon]:fill-white',
-    'dark:data-active:bg-white/5 dark:data-active:*:data-[slot=icon]:fill-white',
-    'dark:data-current:*:data-[slot=icon]:fill-white'
-  )
+interface SidebarItemProps {
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+  children: React.ReactNode
+}
 
+export function SidebarItem({ href, icon: Icon, children }: SidebarItemProps) {
   return (
-    <span className={clsx(className, 'relative')}>
-      {current && (
-        <motion.span
-          layoutId="current-indicator"
-          className="absolute inset-y-2 -left-4 w-0.5 rounded-full bg-zinc-950 dark:bg-white"
-        />
-      )}
-      {'href' in props ? (
-        <Headless.CloseButton
-          as={Link}
-          {...props}
-          className={classes}
-          data-current={current ? 'true' : undefined}
-          ref={ref}
-        >
-          <TouchTarget>{children}</TouchTarget>
-        </Headless.CloseButton>
-      ) : (
-        <Headless.Button
-          {...props}
-          className={clsx('cursor-default', classes)}
-          data-current={current ? 'true' : undefined}
-          ref={ref}
-        >
-          <TouchTarget>{children}</TouchTarget>
-        </Headless.Button>
-      )}
-    </span>
+    <Link 
+      href={href}
+      className="flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left text-base/6 font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50 sm:py-2 sm:text-sm/5"
+    >
+      <Icon className="h-5 w-5" />
+      <span>{children}</span>
+    </Link>
   )
-})
+}
 
 export function SidebarLabel({ className, ...props }: React.ComponentPropsWithoutRef<'span'>) {
   return <span {...props} className={clsx(className, 'truncate')} />
