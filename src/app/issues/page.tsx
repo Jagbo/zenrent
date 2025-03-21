@@ -168,6 +168,8 @@ export default function Issues() {
   const [statusFilter, setStatusFilter] = useState("All")
   const [priorityFilter, setPriorityFilter] = useState("All")
   const [typeFilter, setTypeFilter] = useState("All")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [showFilterMenu, setShowFilterMenu] = useState(false)
 
   // Function to handle opening the drawer
   const openDrawer = (issue: Issue) => {
@@ -215,7 +217,12 @@ export default function Issues() {
       const matchesStatus = statusFilter === "All" || issue.status === statusFilter
       const matchesPriority = priorityFilter === "All" || issue.priority === priorityFilter
       const matchesType = typeFilter === "All" || issue.type === typeFilter
-      return matchesStatus && matchesPriority && matchesType
+      const matchesSearch = searchQuery === "" || 
+        issue.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (issue.property && issue.property.toLowerCase().includes(searchQuery.toLowerCase())) || 
+        issue.id.toLowerCase().includes(searchQuery.toLowerCase())
+        
+      return matchesStatus && matchesPriority && matchesType && matchesSearch
     })
   }
 
@@ -402,12 +409,77 @@ export default function Issues() {
                     <input
                       type="text"
                       placeholder="Search issues..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-64 px-4 py-2 border border-gray-300 rounded-md text-sm"
                     />
                   </div>
-                  <button className="p-2 text-gray-500 hover:text-gray-700">
+                  <button 
+                    className="p-2 text-gray-500 hover:text-gray-700"
+                    onClick={() => setShowFilterMenu(!showFilterMenu)}
+                    aria-label="Toggle filters"
+                  >
                     <AdjustmentsHorizontalIcon className="h-5 w-5" />
                   </button>
+                  
+                  {showFilterMenu && (
+                    <div className="absolute top-16 right-6 bg-white border border-gray-200 rounded-md shadow-lg p-4 z-10 grid grid-cols-1 gap-4 w-72">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                        <select 
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                          value={statusFilter}
+                          onChange={(e) => setStatusFilter(e.target.value)}
+                        >
+                          {statusFilters.map(status => (
+                            <option key={status} value={status}>{status}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                        <select 
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                          value={priorityFilter}
+                          onChange={(e) => setPriorityFilter(e.target.value)}
+                        >
+                          {priorityFilters.map(priority => (
+                            <option key={priority} value={priority}>{priority}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                        <select 
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                          value={typeFilter}
+                          onChange={(e) => setTypeFilter(e.target.value)}
+                        >
+                          {typeFilters.map(type => (
+                            <option key={type} value={type}>{type}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex justify-between mt-2">
+                        <button
+                          className="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-200"
+                          onClick={() => {
+                            setStatusFilter("All");
+                            setPriorityFilter("All");
+                            setTypeFilter("All");
+                          }}
+                        >
+                          Reset Filters
+                        </button>
+                        <button
+                          className="px-3 py-1.5 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-800"
+                          onClick={() => setShowFilterMenu(false)}
+                        >
+                          Apply Filters
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               

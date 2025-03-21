@@ -6,6 +6,7 @@ import { SidebarLayout } from '../../../components/sidebar-layout';
 import { SideboardOnboardingContent } from '../../../components/sideboard-onboarding-content';
 import { CheckIcon, BuildingOfficeIcon, MapPinIcon, PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { CheckIcon as CheckIconSolid } from '@heroicons/react/24/solid';
+import { AddressAutocomplete } from '../../../components/address-autocomplete';
 
 const steps = [
   { id: '01', name: 'Account', href: '/sign-up/account-creation', status: 'complete' },
@@ -281,27 +282,19 @@ export default function CompanyProfile() {
                   </p>
                   <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-6">
                     <div className="sm:col-span-6">
-                      <div className="flex justify-between">
-                        <label htmlFor="address-line-1" className="block text-sm/6 font-medium text-gray-900">
-                          Address line 1 *
-                        </label>
-                        <button
-                          type="button"
-                          className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
-                        >
-                          <MapPinIcon className="inline-block -ml-0.5 mr-1 size-4" aria-hidden="true" />
-                          Find UK address
-                        </button>
-                      </div>
+                      <label htmlFor="address-line-1" className="block text-sm/6 font-medium text-gray-900">
+                        Address line 1 *
+                      </label>
                       <div className="mt-2">
-                        <input
-                          id="address-line-1"
-                          name="address-line-1"
-                          type="text"
-                          required
-                          value={addressLine1}
-                          onChange={(e) => setAddressLine1(e.target.value)}
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                        <AddressAutocomplete
+                          addressLine1={addressLine1}
+                          onAddressSelect={(address) => {
+                            setAddressLine1(address.addressLine1);
+                            setAddressLine2(address.addressLine2);
+                            setTownCity(address.townCity);
+                            setCounty(address.county);
+                            setPostcode(address.postcode);
+                          }}
                         />
                       </div>
                     </div>

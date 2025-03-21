@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { SidebarLayout } from '../../../components/sidebar-layout';
 import { SideboardOnboardingContent } from '../../../components/sideboard-onboarding-content';
 import { CheckIcon as CheckIconSolid } from '@heroicons/react/24/solid';
+import { AddressAutocomplete } from '../../../components/address-autocomplete';
 
 const steps = [
   { id: '01', name: 'Account', href: '/sign-up/account-creation', status: 'complete' },
@@ -363,15 +364,14 @@ export default function AddProperty() {
                         Property address <span className="text-red-500">*</span>
                       </label>
                       <div className="mt-2">
-                        <input
-                          type="text"
-                          name="address"
-                          id="address"
-                          required
-                          value={formData.address}
-                          onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                          placeholder="Enter UK address"
+                        <AddressAutocomplete
+                          addressLine1={formData.address}
+                          onAddressSelect={(address) => {
+                            setFormData({
+                              ...formData,
+                              address: address.addressLine1 + (address.addressLine2 ? ', ' + address.addressLine2 : '') + ', ' + address.townCity + ', ' + address.county + ', ' + address.postcode
+                            });
+                          }}
                         />
                       </div>
                       <p className="mt-1 text-xs text-gray-500">

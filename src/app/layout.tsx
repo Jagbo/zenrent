@@ -2,6 +2,7 @@
 
 import "./globals.css";
 import { Inter } from "next/font/google";
+import Script from 'next/script'
 
 const inter = Inter({
   subsets: ["latin"],
@@ -16,6 +17,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-full">
+      <head>
+        <Script
+          src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"
+          strategy="beforeInteractive"
+        />
+      </head>
       <body className={`${inter.className} h-full`} suppressHydrationWarning>{children}</body>
     </html>
   );

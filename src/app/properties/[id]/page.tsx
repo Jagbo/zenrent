@@ -7,11 +7,11 @@ import { Heading } from '../../components/heading'
 import { Text } from '../../components/text'
 import { Link } from '../../../components/link'
 import Image from 'next/image'
-import { BuildingOffice2Icon, CurrencyDollarIcon, ExclamationCircleIcon, UserGroupIcon, KeyIcon } from '@heroicons/react/24/outline'
+import { BuildingOffice2Icon, CurrencyDollarIcon, ExclamationCircleIcon, UserGroupIcon, KeyIcon, PlusIcon } from '@heroicons/react/24/outline'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { classNames } from '../../../utils/classNames'
 import { useState } from 'react'
-import { PencilIcon, XMarkIcon } from '@heroicons/react/24/solid'
+import { PencilIcon, XMarkIcon, MegaphoneIcon } from '@heroicons/react/24/solid'
 
 // Define property form state type
 interface PropertyFormState {
@@ -102,6 +102,7 @@ export default function PropertyDetails() {
   const propertyId = params.id as string
   const property = properties.find(p => p.id === propertyId)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isAdvertiseDrawerOpen, setIsAdvertiseDrawerOpen] = useState(false);
   const [editedProperty, setEditedProperty] = useState<PropertyFormState>({
     name: '',
     address: '',
@@ -191,6 +192,13 @@ export default function PropertyDetails() {
             </div>
           </div>
           <div className="mt-4 md:mt-0 flex space-x-3">
+            <button
+              onClick={() => setIsAdvertiseDrawerOpen(true)}
+              className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <MegaphoneIcon className="h-5 w-5 mr-2" />
+              Advertise Property
+            </button>
             <button
               onClick={handleEditClick}
               className="inline-flex items-center px-4 py-2 bg-gray-900 rounded-md text-sm font-medium text-white hover:bg-gray-800"
@@ -324,6 +332,9 @@ export default function PropertyDetails() {
                     <TabsTrigger value="details" className="flex-1 text-center w-full">
                       Details
                     </TabsTrigger>
+                    <TabsTrigger value="documents" className="flex-1 text-center w-full">
+                      Documents
+                    </TabsTrigger>
                   </TabsList>
 
                   {/* Tab Content */}
@@ -439,6 +450,76 @@ export default function PropertyDetails() {
                         </div>
                       </div>
                     </TabsContent>
+
+                    <TabsContent value="documents" className="mt-0">
+                      <div className="rounded-md border p-4">
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center">
+                            <h4 className="text-sm font-medium text-gray-900">Property Documents</h4>
+                            <button className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-gray-900 hover:bg-gray-800">
+                              <PlusIcon className="h-4 w-4 mr-1" />
+                              Upload Document
+                            </button>
+                          </div>
+                          
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Document Name</th>
+                                <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Upload Date</th>
+                                <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
+                                <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              <tr>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">Mortgage Document.pdf</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                  <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                    Mortgage
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">Jan 15, 2024</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">2.3 MB</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                                  <a href="#" className="text-blue-600 hover:text-blue-900 mr-3">View</a>
+                                  <a href="#" className="text-blue-600 hover:text-blue-900">Download</a>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">Insurance Policy.pdf</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                  <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                    Insurance
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">Feb 10, 2024</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">3.1 MB</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                                  <a href="#" className="text-blue-600 hover:text-blue-900 mr-3">View</a>
+                                  <a href="#" className="text-blue-600 hover:text-blue-900">Download</a>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">Energy Performance Certificate.pdf</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                  <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                    EPC
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">Nov 5, 2023</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">1.5 MB</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                                  <a href="#" className="text-blue-600 hover:text-blue-900 mr-3">View</a>
+                                  <a href="#" className="text-blue-600 hover:text-blue-900">Download</a>
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </TabsContent>
                   </div>
                 </Tabs>
               </div>
@@ -519,11 +600,119 @@ export default function PropertyDetails() {
           </div>
         </div>
 
+        {/* Advertise Property Drawer */}
+        {isAdvertiseDrawerOpen && (
+          <div className="fixed inset-0 overflow-hidden z-50">
+            <div className="absolute inset-0 overflow-hidden">
+              <div 
+                className="absolute inset-0 bg-gray-500 bg-opacity-75 transition-opacity" 
+                onClick={() => setIsAdvertiseDrawerOpen(false)}
+              />
+              <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10 z-50">
+                <div className="pointer-events-auto w-screen max-w-md">
+                  <div className="flex h-full flex-col bg-white shadow-xl">
+                    <div className="flex-1 overflow-y-auto py-6">
+                      <div className="px-4 sm:px-6">
+                        <div className="flex items-start justify-between">
+                          <h2 className="text-lg font-medium text-gray-900">Advertise Property</h2>
+                          <button
+                            type="button"
+                            className="ml-3 flex h-7 w-7 items-center justify-center rounded-md bg-white text-gray-400 hover:text-gray-500"
+                            onClick={() => setIsAdvertiseDrawerOpen(false)}
+                          >
+                            <XMarkIcon className="h-6 w-6" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mt-6 px-4 sm:px-6">
+                        <h3 className="text-sm font-medium text-gray-900 mb-4">Advertise on popular platforms</h3>
+                        
+                        <div className="space-y-4">
+                          <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-12 w-12 bg-blue-100 rounded-md flex items-center justify-center">
+                                <span className="text-blue-600 font-bold">RM</span>
+                              </div>
+                              <div className="ml-4">
+                                <h4 className="font-medium text-gray-900">Rightmove</h4>
+                                <p className="text-sm text-gray-500 mt-1">UK's largest property portal</p>
+                              </div>
+                            </div>
+                            <div className="mt-4">
+                              <button className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                                Create Listing
+                              </button>
+                            </div>
+                          </div>
+                          
+                          <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-12 w-12 bg-purple-100 rounded-md flex items-center justify-center">
+                                <span className="text-purple-600 font-bold">ZP</span>
+                              </div>
+                              <div className="ml-4">
+                                <h4 className="font-medium text-gray-900">Zoopla</h4>
+                                <p className="text-sm text-gray-500 mt-1">Comprehensive property search</p>
+                              </div>
+                            </div>
+                            <div className="mt-4">
+                              <button className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700">
+                                Create Listing
+                              </button>
+                            </div>
+                          </div>
+                          
+                          <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-12 w-12 bg-green-100 rounded-md flex items-center justify-center">
+                                <span className="text-green-600 font-bold">SR</span>
+                              </div>
+                              <div className="ml-4">
+                                <h4 className="font-medium text-gray-900">SpareRoom</h4>
+                                <p className="text-sm text-gray-500 mt-1">Perfect for HMO rooms</p>
+                              </div>
+                            </div>
+                            <div className="mt-4">
+                              <button className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
+                                Create Listing
+                              </button>
+                            </div>
+                          </div>
+                          
+                          <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-12 w-12 bg-red-100 rounded-md flex items-center justify-center">
+                                <span className="text-red-600 font-bold">OM</span>
+                              </div>
+                              <div className="ml-4">
+                                <h4 className="font-medium text-gray-900">OnTheMarket</h4>
+                                <p className="text-sm text-gray-500 mt-1">Growing property portal</p>
+                              </div>
+                            </div>
+                            <div className="mt-4">
+                              <button className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700">
+                                Create Listing
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Edit Property Drawer */}
         {isDrawerOpen && (
           <div className="fixed inset-0 overflow-hidden z-50">
             <div className="absolute inset-0 overflow-hidden">
-              <div className="absolute inset-0 bg-transparent transition-opacity" onClick={() => setIsDrawerOpen(false)} />
+              <div 
+                className="absolute inset-0 bg-transparent transition-opacity" 
+                onClick={() => setIsDrawerOpen(false)}
+              />
               <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
                 <div className="pointer-events-auto w-screen max-w-md">
                   <div className="flex h-full flex-col bg-white shadow-xl">

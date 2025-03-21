@@ -22,7 +22,10 @@ import {
   ShoppingBagIcon,
   CodeBracketIcon,
   ArrowUpIcon,
-  ArrowDownIcon
+  ArrowDownIcon,
+  XMarkIcon,
+  CloudArrowUpIcon,
+  PlusIcon
 } from '@heroicons/react/24/solid'
 import { TrendingUp, TrendingDown } from "lucide-react"
 import {
@@ -53,6 +56,7 @@ import {
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SidebarContent } from '../components/sidebar-content'
+import { useState } from 'react'
 
 // Icons for navigation items
 function DashboardIcon() {
@@ -108,7 +112,16 @@ const chartConfig = {
   }
 }
 
+// Document types for the document table
+// const documents = [
+//   { id: 1, name: "Mortgage Document.pdf", type: "mortgage", uploadDate: "Jan 15, 2024", property: "Oakwood Heights", fileSize: "2.3 MB" },
+//   { id: 2, name: "Home Insurance Policy.pdf", type: "insurance", uploadDate: "Feb 10, 2024", property: "Sunset Apartments", fileSize: "3.1 MB" },
+//   { id: 3, name: "Energy Performance Certificate.pdf", type: "epc", uploadDate: "Nov 5, 2023", property: "Parkview Residences", fileSize: "1.5 MB" },
+// ]
+
 export default function Financial() {
+  const [isReportDrawerOpen, setIsReportDrawerOpen] = useState(false);
+  
   return (
     <SidebarLayout
       sidebar={<SidebarContent currentPath="/financial" />}
@@ -121,14 +134,76 @@ export default function Financial() {
             <Text className="text-gray-500 mt-1">Monitor your property portfolio's financial performance.</Text>
           </div>
           <div className="mt-4 md:mt-0 flex space-x-3">
-            <button className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
-              Export
-            </button>
-            <button className="px-4 py-2 bg-gray-900 rounded-md text-sm font-medium text-white hover:bg-gray-800">
+            <button 
+              className="px-4 py-2 bg-gray-900 rounded-md text-sm font-medium text-white hover:bg-gray-800"
+              onClick={() => setIsReportDrawerOpen(true)}
+            >
               Generate Report
             </button>
           </div>
         </div>
+        
+        {/* Report Generation Drawer */}
+        {isReportDrawerOpen && (
+          <div className="fixed inset-0 overflow-hidden z-50">
+            <div className="absolute inset-0 overflow-hidden">
+              <div 
+                className="absolute inset-0 bg-transparent transition-opacity" 
+                onClick={() => setIsReportDrawerOpen(false)}
+              />
+              <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10 z-50">
+                <div className="pointer-events-auto w-screen max-w-md">
+                  <div className="flex h-full flex-col bg-white shadow-xl">
+                    <div className="flex-1 overflow-y-auto py-6">
+                      <div className="px-4 sm:px-6">
+                        <div className="flex items-start justify-between">
+                          <h2 className="text-lg font-medium text-gray-900">Generate Report</h2>
+                          <button
+                            type="button"
+                            className="ml-3 flex h-7 w-7 items-center justify-center rounded-md bg-white text-gray-400 hover:text-gray-500"
+                            onClick={() => setIsReportDrawerOpen(false)}
+                          >
+                            <XMarkIcon className="h-6 w-6" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mt-6 px-4 sm:px-6">
+                        <h3 className="text-sm font-medium text-gray-900 mb-4">Available Reports</h3>
+                        
+                        <div className="space-y-4">
+                          <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
+                            <h4 className="font-medium text-gray-900">Financial Summary</h4>
+                            <p className="text-sm text-gray-500 mt-1">Monthly overview of income, expenses, and cash flow</p>
+                          </div>
+                          
+                          <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
+                            <h4 className="font-medium text-gray-900">Rental Income Report</h4>
+                            <p className="text-sm text-gray-500 mt-1">Detailed breakdown of rental income by property</p>
+                          </div>
+                          
+                          <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
+                            <h4 className="font-medium text-gray-900">Expense Analysis</h4>
+                            <p className="text-sm text-gray-500 mt-1">Categorized expense report with trends and insights</p>
+                          </div>
+                          
+                          <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
+                            <h4 className="font-medium text-gray-900">Property Profitability</h4>
+                            <p className="text-sm text-gray-500 mt-1">ROI and profitability metrics for each property</p>
+                          </div>
+                          
+                          <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
+                            <h4 className="font-medium text-gray-900">Tax Preparation Report</h4>
+                            <p className="text-sm text-gray-500 mt-1">Annual report suitable for tax filing purposes</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* Financial Summary Cards */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">

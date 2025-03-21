@@ -404,31 +404,35 @@ export default function Dashboard() {
         
         {/* Stats Cards */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Total Properties */}
+          {/* Properties */}
           <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Total Properties</h3>
+            <h3 className="text-sm font-medium text-gray-500">Properties</h3>
             <p className="mt-2 text-4xl font-bold text-gray-900">12</p>
           </div>
           
-          {/* Total Rooms */}
+          {/* Contracts expiring */}
           <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Total Rooms</h3>
-            <p className="mt-2 text-4xl font-bold text-gray-900">143</p>
+            <h3 className="text-sm font-medium text-gray-500">Contracts expiring</h3>
+            <p className="mt-2 text-4xl font-bold text-gray-900">8</p>
+            <div className="mt-4 flex items-center text-sm text-amber-600">
+              <ArrowUpIcon className="h-4 w-4 mr-1" />
+              <span>Next 30 days</span>
+            </div>
           </div>
           
-          {/* Occupancy Rate */}
+          {/* Occupancy */}
           <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Occupancy Rate</h3>
+            <h3 className="text-sm font-medium text-gray-500">Occupancy</h3>
             <p className="mt-2 text-4xl font-bold text-gray-900">94%</p>
           </div>
 
-          {/* Subscription Plan */}
+          {/* Income */}
           <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Subscription Plan</h3>
-            <p className="mt-2 text-4xl font-bold text-gray-900">Professional</p>
+            <h3 className="text-sm font-medium text-gray-500">Income</h3>
+            <p className="mt-2 text-4xl font-bold text-gray-900">£24,350</p>
             <div className="mt-4 flex items-center text-sm text-green-600">
-              <ArrowDownIcon className="h-4 w-4 mr-1" />
-              <span>Save £48/year with annual billing</span>
+              <ArrowUpIcon className="h-4 w-4 mr-1" />
+              <span>+5% from last month</span>
             </div>
           </div>
         </div>

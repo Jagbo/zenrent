@@ -3,7 +3,7 @@
 import { SidebarLayout } from '../components/sidebar-layout'
 import { Heading } from '../components/heading'
 import { Text } from '../components/text'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   Sidebar, 
   SidebarHeader, 
@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { SidebarContent } from '../components/sidebar-content'
+import { classNames } from '@/lib/utils'
 
 interface IntegrationOptionProps {
   logo: string
@@ -206,61 +207,201 @@ function AccountingIntegration() {
 
 // Bank Integration Steps
 function BankIntegration() {
-  const [step, setStep] = useState<number>(1)
-  const [selectedBank, setSelectedBank] = useState<string | null>(null)
+  const [step, setStep] = useState<number>(1);
+  const [selectedProperty, setSelectedProperty] = useState<string | null>(null);
+  const [plaidLinkToken, setPlaidLinkToken] = useState<string | null>(null);
+  const [plaidPublicToken, setPlaidPublicToken] = useState<string | null>(null);
 
-  const banks = [
-    { name: 'Barclays', logo: '/next.svg' },
-    { name: 'HSBC', logo: '/next.svg' },
-    { name: 'Lloyds', logo: '/next.svg' },
-    { name: 'NatWest', logo: '/next.svg' },
-    { name: 'Santander', logo: '/next.svg' },
-  ]
+  // Get properties from the properties array
+  const properties = [
+    { id: '123-main', name: '123 Main Street' },
+    { id: '456-park', name: '456 Park Avenue' },
+    { id: '789-ocean', name: '789 Ocean Drive' },
+    { id: '321-victoria', name: '321 Victoria Road' },
+    { id: '654-royal', name: '654 Royal Crescent' },
+    { id: '987-kings', name: '987 Kings Road' },
+  ];
+
+  useEffect(() => {
+    // Create a Plaid Link token when component mounts
+    const createLinkToken = async () => {
+      try {
+        const response = await fetch('/api/plaid/create-link-token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            country_codes: ['GB'],
+            language: 'en',
+          }),
+        });
+        const data = await response.json();
+        setPlaidLinkToken(data.link_token);
+      } catch (error) {
+        console.error('Error creating Plaid Link token:', error);
+      }
+    };
+    createLinkToken();
+  }, []);
+
+  const handlePlaidSuccess = async (publicToken: string) => {
+    try {
+      // Exchange public token for access token
+      const response = await fetch('/api/plaid/exchange-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          public_token: publicToken,
+          property_id: selectedProperty,
+        }),
+      });
+      
+      if (response.ok) {
+        // Move to success step
+        setStep(3);
+      } else {
+        throw new Error('Failed to exchange token');
+      }
+    } catch (error) {
+      console.error('Error exchanging Plaid token:', error);
+    }
+  };
 
   if (step === 1) {
     return (
       <div className="space-y-6">
         <div className="space-y-2">
-          <h3 className="text-lg font-medium">Select your bank</h3>
-          <p className="text-sm text-gray-500">Choose your bank to set up Open Banking integration</p>
+          <h3 className="text-lg font-medium">Select Property</h3>
+          <p className="text-sm text-gray-500">Choose which property this bank account is for</p>
         </div>
 
         <div className="space-y-4">
-          {banks.map((bank) => (
-            <IntegrationOption
-              key={bank.name}
-              logo={bank.logo}
-              name={bank.name}
-              selected={selectedBank === bank.name}
+          {properties.map((property) => (
+            <div
+              key={property.id}
               onClick={() => {
-                setSelectedBank(bank.name)
-                setStep(2)
+                setSelectedProperty(property.id);
+                setStep(2);
               }}
-            />
+              className={classNames(
+                'flex items-center justify-between p-4 rounded-lg border cursor-pointer',
+                selectedProperty === property.id
+                  ? 'border-indigo-600 bg-indigo-50'
+                  : 'border-gray-200 hover:border-indigo-300'
+              )}
+            >
+              <div className="flex items-center space-x-4">
+                <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
+                  <BuildingOfficeIcon className="h-6 w-6 text-gray-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{property.name}</p>
+                </div>
+              </div>
+              <input
+                type="radio"
+                checked={selectedProperty === property.id}
+                onChange={() => {}}
+                className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-600"
+              />
+            </div>
           ))}
         </div>
       </div>
-    )
+    );
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <h3 className="text-lg font-medium">Connect to {selectedBank}</h3>
-        <p className="text-sm text-gray-500">Follow these steps to connect your {selectedBank} account</p>
-      </div>
+  if (step === 2) {
+    if (!plaidLinkToken) {
+      return (
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <h3 className="text-lg font-medium">Connect Your Bank</h3>
+            <p className="text-sm text-gray-500">Loading bank connection...</p>
+          </div>
+          <div className="p-4 rounded-lg border border-gray-200">
+            <div className="animate-pulse flex space-x-4">
+              <div className="flex-1 space-y-4 py-1">
+                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                <div className="h-4 bg-gray-200 rounded"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
 
-      <div className="space-y-4">
-        <div className="p-4 rounded-lg border border-gray-200">
-          <p className="text-sm">You'll be redirected to {selectedBank}'s secure login page to authorize access</p>
+    return (
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <h3 className="text-lg font-medium">Connect Your Bank</h3>
+          <p className="text-sm text-gray-500">Securely connect your bank account using Plaid</p>
+        </div>
+
+        <div className="space-y-4">
+          <div className="p-4 rounded-lg border border-gray-200">
+            <p className="text-sm">You'll be redirected to your bank's secure login page to authorize access</p>
+          </div>
+
+          <Button 
+            className="w-full" 
+            onClick={() => {
+              if (typeof window.Plaid === 'undefined') {
+                console.error('Plaid script not loaded');
+                return;
+              }
+              // Initialize Plaid Link
+              const plaidHandler = window.Plaid.create({
+                token: plaidLinkToken,
+                onSuccess: (public_token: string) => {
+                  setPlaidPublicToken(public_token);
+                  handlePlaidSuccess(public_token);
+                },
+                onExit: () => {
+                  // Handle exit
+                  console.log('User exited Plaid Link');
+                },
+                onEvent: (eventName: string) => {
+                  // Handle events
+                  console.log('Plaid Link event:', eventName);
+                },
+              });
+              plaidHandler.open();
+            }}
+          >
+            Connect Bank Account
+          </Button>
         </div>
       </div>
+    );
+  }
 
-      <Button className="w-full" onClick={() => {}}>
-        Connect to {selectedBank}
-      </Button>
-    </div>
-  )
+  if (step === 3) {
+    return (
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <h3 className="text-lg font-medium">Connection Successful</h3>
+          <p className="text-sm text-gray-500">Your bank account has been successfully connected</p>
+        </div>
+
+        <div className="p-4 rounded-lg border border-green-200 bg-green-50">
+          <div className="flex items-center space-x-3">
+            <CheckCircleIcon className="h-5 w-5 text-green-500" />
+            <p className="text-sm text-green-700">Bank account connected successfully</p>
+          </div>
+        </div>
+
+        <Button className="w-full" onClick={() => window.location.reload()}>
+          Done
+        </Button>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 export default function Integrations() {
@@ -311,6 +452,9 @@ export default function Integrations() {
               </Card>
             </SheetTrigger>
             <SheetContent>
+              <SheetHeader>
+                <SheetTitle>Connect Accounting Software</SheetTitle>
+              </SheetHeader>
               <AccountingIntegration />
             </SheetContent>
           </Sheet>
@@ -347,6 +491,9 @@ export default function Integrations() {
               </Card>
             </SheetTrigger>
             <SheetContent>
+              <SheetHeader>
+                <SheetTitle>Connect WhatsApp Business</SheetTitle>
+              </SheetHeader>
               <WhatsAppIntegration />
             </SheetContent>
           </Sheet>
@@ -383,6 +530,9 @@ export default function Integrations() {
               </Card>
             </SheetTrigger>
             <SheetContent>
+              <SheetHeader>
+                <SheetTitle>Connect Bank Account</SheetTitle>
+              </SheetHeader>
               <BankIntegration />
             </SheetContent>
           </Sheet>
