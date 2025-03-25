@@ -5,19 +5,12 @@ export function SideboardOnboardingContent() {
     <div className="flex h-full flex-col bg-white text-gray-900 border-r border-gray-200">
       {/* Logo at the top */}
       <div className="p-8">
-        <div className="flex items-center gap-2">
-          <svg 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            className="h-8 w-8 text-indigo-600"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path 
-              d="M3 21h18v-3H3v3zm9-14h6v3h-6V7zm0 5h6v3h-6v-3zM3 7h6v3H3V7zm0 5h6v3H3v-3z" 
-              fill="currentColor"
-            />
-          </svg>
-          <span className="text-xl font-bold text-indigo-600">ZenRent</span>
+        <div className="flex items-center">
+          <img
+            src="/images/logo/ZenRent-logo.png"
+            alt="ZenRent"
+            className="h-10 w-auto"
+          />
         </div>
       </div>
       

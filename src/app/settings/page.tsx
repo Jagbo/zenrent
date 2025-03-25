@@ -11,6 +11,9 @@ import { SidebarContent } from '../components/sidebar-content'
 import { Cog6ToothIcon } from '@heroicons/react/24/outline'
 import Image from 'next/image'
 import { loadStripe } from '@stripe/stripe-js'
+import { WhatsAppBusinessDrawer } from '../components/WhatsAppBusinessDrawer'
+import { BankAccountDrawer } from '../components/BankAccountDrawer'
+import { AccountingSoftwareDrawer } from '../components/AccountingSoftwareDrawer'
 
 // Initialize Stripe
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
@@ -54,6 +57,9 @@ export default function Settings() {
   const [isChangePlanModalOpen, setIsChangePlanModalOpen] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<'essential' | 'standard' | 'professional'>('standard')
   const [isLoading, setIsLoading] = useState(false)
+  const [isWhatsAppDrawerOpen, setIsWhatsAppDrawerOpen] = useState(false)
+  const [isBankAccountDrawerOpen, setIsBankAccountDrawerOpen] = useState(false)
+  const [isAccountingDrawerOpen, setIsAccountingDrawerOpen] = useState(false)
 
   const handlePlanChange = async (newPlan: string, interval: 'monthly' | 'yearly') => {
     setIsLoading(true)
@@ -837,6 +843,7 @@ export default function Settings() {
                   <button
                     type="button"
                     className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                    onClick={() => setIsAccountingDrawerOpen(true)}
                   >
                     Connect
                   </button>
@@ -922,10 +929,17 @@ export default function Settings() {
                   <button
                     type="button"
                     className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                    onClick={() => setIsWhatsAppDrawerOpen(true)}
                   >
                     Connect
                   </button>
                 </div>
+                
+                {/* WhatsApp Business Drawer */}
+                <WhatsAppBusinessDrawer 
+                  isOpen={isWhatsAppDrawerOpen}
+                  onClose={() => setIsWhatsAppDrawerOpen(false)}
+                />
 
                 <div className="flex items-center justify-between rounded-lg border border-gray-200 p-4">
                   <div className="flex items-center space-x-4">
@@ -949,6 +963,39 @@ export default function Settings() {
                     Connect
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid max-w-7xl grid-cols-1 gap-x-8 gap-y-10 px-4 py-16 sm:px-6 md:grid-cols-3 lg:px-8">
+            <div>
+              <h2 className="text-base/7 font-semibold text-gray-900">Banking</h2>
+              <p className="mt-1 text-sm/6 text-gray-500">Connect your bank account for direct payments</p>
+            </div>
+
+            <div className="md:col-span-2">
+              <div className="flex items-center justify-between rounded-lg border border-gray-200 p-4">
+                <div className="flex items-center space-x-4">
+                  <div className="h-10 w-10 rounded-full bg-[#0077B6] bg-opacity-10 flex items-center justify-center">
+                    <Image
+                      src="/images/integrations/banking.png"
+                      alt="Open Banking logo"
+                      width={32}
+                      height={32}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Open Banking</p>
+                    <p className="text-sm text-gray-500">Connect your bank account for direct payments</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                  onClick={() => setIsBankAccountDrawerOpen(true)}
+                >
+                  Connect
+                </button>
               </div>
             </div>
           </div>
@@ -1033,6 +1080,18 @@ export default function Settings() {
           </DialogPanel>
         </div>
       </Dialog>
+
+      {/* Bank Account Drawer */}
+      <BankAccountDrawer 
+        isOpen={isBankAccountDrawerOpen}
+        onClose={() => setIsBankAccountDrawerOpen(false)}
+      />
+
+      {/* Accounting Software Drawer */}
+      <AccountingSoftwareDrawer
+        isOpen={isAccountingDrawerOpen}
+        onClose={() => setIsAccountingDrawerOpen(false)}
+      />
     </SidebarLayout>
   )
 }

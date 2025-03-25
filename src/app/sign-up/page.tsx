@@ -37,11 +37,11 @@ export default function Example() {
           <div className="mx-auto w-full max-w-sm lg:w-96">
             <div>
               <img
-                alt="Your Company"
-                src="https://tailwindcss.com/plus-assets/img/logos/mark.svg?color=indigo&shade=600"
+                alt="ZenRent"
+                src="/images/logo/ZenRent-square-logo.png"
                 className="h-10 w-auto"
               />
-              <h2 className="mt-8 text-2xl/9 font-bold tracking-tight text-gray-900">Create your account</h2>
+              <h2 className="mt-8 text-2xl/9 title-font text-gray-900">Create your account</h2>
               <p className="mt-2 text-sm/6 text-gray-500">
                 Already have an account?{' '}
                 <a href="/login" className="font-semibold text-indigo-600 hover:text-indigo-500">

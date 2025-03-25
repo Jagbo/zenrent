@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { MoreHorizontal, ChevronDown } from "lucide-react";
-import { IssueDetailsDrawer } from "./IssueDetailsDrawer";
+import { IssueDrawer } from "../../app/components/IssueDrawer";
 
 type Issue = {
   id: string;
@@ -219,9 +219,9 @@ export function IssuesList() {
         </Table>
       </div>
 
-      <IssueDetailsDrawer
+      <IssueDrawer
         issue={selectedIssue}
-        open={isDrawerOpen}
+        isOpen={isDrawerOpen}
         onClose={() => {
           setIsDrawerOpen(false);
           setSelectedIssue(null);

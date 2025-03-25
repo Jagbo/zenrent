@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { SidebarLayout } from '../components/sidebar-layout'
 import { Heading } from '../components/heading'
 import { Text } from '../components/text'
@@ -9,7 +9,10 @@ import {
   SidebarHeader, 
   SidebarBody, 
   SidebarFooter, 
-  SidebarItem 
+  SidebarItem,
+  SidebarSection,
+  SidebarHeading,
+  SidebarLabel
 } from '../components/sidebar'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -39,8 +42,9 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SidebarContent } from '../components/sidebar-content'
 import { IssuesBoard } from "@/components/issues/IssuesBoard"
-import { IssueDetailsDrawer } from "@/components/issues/IssueDetailsDrawer"
+import { IssueDrawer } from "../components/IssueDrawer"
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
+import { IssueFormDrawer } from '../components/IssueFormDrawer'
 
 // Define Issue type
 type Issue = {
@@ -96,6 +100,8 @@ export default function Issues() {
   // State for the selected issue and drawer open state
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isFormDrawerOpen, setIsFormDrawerOpen] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState('all');
   const [issuesData, setIssuesData] = useState<Issue[]>([
     {
       id: "1254",
@@ -155,13 +161,9 @@ export default function Issues() {
     unitNumber: '',
     category: 'maintenance',
     priority: 'medium',
-    status: 'open',
     reportedBy: '',
     assignedTo: '',
-    dueDate: '',
-    images: [],
-    estimatedCost: '',
-    notes: ''
+    dueDate: ''
   });
 
   // Filter states
@@ -177,6 +179,11 @@ export default function Issues() {
     setIsDrawerOpen(true);
   };
 
+  // Add a function to open the form drawer
+  const openFormDrawer = () => {
+    setIsFormDrawerOpen(true);
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setNewIssue(prev => ({
@@ -185,11 +192,26 @@ export default function Issues() {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (formData: any) => {
     // Here you would typically save the issue to your backend
-    console.log('New issue:', newIssue);
-    setIsDrawerOpen(false);
+    console.log('New issue:', formData);
+    
+    // Add a mock issue to the local state
+    const newMockIssue: Issue = {
+      id: `${Math.floor(Math.random() * 1000)}`,
+      title: formData.title,
+      type: "Bug" as const,
+      status: "Todo" as const,
+      priority: formData.priority as any,
+      property: `${formData.propertyId} ${formData.unitNumber}`.trim(),
+      reported: new Date().toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}),
+      assignedTo: formData.assignedTo
+    };
+    
+    setIssuesData(prev => [newMockIssue, ...prev]);
+    setIsFormDrawerOpen(false);
+    
+    // Reset form data
     setNewIssue({
       title: '',
       description: '',
@@ -197,13 +219,9 @@ export default function Issues() {
       unitNumber: '',
       category: 'maintenance',
       priority: 'medium',
-      status: 'open',
       reportedBy: '',
       assignedTo: '',
-      dueDate: '',
-      images: [],
-      estimatedCost: '',
-      notes: ''
+      dueDate: ''
     });
   };
 
@@ -331,8 +349,8 @@ export default function Issues() {
             </div>
 
             <button
-              onClick={() => setIsDrawerOpen(true)}
-              className="px-4 py-2 bg-gray-900 rounded-md text-sm font-medium text-white hover:bg-gray-800"
+              onClick={openFormDrawer}
+              className="px-4 py-2 bg-[#D9E8FF] rounded-md text-sm font-medium text-black hover:bg-[#C8D7EE]"
             >
               <PlusIcon className="h-5 w-5 inline-block mr-1" />
               Create Issue
@@ -493,8 +511,6 @@ export default function Issues() {
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reported</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned To</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -527,18 +543,6 @@ export default function Issues() {
                       </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{issue.property}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{issue.reported}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{issue.assignedTo || 'Unassigned'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button 
-                            className="text-blue-600 hover:text-blue-900"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openDrawer(issue);
-                            }}
-                          >
-                            View
-                          </button>
-                      </td>
                     </tr>
                     ))}
                   </tbody>
@@ -615,9 +619,9 @@ export default function Issues() {
       </div>
 
       {/* Issue Details Drawer */}
-      <IssueDetailsDrawer
+      <IssueDrawer
         issue={selectedIssue}
-        open={isDrawerOpen}
+        isOpen={isDrawerOpen}
         onClose={() => {
           setIsDrawerOpen(false);
           setSelectedIssue(null);
@@ -625,245 +629,12 @@ export default function Issues() {
       />
 
       {/* Issue Form Drawer */}
-      {isDrawerOpen && (
-        <div className="fixed inset-0 overflow-hidden z-50">
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute inset-0 bg-transparent transition-opacity" onClick={() => setIsDrawerOpen(false)} />
-            <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
-              <div className="pointer-events-auto w-screen max-w-md">
-                <div className="flex h-full flex-col bg-white shadow-xl">
-                  <div className="flex-1 h-0 overflow-y-auto">
-                    <div className="py-6 px-4 bg-gray-50 sm:px-6">
-                      <div className="flex items-center justify-between">
-                        <h2 className="text-lg font-medium text-gray-900">Create New Issue</h2>
-                        <button
-                          type="button"
-                          className="rounded-md text-gray-400 hover:text-gray-500 focus:outline-none"
-                          onClick={() => setIsDrawerOpen(false)}
-                        >
-                          <XMarkIcon className="h-6 w-6" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex-1 flex flex-col justify-between">
-                      <div className="px-4 sm:px-6">
-                        <form onSubmit={handleSubmit} className="space-y-6 pt-6 pb-5">
-                          <div>
-                            <label htmlFor="title" className="block text-sm font-medium text-gray-900">
-                              Issue Title
-                            </label>
-                            <input
-                              type="text"
-                              name="title"
-                              id="title"
-                              required
-                              value={newIssue.title}
-                              onChange={handleInputChange}
-                              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                              placeholder="Brief description of the issue"
-                            />
-                          </div>
-
-                          <div>
-                            <label htmlFor="description" className="block text-sm font-medium text-gray-900">
-                              Detailed Description
-                            </label>
-                            <textarea
-                              name="description"
-                              id="description"
-                              rows={4}
-                              required
-                              value={newIssue.description}
-                              onChange={handleInputChange}
-                              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                              placeholder="Provide detailed information about the issue..."
-                            />
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label htmlFor="propertyId" className="block text-sm font-medium text-gray-900">
-                                Property
-                              </label>
-                              <select
-                                name="propertyId"
-                                id="propertyId"
-                                required
-                                value={newIssue.propertyId}
-                                onChange={handleInputChange}
-                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                              >
-                                <option value="">Select Property</option>
-                                <option value="123-main">123 Main Street</option>
-                                <option value="456-park">456 Park Avenue</option>
-                                <option value="789-ocean">789 Ocean Drive</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label htmlFor="unitNumber" className="block text-sm font-medium text-gray-900">
-                                Room Number
-                              </label>
-                              <input
-                                type="text"
-                                name="unitNumber"
-                                id="unitNumber"
-                                required
-                                value={newIssue.unitNumber}
-                                onChange={handleInputChange}
-                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label htmlFor="category" className="block text-sm font-medium text-gray-900">
-                                Category
-                              </label>
-                              <select
-                                name="category"
-                                id="category"
-                                required
-                                value={newIssue.category}
-                                onChange={handleInputChange}
-                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                              >
-                                <option value="maintenance">Maintenance</option>
-                                <option value="plumbing">Plumbing</option>
-                                <option value="electrical">Electrical</option>
-                                <option value="hvac">HVAC</option>
-                                <option value="appliance">Appliance</option>
-                                <option value="structural">Structural</option>
-                                <option value="pest">Pest Control</option>
-                                <option value="other">Other</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label htmlFor="priority" className="block text-sm font-medium text-gray-900">
-                                Priority
-                              </label>
-                              <select
-                                name="priority"
-                                id="priority"
-                                required
-                                value={newIssue.priority}
-                                onChange={handleInputChange}
-                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                              >
-                                <option value="low">Low</option>
-                                <option value="medium">Medium</option>
-                                <option value="high">High</option>
-                                <option value="urgent">Urgent</option>
-                              </select>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label htmlFor="reportedBy" className="block text-sm font-medium text-gray-900">
-                                Reported By
-                              </label>
-                              <input
-                                type="text"
-                                name="reportedBy"
-                                id="reportedBy"
-                                required
-                                value={newIssue.reportedBy}
-                                onChange={handleInputChange}
-                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                              />
-                            </div>
-                            <div>
-                              <label htmlFor="assignedTo" className="block text-sm font-medium text-gray-900">
-                                Assigned To
-                              </label>
-                              <input
-                                type="text"
-                                name="assignedTo"
-                                id="assignedTo"
-                                value={newIssue.assignedTo}
-                                onChange={handleInputChange}
-                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <label htmlFor="dueDate" className="block text-sm font-medium text-gray-900">
-                              Due Date
-                            </label>
-                            <input
-                              type="date"
-                              name="dueDate"
-                              id="dueDate"
-                              value={newIssue.dueDate}
-                              onChange={handleInputChange}
-                              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                            />
-                          </div>
-
-                          <div>
-                            <label htmlFor="estimatedCost" className="block text-sm font-medium text-gray-900">
-                              Estimated Cost ($)
-                            </label>
-                            <input
-                              type="number"
-                              name="estimatedCost"
-                              id="estimatedCost"
-                              value={newIssue.estimatedCost}
-                              onChange={handleInputChange}
-                              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                              placeholder="0.00"
-                            />
-                          </div>
-
-                          <div>
-                            <label htmlFor="images" className="block text-sm font-medium text-gray-900">
-                              Upload Images
-                            </label>
-                            <input
-                              type="file"
-                              name="images"
-                              id="images"
-                              multiple
-                              accept="image/*"
-                              className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
-                            />
-                          </div>
-
-                          <div>
-                            <label htmlFor="notes" className="block text-sm font-medium text-gray-900">
-                              Additional Notes
-                            </label>
-                            <textarea
-                              name="notes"
-                              id="notes"
-                              rows={3}
-                              value={newIssue.notes}
-                              onChange={handleInputChange}
-                              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                              placeholder="Any additional information or special instructions..."
-                            />
-                          </div>
-
-                          <div className="mt-5 sm:mt-6">
-                            <button
-                              type="submit"
-                              className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-gray-900 text-base font-medium text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 sm:text-sm"
-                            >
-                              Create Issue
-                            </button>
-                          </div>
-                        </form>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <IssueFormDrawer
+        isOpen={isFormDrawerOpen}
+        onClose={() => setIsFormDrawerOpen(false)}
+        onSubmit={handleSubmit}
+        title="Create New Issue"
+      />
     </SidebarLayout>
   );
 } 

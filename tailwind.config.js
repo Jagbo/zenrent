@@ -10,6 +10,7 @@ module.exports = {
       fontFamily: {
         sans: ['Inter', 'Arial', 'sans-serif'],
         inter: ['Inter', 'Arial', 'sans-serif'],
+        title: ['Cabinet Grotesk', 'sans-serif'],
       },
       colors: {
         border: "rgb(229 231 235)", // zinc-200

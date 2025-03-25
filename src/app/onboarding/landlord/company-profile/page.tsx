@@ -131,7 +131,7 @@ export default function CompanyProfile() {
                   {step.status === 'complete' ? (
                     <a href={step.href} className="group flex w-full items-center">
                       <span className="flex items-center px-6 py-4 text-sm font-medium">
-                        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-indigo-600 group-hover:bg-indigo-800">
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#FF503E] group-hover:bg-[#e3402f]">
                           <CheckIconSolid aria-hidden="true" className="size-6 text-white" />
                         </span>
                         <span className="ml-4 text-sm font-medium text-gray-900">{step.name}</span>
@@ -139,10 +139,10 @@ export default function CompanyProfile() {
                     </a>
                   ) : step.status === 'current' ? (
                     <a href={step.href} aria-current="step" className="flex items-center px-6 py-4 text-sm font-medium">
-                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-indigo-600">
-                        <span className="text-indigo-600">{step.id}</span>
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-[#FF503E]">
+                        <span className="text-[#FF503E]">{step.id}</span>
                       </span>
-                      <span className="ml-4 text-sm font-medium text-indigo-600">{step.name}</span>
+                      <span className="ml-4 text-sm font-medium text-[#FF503E]">{step.name}</span>
                     </a>
                   ) : (
                     <a href={step.href} className="group flex items-center">

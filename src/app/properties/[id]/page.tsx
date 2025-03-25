@@ -1,6 +1,7 @@
 'use client'
 
 import { useParams } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { SidebarLayout } from '../../components/sidebar-layout'
 import { SidebarContent } from '../../components/sidebar-content'
 import { Heading } from '../../components/heading'
@@ -10,11 +11,17 @@ import Image from 'next/image'
 import { BuildingOffice2Icon, CurrencyDollarIcon, ExclamationCircleIcon, UserGroupIcon, KeyIcon, PlusIcon } from '@heroicons/react/24/outline'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { classNames } from '../../../utils/classNames'
-import { useState } from 'react'
 import { PencilIcon, XMarkIcon, MegaphoneIcon } from '@heroicons/react/24/solid'
+import { IssueDrawer, Issue } from '../../components/IssueDrawer'
+import { PropertyFormDrawer } from '../../components/PropertyFormDrawer'
+import { EditPropertyDrawer } from '../../components/EditPropertyDrawer'
+import { AdvertisePropertyDrawer } from '../../components/AdvertisePropertyDrawer'
+import { IssueFormDrawer } from '../../components/IssueFormDrawer'
+import { getPropertyWithTenants, IPropertyWithTenants, ITenant } from '../../../lib/propertyService'
 
-// Define property form state type
-interface PropertyFormState {
+// Define the Property interface for UI
+interface PropertyForUI {
+  id: string;
   name: string;
   address: string;
   city: string;
@@ -22,38 +29,121 @@ interface PropertyFormState {
   zipCode: string;
   type: string;
   status: string;
-  bedrooms: string;
-  bathrooms: string;
-  squareFeet: string;
-  rentAmount: string;
+  bedrooms: number;
+  bathrooms: number;
+  squareFeet: number;
+  rentAmount: number;
   description: string;
-  amenities: string;
-  yearBuilt: string;
-  parkingSpots: string;
+  amenities: string[];
+  yearBuilt: number;
+  parkingSpots: number;
+  units: number;
+  occupancyRate: number;
+  monthlyRevenue: number;
+  image: string;
+  images?: string[]; // Optional for backward compatibility
+  floorPlan?: string; // Optional for backward compatibility
+  tenants: ITenant[];
+  stats: {
+    totalRooms: number;
+    occupiedRooms: number;
+    monthlyRevenue: number;
+    maintenanceCosts: number;
+  };
+  // Optional properties for backward compatibility
+  financials?: {
+    monthlyIncome: number;
+    expenses: number;
+    netIncome: number;
+    occupancyRate: number;
+  };
+  details?: {
+    mortgage: {
+      lender: string;
+      amount: number;
+      rate: string;
+      term: string;
+      monthlyPayment: number;
+    };
+    insurance: {
+      provider: string;
+      coverage: number;
+      premium: number;
+      expiryDate: string;
+    };
+  };
 }
 
-// Sample data - replace with real data from your backend
-const properties = [
-  {
-    id: '123-main',
-    name: '123 Main Street',
+// Define the Property interface expected by EditPropertyDrawer
+interface PropertyForEdit {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  type: string;
+  status: string;
+  bedrooms: number;
+  bathrooms: number;
+  squareFeet: number;
+  rentAmount: number;
+  description: string;
+  amenities: string[];
+  yearBuilt: number;
+  parkingSpots: number;
+}
+
+// Convert Supabase property to UI format
+const convertToUIProperty = (property: IPropertyWithTenants): PropertyForUI => {
+  // Default image if not available
+  const defaultImage = 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914';
+  
+  // Calculate stats
+  const totalRooms = property.units || 1;
+  const occupiedRooms = property.tenants?.length || 0;
+  const occupancyRate = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
+  const monthlyRevenue = property.tenants?.reduce((sum, tenant) => sum + (tenant.rent_amount || 0), 0) || 0;
+  
+  // Maintenance costs are not in the database yet, using a placeholder
+  const maintenanceCosts = Math.round(monthlyRevenue * 0.1); // 10% of revenue as placeholder
+  
+  return {
+    id: property.id,
+    name: property.name || property.address,
+    address: property.address,
+    city: property.city,
+    state: property.state || '',
+    zipCode: property.zipCode || '',
+    type: property.property_type,
+    status: property.status || 'available',
+    bedrooms: property.bedrooms || 0,
+    bathrooms: property.bathrooms || 0,
+    squareFeet: property.squareFeet || 0,
+    rentAmount: property.rentAmount || 0,
+    description: property.description || '',
+    amenities: property.amenities || [],
+    yearBuilt: property.yearBuilt || 0,
+    parkingSpots: property.parkingSpots || 0,
+    units: totalRooms,
+    occupancyRate: occupancyRate,
+    monthlyRevenue: monthlyRevenue,
+    image: property.image || defaultImage,
+    images: [property.image || defaultImage], // Create array with single image
+    floorPlan: '/sample-floor-plan.png', // Default floor plan
+    tenants: property.tenants || [],
     stats: {
-      totalRooms: 24,
-      occupiedRooms: 22,
-      monthlyRevenue: 52000,
-      maintenanceCosts: 3200
+      totalRooms: totalRooms,
+      occupiedRooms: occupiedRooms,
+      monthlyRevenue: monthlyRevenue,
+      maintenanceCosts: maintenanceCosts
     },
-    images: [
-      'https://images.unsplash.com/photo-1580587771525-78b9dba3b914',
-      'https://images.unsplash.com/photo-1568605114967-8130f3a36994',
-      'https://images.unsplash.com/photo-1570129477492-45c003edd2be',
-    ],
-    floorPlan: '/sample-floor-plan.png',
+    // Add these for backward compatibility
     financials: {
-      monthlyIncome: 52000,
-      expenses: 12000,
-      netIncome: 40000,
-      occupancyRate: 91.6
+      monthlyIncome: monthlyRevenue,
+      expenses: maintenanceCosts,
+      netIncome: monthlyRevenue - maintenanceCosts,
+      occupancyRate: occupancyRate
     },
     details: {
       mortgage: {
@@ -69,117 +159,304 @@ const properties = [
         premium: 1200,
         expiryDate: '2025-03-15'
       }
+    }
+  };
+};
+
+// Sample data - used as fallback if property not found in database
+const sampleProperty: PropertyForUI = {
+  id: '123-main',
+  name: '123 Main Street',
+  address: '123 Main Street',
+  city: 'Manchester',
+  state: 'Greater Manchester',
+  zipCode: 'M1 1AA',
+  type: 'Apartment Building',
+  status: 'available',
+  bedrooms: 2,
+  bathrooms: 1,
+  squareFeet: 800,
+  rentAmount: 1200,
+  description: 'Modern apartment building in Manchester city center',
+  amenities: ['Parking', 'Elevator', 'Security'],
+  yearBuilt: 2010,
+  parkingSpots: 12,
+  units: 24,
+  occupancyRate: 92,
+  monthlyRevenue: 52000,
+  image: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914',
+  images: [
+    'https://images.unsplash.com/photo-1580587771525-78b9dba3b914',
+    'https://images.unsplash.com/photo-1568605114967-8130f3a36994',
+    'https://images.unsplash.com/photo-1570129477492-45c003edd2be',
+  ],
+  floorPlan: '/sample-floor-plan.png',
+  tenants: [
+    {
+      id: '1',
+      name: 'Leslie Abbott',
+      email: 'leslie.abbott@example.com',
+      phone: '123-456-7890',
+      image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+      about: 'Excellent tenant who always pays on time.',
+      rent_amount: 1200
     },
-    issues: [
-      { id: 1, title: 'Leaking roof in Room 202', priority: 'High', status: 'Open', reported: '2024-03-08' },
-      { id: 2, title: 'Broken heating in Room 105', priority: 'Medium', status: 'In Progress', reported: '2024-03-07' },
-    ],
-    tenants: [
-      {
-        id: '1',
-        name: 'Leslie Abbott',
-        room: 'Room 101',
-        email: 'leslie.abbott@example.com',
-        image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-        status: 'Current',
-        leaseEnd: '2024-08-15'
-      },
-      {
-        id: '2',
-        name: 'Michael Foster',
-       room: 'Room 102',
-        email: 'michael.foster@example.com',
-        image: 'https://images.unsplash.com/photo-1519244703995-f4e0f30006d5?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-        status: 'Current',
-        leaseEnd: '2024-09-30'
-      }
-    ]
+    {
+      id: '2',
+      name: 'Michael Foster',
+      email: 'michael.foster@example.com',
+      phone: '123-456-7891',
+      image: 'https://images.unsplash.com/photo-1519244703995-f4e0f30006d5?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
+      about: 'Good tenant, occasionally late with payments.',
+      rent_amount: 1300
+    }
+  ],
+  stats: {
+    totalRooms: 24,
+    occupiedRooms: 22,
+    monthlyRevenue: 52000,
+    maintenanceCosts: 3200
+  },
+  financials: {
+    monthlyIncome: 52000,
+    expenses: 12000,
+    netIncome: 40000,
+    occupancyRate: 91.6
+  },
+  details: {
+    mortgage: {
+      lender: 'ABC Bank',
+      amount: 2500000,
+      rate: '3.5%',
+      term: '30 years',
+      monthlyPayment: 11220
+    },
+    insurance: {
+      provider: 'XYZ Insurance',
+      coverage: 3000000,
+      premium: 1200,
+      expiryDate: '2025-03-15'
+    }
   }
-]
+};
+
+// Sample issues - these are not in the database yet
+const sampleIssues: Issue[] = [
+  { id: 1, title: 'Leaking roof', priority: 'High', status: 'Open', reported: '2024-03-08' },
+  { id: 2, title: 'Broken heating', priority: 'Medium', status: 'In Progress', reported: '2024-03-07' },
+];
 
 export default function PropertyDetails() {
-  const params = useParams()
-  const propertyId = params.id as string
-  const property = properties.find(p => p.id === propertyId)
+  const params = useParams();
+  const propertyId = params.id as string;
+  const [property, setProperty] = useState<PropertyForUI | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isAdvertiseDrawerOpen, setIsAdvertiseDrawerOpen] = useState(false);
-  const [editedProperty, setEditedProperty] = useState<PropertyFormState>({
-    name: '',
-    address: '',
-    city: '',
-    state: '',
-    zipCode: '',
-    type: 'apartment',
-    status: 'available',
-    bedrooms: '',
-    bathrooms: '',
-    squareFeet: '',
-    rentAmount: '',
-    description: '',
-    amenities: '',
-    yearBuilt: '',
-    parkingSpots: ''
-  });
+  const [isIssueDrawerOpen, setIsIssueDrawerOpen] = useState(false);
+  const [isNewIssueDrawerOpen, setIsNewIssueDrawerOpen] = useState(false);
+  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
+  const [selectedProperty, setSelectedProperty] = useState<PropertyForEdit | null>(null);
+  
+  // Fetch property data when component mounts
+  useEffect(() => {
+    const fetchProperty = async () => {
+      setLoading(true);
+      setError(null);
+      
+      console.log('Fetching property details for ID:', propertyId);
+      
+      try {
+        const data = await getPropertyWithTenants(propertyId);
+        console.log('Property data received:', data ? 'yes' : 'no');
+        
+        if (data) {
+          console.log('Property found:', data.id);
+          // Convert to UI format
+          const uiProperty = convertToUIProperty(data);
+          setProperty(uiProperty);
+          
+          // Set selected property for edit drawer
+          setSelectedProperty({
+            id: uiProperty.id,
+            name: uiProperty.name,
+            address: uiProperty.address,
+            city: uiProperty.city,
+            state: uiProperty.state || '',
+            zipCode: uiProperty.zipCode || '',
+            type: uiProperty.type,
+            status: uiProperty.status || 'available',
+            bedrooms: uiProperty.bedrooms || 0,
+            bathrooms: uiProperty.bathrooms || 0,
+            squareFeet: uiProperty.squareFeet || 0,
+            rentAmount: uiProperty.rentAmount || 0,
+            description: uiProperty.description || '',
+            amenities: uiProperty.amenities || [],
+            yearBuilt: uiProperty.yearBuilt || 0,
+            parkingSpots: uiProperty.parkingSpots || 0
+          });
+        } else {
+          console.error('No property data returned for ID:', propertyId);
+          setError(`Property not found with ID: ${propertyId}`);
+          
+          // In development mode, use sample data as fallback
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Using sample data as fallback');
+            setProperty(sampleProperty);
+            setSelectedProperty({
+              id: sampleProperty.id,
+              name: sampleProperty.name,
+              address: sampleProperty.address,
+              city: sampleProperty.city,
+              state: sampleProperty.state || '',
+              zipCode: sampleProperty.zipCode || '',
+              type: sampleProperty.type,
+              status: sampleProperty.status || 'available',
+              bedrooms: sampleProperty.bedrooms || 0,
+              bathrooms: sampleProperty.bathrooms || 0,
+              squareFeet: sampleProperty.squareFeet || 0,
+              rentAmount: sampleProperty.rentAmount || 0,
+              description: sampleProperty.description || '',
+              amenities: sampleProperty.amenities || [],
+              yearBuilt: sampleProperty.yearBuilt || 0,
+              parkingSpots: sampleProperty.parkingSpots || 0
+            });
+            setError(null);
+          }
+        }
+      } catch (error) {
+        console.error(`Error fetching property ${propertyId}:`, error);
+        setError(`Error loading property: ${error instanceof Error ? error.message : String(error)}`);
+        
+        // In development mode, use sample data as fallback
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Using sample data as fallback after error');
+          setProperty(sampleProperty);
+          setSelectedProperty({
+            id: sampleProperty.id,
+            name: sampleProperty.name,
+            address: sampleProperty.address,
+            city: sampleProperty.city,
+            state: sampleProperty.state || '',
+            zipCode: sampleProperty.zipCode || '',
+            type: sampleProperty.type,
+            status: sampleProperty.status || 'available',
+            bedrooms: sampleProperty.bedrooms || 0,
+            bathrooms: sampleProperty.bathrooms || 0,
+            squareFeet: sampleProperty.squareFeet || 0,
+            rentAmount: sampleProperty.rentAmount || 0,
+            description: sampleProperty.description || '',
+            amenities: sampleProperty.amenities || [],
+            yearBuilt: sampleProperty.yearBuilt || 0,
+            parkingSpots: sampleProperty.parkingSpots || 0
+          });
+          setError(null);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setEditedProperty(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+    if (propertyId) {
+      fetchProperty();
+    } else {
+      setError('No property ID provided');
+      setLoading(false);
+    }
+  }, [propertyId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Here you would typically update the property in your backend
-    console.log('Updated property:', editedProperty);
+    console.log('Form submitted:', selectedProperty);
     setIsDrawerOpen(false);
   };
 
-  // Load initial property data when opening the drawer
   const handleEditClick = () => {
-    // Here you would typically fetch the property data from your backend
-    // For now, we'll use dummy data
-    setEditedProperty({
-      name: 'Sunset Apartments',
-      address: '123 Main Street',
-      city: 'San Francisco',
-      state: 'CA',
-      zipCode: '94105',
-      type: 'apartment',
-      status: 'available',
-      bedrooms: '2',
-      bathrooms: '2',
-      squareFeet: '1200',
-      rentAmount: '3500',
-      description: 'Modern apartment complex in prime location',
-      amenities: 'Pool, Gym, Parking',
-      yearBuilt: '2015',
-      parkingSpots: '2'
-    });
     setIsDrawerOpen(true);
   };
 
-  if (!property) {
+  const handleEditSave = (updatedProperty: PropertyForEdit) => {
+    console.log('Updated property:', updatedProperty);
+    setIsDrawerOpen(false);
+  };
+
+  const openIssueDrawer = (issue: Issue) => {
+    setSelectedIssue(issue);
+    setIsIssueDrawerOpen(true);
+  };
+
+  const openNewIssueDrawer = () => {
+    setIsNewIssueDrawerOpen(true);
+  };
+
+  const handleIssueSubmit = (formData: any) => {
+    console.log('New issue:', formData);
+    setIsNewIssueDrawerOpen(false);
+  };
+
+  if (loading) {
+    return (
+      <SidebarLayout
+        sidebar={<SidebarContent currentPath="/properties" />}
+      >
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
+        </div>
+      </SidebarLayout>
+    );
+  }
+
+  if (error && !property) {
     return (
       <SidebarLayout
         sidebar={<SidebarContent currentPath="/properties" />}
       >
         <div className="space-y-6">
+          <div className="flex items-center text-sm text-gray-500">
+            <Link href="/" className="hover:text-gray-700">Dashboard</Link>
+            <span className="mx-2">/</span>
+            <Link href="/properties" className="hover:text-gray-700">Properties</Link>
+            <span className="mx-2">/</span>
+            <span className="text-gray-900 font-medium">Not Found</span>
+          </div>
           <div className="text-center py-12">
             <h3 className="text-base font-semibold text-gray-900">Property not found</h3>
             <p className="mt-1 text-sm text-gray-500">The property you're looking for doesn't exist or has been removed.</p>
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mt-4 p-4 bg-gray-100 text-left rounded">
+                <p className="text-xs font-mono">Debug info:</p>
+                <p className="text-xs font-mono">Property ID: {propertyId}</p>
+                <p className="text-xs font-mono">Error: {error}</p>
+              </div>
+            )}
           </div>
         </div>
       </SidebarLayout>
-    )
+    );
   }
+
+  if (!property) {
+    return null; // This should not happen, but TypeScript requires it
+  }
+
+  // Use sample issues for now as they aren't in the database yet
+  const issues = sampleIssues;
 
   return (
     <SidebarLayout
       sidebar={<SidebarContent currentPath="/properties" />}
     >
-      <div className="space-y-6">
+      <div className="space-y-8">
+        {/* Breadcrumb */}
+        <div className="flex items-center text-sm text-gray-500">
+          <Link href="/" className="hover:text-gray-700">Dashboard</Link>
+          <span className="mx-2">/</span>
+          <Link href="/properties" className="hover:text-gray-700">Properties</Link>
+          <span className="mx-2">/</span>
+          <span className="text-gray-900 font-medium">{property.name}</span>
+        </div>
+
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
@@ -201,7 +478,7 @@ export default function PropertyDetails() {
             </button>
             <button
               onClick={handleEditClick}
-              className="inline-flex items-center px-4 py-2 bg-gray-900 rounded-md text-sm font-medium text-white hover:bg-gray-800"
+              className="inline-flex items-center px-4 py-2 bg-[#D9E8FF] rounded-md text-sm font-medium text-black hover:bg-[#C8D7EE]"
             >
               <PencilIcon className="h-5 w-5 mr-2" />
               Edit Property
@@ -340,60 +617,78 @@ export default function PropertyDetails() {
                   {/* Tab Content */}
                   <div>
                     <TabsContent value="images" className="mt-0">
-                      <div className="rounded-md border p-4">
+                      <div className="rounded-md border p-4 bg-white">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {property.images.map((image, index) => (
-                            <div key={index} className="aspect-[4/3] relative overflow-hidden rounded-lg">
+                          {property.images && property.images.length > 0 ? (
+                            property.images.map((image: string, index: number) => (
+                              <div key={index} className="aspect-[4/3] relative overflow-hidden rounded-lg">
+                                <Image
+                                  src={image}
+                                  alt={`Property image ${index + 1}`}
+                                  fill
+                                  className="object-cover"
+                                />
+                              </div>
+                            ))
+                          ) : (
+                            <div className="aspect-[4/3] relative overflow-hidden rounded-lg">
                               <Image
-                                src={image}
-                                alt={`Property image ${index + 1}`}
+                                src={property.image}
+                                alt="Property image"
                                 fill
                                 className="object-cover"
                               />
                             </div>
-                          ))}
+                          )}
                         </div>
                       </div>
                     </TabsContent>
 
                     <TabsContent value="floor-plan" className="mt-0">
-                      <div className="rounded-md border p-4">
+                      <div className="rounded-md border p-4 bg-white">
                         <div className="aspect-[16/9] relative overflow-hidden rounded-lg">
-                          <Image
-                            src={property.floorPlan}
-                            alt="Floor plan"
-                            fill
-                            className="object-contain"
-                          />
+                          {property.floorPlan ? (
+                            <Image
+                              src={property.floorPlan as string}
+                              alt="Floor plan"
+                              fill
+                              className="object-contain"
+                            />
+                          ) : (
+                            <div className="flex items-center justify-center h-full w-full bg-gray-100">
+                              <p className="text-gray-500">No floor plan available</p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </TabsContent>
 
                     <TabsContent value="financials" className="mt-0">
-                      <div className="rounded-md border p-4">
+                      <div className="rounded-md border p-4 bg-white">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="bg-gray-50 p-4 rounded-lg">
+                          <div className="bg-white p-4 rounded-lg border border-gray-200">
                             <h4 className="text-sm font-medium text-gray-900">Monthly Income</h4>
                             <p className="mt-2 text-2xl font-semibold text-gray-900">
-                              £{property.financials.monthlyIncome.toLocaleString()}
+                              £{property.financials?.monthlyIncome.toLocaleString() || property.stats.monthlyRevenue.toLocaleString()}
                             </p>
                           </div>
-                          <div className="bg-gray-50 p-4 rounded-lg">
+                          <div className="bg-white p-4 rounded-lg border border-gray-200">
                             <h4 className="text-sm font-medium text-gray-900">Monthly Expenses</h4>
                             <p className="mt-2 text-2xl font-semibold text-gray-900">
-                              £{property.financials.expenses.toLocaleString()}
+                              £{property.financials?.expenses.toLocaleString() || property.stats.maintenanceCosts.toLocaleString()}
                             </p>
                           </div>
-                          <div className="bg-gray-50 p-4 rounded-lg">
+                          <div className="bg-white p-4 rounded-lg border border-gray-200">
                             <h4 className="text-sm font-medium text-gray-900">Net Income</h4>
                             <p className="mt-2 text-2xl font-semibold text-gray-900">
-                              £{property.financials.netIncome.toLocaleString()}
+                              £{property.financials?.netIncome.toLocaleString() || 
+                                 (property.stats.monthlyRevenue - property.stats.maintenanceCosts).toLocaleString()}
                             </p>
                           </div>
-                          <div className="bg-gray-50 p-4 rounded-lg">
+                          <div className="bg-white p-4 rounded-lg border border-gray-200">
                             <h4 className="text-sm font-medium text-gray-900">Occupancy Rate</h4>
                             <p className="mt-2 text-2xl font-semibold text-gray-900">
-                              {property.financials.occupancyRate}%
+                              {property.financials?.occupancyRate || property.occupancyRate}%
                             </p>
                           </div>
                         </div>
@@ -401,58 +696,66 @@ export default function PropertyDetails() {
                     </TabsContent>
 
                     <TabsContent value="details" className="mt-0">
-                      <div className="rounded-md border p-4">
-                        <div className="space-y-6">
-                          {/* Mortgage Information */}
-                          <div>
-                            <h4 className="text-sm font-medium text-gray-900 mb-4">Mortgage Information</h4>
-                            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                              <div className="bg-gray-50 p-4 rounded-lg">
-                                <dt className="text-sm font-medium text-gray-500">Lender</dt>
-                                <dd className="mt-1 text-sm text-gray-900">{property.details.mortgage.lender}</dd>
-                              </div>
-                              <div className="bg-gray-50 p-4 rounded-lg">
-                                <dt className="text-sm font-medium text-gray-500">Amount</dt>
-                                <dd className="mt-1 text-sm text-gray-900">£{property.details.mortgage.amount.toLocaleString()}</dd>
-                              </div>
-                              <div className="bg-gray-50 p-4 rounded-lg">
-                                <dt className="text-sm font-medium text-gray-500">Interest Rate</dt>
-                                <dd className="mt-1 text-sm text-gray-900">{property.details.mortgage.rate}</dd>
-                              </div>
-                              <div className="bg-gray-50 p-4 rounded-lg">
-                                <dt className="text-sm font-medium text-gray-500">Monthly Payment</dt>
-                                <dd className="mt-1 text-sm text-gray-900">£{property.details.mortgage.monthlyPayment.toLocaleString()}</dd>
-                              </div>
-                            </dl>
-                          </div>
-                          {/* Insurance Information */}
-                          <div>
-                            <h4 className="text-sm font-medium text-gray-900 mb-4">Insurance Information</h4>
-                            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                              <div className="bg-gray-50 p-4 rounded-lg">
-                                <dt className="text-sm font-medium text-gray-500">Provider</dt>
-                                <dd className="mt-1 text-sm text-gray-900">{property.details.insurance.provider}</dd>
-                              </div>
-                              <div className="bg-gray-50 p-4 rounded-lg">
-                                <dt className="text-sm font-medium text-gray-500">Coverage Amount</dt>
-                                <dd className="mt-1 text-sm text-gray-900">£{property.details.insurance.coverage.toLocaleString()}</dd>
-                              </div>
-                              <div className="bg-gray-50 p-4 rounded-lg">
-                                <dt className="text-sm font-medium text-gray-500">Monthly Premium</dt>
-                                <dd className="mt-1 text-sm text-gray-900">£{property.details.insurance.premium.toLocaleString()}</dd>
-                              </div>
-                              <div className="bg-gray-50 p-4 rounded-lg">
-                                <dt className="text-sm font-medium text-gray-500">Expiry Date</dt>
-                                <dd className="mt-1 text-sm text-gray-900">{new Date(property.details.insurance.expiryDate).toLocaleDateString()}</dd>
-                              </div>
-                            </dl>
+                      {property.details ? (
+                        <div className="rounded-md border p-4 bg-white">
+                          <div className="space-y-6">
+                            {/* Mortgage Information */}
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-900 mb-4">Mortgage Information</h4>
+                              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                  <dt className="text-sm font-medium text-gray-500">Lender</dt>
+                                  <dd className="mt-1 text-sm text-gray-900">{property.details.mortgage.lender}</dd>
+                                </div>
+                                <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                  <dt className="text-sm font-medium text-gray-500">Amount</dt>
+                                  <dd className="mt-1 text-sm text-gray-900">£{property.details.mortgage.amount.toLocaleString()}</dd>
+                                </div>
+                                <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                  <dt className="text-sm font-medium text-gray-500">Interest Rate</dt>
+                                  <dd className="mt-1 text-sm text-gray-900">{property.details.mortgage.rate}</dd>
+                                </div>
+                                <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                  <dt className="text-sm font-medium text-gray-500">Monthly Payment</dt>
+                                  <dd className="mt-1 text-sm text-gray-900">£{property.details.mortgage.monthlyPayment.toLocaleString()}</dd>
+                                </div>
+                              </dl>
+                            </div>
+                            {/* Insurance Information */}
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-900 mb-4">Insurance Information</h4>
+                              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                  <dt className="text-sm font-medium text-gray-500">Provider</dt>
+                                  <dd className="mt-1 text-sm text-gray-900">{property.details.insurance.provider}</dd>
+                                </div>
+                                <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                  <dt className="text-sm font-medium text-gray-500">Coverage Amount</dt>
+                                  <dd className="mt-1 text-sm text-gray-900">£{property.details.insurance.coverage.toLocaleString()}</dd>
+                                </div>
+                                <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                  <dt className="text-sm font-medium text-gray-500">Monthly Premium</dt>
+                                  <dd className="mt-1 text-sm text-gray-900">£{property.details.insurance.premium.toLocaleString()}</dd>
+                                </div>
+                                <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                  <dt className="text-sm font-medium text-gray-500">Expiry Date</dt>
+                                  <dd className="mt-1 text-sm text-gray-900">{new Date(property.details.insurance.expiryDate).toLocaleDateString()}</dd>
+                                </div>
+                              </dl>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="rounded-md border p-4 bg-white">
+                          <div className="flex items-center justify-center h-40 w-full">
+                            <p className="text-gray-500">No mortgage or insurance details available</p>
+                          </div>
+                        </div>
+                      )}
                     </TabsContent>
 
                     <TabsContent value="documents" className="mt-0">
-                      <div className="rounded-md border p-4">
+                      <div className="rounded-md border p-4 bg-white">
                         <div className="space-y-4">
                           <div className="flex justify-between items-center">
                             <h4 className="text-sm font-medium text-gray-900">Property Documents</h4>
@@ -530,31 +833,50 @@ export default function PropertyDetails() {
           <div className="col-span-1 space-y-6">
             {/* Open Issues */}
             <div className="bg-white shadow-sm sm:rounded-lg border border-gray-200">
-              <div className="px-4 py-5 sm:px-6">
-                <h3 className="text-base font-semibold text-gray-900">Open Issues</h3>
-                <p className="mt-1 text-sm text-gray-500">Current maintenance and repair issues.</p>
+              <div className="px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-200">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900">Open Issues</h3>
+                  <p className="text-sm text-gray-500 mt-1">Current maintenance and repair issues.</p>
+                </div>
+                <button 
+                  className="mt-4 sm:mt-0 px-4 py-2 bg-gray-900 rounded-md text-sm font-medium text-white hover:bg-gray-800"
+                  onClick={openNewIssueDrawer}
+                >
+                  Add issue
+                </button>
               </div>
-              <div className="border-t border-gray-200">
-                <ul role="list" className="divide-y divide-gray-200">
-                  {property.issues.map((issue) => (
-                    <li key={issue.id} className="px-4 py-4">
-                      <div className="flex items-center space-x-4">
-                        <div className="flex-shrink-0">
-                          <ExclamationCircleIcon className={classNames(
-                            'h-6 w-6',
-                            issue.priority === 'High' ? 'text-red-500' : 'text-yellow-500'
-                          )} />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-gray-900">{issue.title}</p>
-                          <p className="text-sm text-gray-500">
-                            {issue.status} • Reported {new Date(issue.reported).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issue</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {issues.map((issue) => (
+                      <tr 
+                        key={issue.id} 
+                        onClick={() => openIssueDrawer(issue)}
+                        className="cursor-pointer hover:bg-gray-50"
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{issue.title}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            issue.priority === 'High' ? 'bg-red-100 text-red-800' :
+                            issue.priority === 'Medium' ? 'bg-blue-100 text-blue-800' :
+                            'bg-green-100 text-green-800'
+                          }`}>
+                            {issue.priority}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-6 py-4 border-t border-gray-200">
+                <a href="/issues" className="text-sm text-indigo-600 hover:text-indigo-900">View all issues →</a>
               </div>
             </div>
 
@@ -571,7 +893,7 @@ export default function PropertyDetails() {
                       <div className="flex items-center space-x-4">
                         <div className="flex-shrink-0">
                           <Image
-                            src={tenant.image}
+                            src={tenant.image || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'}
                             alt={tenant.name}
                             width={40}
                             height={40}
@@ -580,8 +902,14 @@ export default function PropertyDetails() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-gray-900">{tenant.name}</p>
-                          <p className="text-sm text-gray-500">{tenant.room}</p>
-                          <p className="text-xs text-gray-400">Lease ends {new Date(tenant.leaseEnd).toLocaleDateString()}</p>
+                          <p className="text-sm text-gray-500">
+                            {tenant.email || 'No email available'}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {(tenant as any).lease_end_date ? 
+                              `Lease ends ${new Date((tenant as any).lease_end_date).toLocaleDateString()}` : 
+                              'No lease end date available'}
+                          </p>
                         </div>
                         <div>
                           <Link
@@ -600,394 +928,36 @@ export default function PropertyDetails() {
           </div>
         </div>
 
-        {/* Advertise Property Drawer */}
-        {isAdvertiseDrawerOpen && (
-          <div className="fixed inset-0 overflow-hidden z-50">
-            <div className="absolute inset-0 overflow-hidden">
-              <div 
-                className="absolute inset-0 bg-gray-500 bg-opacity-75 transition-opacity" 
-                onClick={() => setIsAdvertiseDrawerOpen(false)}
-              />
-              <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10 z-50">
-                <div className="pointer-events-auto w-screen max-w-md">
-                  <div className="flex h-full flex-col bg-white shadow-xl">
-                    <div className="flex-1 overflow-y-auto py-6">
-                      <div className="px-4 sm:px-6">
-                        <div className="flex items-start justify-between">
-                          <h2 className="text-lg font-medium text-gray-900">Advertise Property</h2>
-                          <button
-                            type="button"
-                            className="ml-3 flex h-7 w-7 items-center justify-center rounded-md bg-white text-gray-400 hover:text-gray-500"
-                            onClick={() => setIsAdvertiseDrawerOpen(false)}
-                          >
-                            <XMarkIcon className="h-6 w-6" />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="mt-6 px-4 sm:px-6">
-                        <h3 className="text-sm font-medium text-gray-900 mb-4">Advertise on popular platforms</h3>
-                        
-                        <div className="space-y-4">
-                          <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-12 w-12 bg-blue-100 rounded-md flex items-center justify-center">
-                                <span className="text-blue-600 font-bold">RM</span>
-                              </div>
-                              <div className="ml-4">
-                                <h4 className="font-medium text-gray-900">Rightmove</h4>
-                                <p className="text-sm text-gray-500 mt-1">UK's largest property portal</p>
-                              </div>
-                            </div>
-                            <div className="mt-4">
-                              <button className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                                Create Listing
-                              </button>
-                            </div>
-                          </div>
-                          
-                          <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-12 w-12 bg-purple-100 rounded-md flex items-center justify-center">
-                                <span className="text-purple-600 font-bold">ZP</span>
-                              </div>
-                              <div className="ml-4">
-                                <h4 className="font-medium text-gray-900">Zoopla</h4>
-                                <p className="text-sm text-gray-500 mt-1">Comprehensive property search</p>
-                              </div>
-                            </div>
-                            <div className="mt-4">
-                              <button className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700">
-                                Create Listing
-                              </button>
-                            </div>
-                          </div>
-                          
-                          <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-12 w-12 bg-green-100 rounded-md flex items-center justify-center">
-                                <span className="text-green-600 font-bold">SR</span>
-                              </div>
-                              <div className="ml-4">
-                                <h4 className="font-medium text-gray-900">SpareRoom</h4>
-                                <p className="text-sm text-gray-500 mt-1">Perfect for HMO rooms</p>
-                              </div>
-                            </div>
-                            <div className="mt-4">
-                              <button className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
-                                Create Listing
-                              </button>
-                            </div>
-                          </div>
-                          
-                          <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-12 w-12 bg-red-100 rounded-md flex items-center justify-center">
-                                <span className="text-red-600 font-bold">OM</span>
-                              </div>
-                              <div className="ml-4">
-                                <h4 className="font-medium text-gray-900">OnTheMarket</h4>
-                                <p className="text-sm text-gray-500 mt-1">Growing property portal</p>
-                              </div>
-                            </div>
-                            <div className="mt-4">
-                              <button className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700">
-                                Create Listing
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Edit Property Drawer */}
-        {isDrawerOpen && (
-          <div className="fixed inset-0 overflow-hidden z-50">
-            <div className="absolute inset-0 overflow-hidden">
-              <div 
-                className="absolute inset-0 bg-transparent transition-opacity" 
-                onClick={() => setIsDrawerOpen(false)}
-              />
-              <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
-                <div className="pointer-events-auto w-screen max-w-md">
-                  <div className="flex h-full flex-col bg-white shadow-xl">
-                    <div className="flex-1 h-0 overflow-y-auto">
-                      <div className="py-6 px-4 bg-gray-50 sm:px-6">
-                        <div className="flex items-center justify-between">
-                          <h2 className="text-lg font-medium text-gray-900">Edit Property</h2>
-                          <button
-                            type="button"
-                            className="rounded-md text-gray-400 hover:text-gray-500 focus:outline-none"
-                            onClick={() => setIsDrawerOpen(false)}
-                          >
-                            <XMarkIcon className="h-6 w-6" />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="flex-1 flex flex-col justify-between">
-                        <div className="px-4 sm:px-6">
-                          <form onSubmit={handleSubmit} className="space-y-6 pt-6 pb-5">
-                            <div>
-                              <label htmlFor="name" className="block text-sm font-medium text-gray-900">
-                                Property Name
-                              </label>
-                              <input
-                                type="text"
-                                name="name"
-                                id="name"
-                                required
-                                value={editedProperty.name}
-                                onChange={handleInputChange}
-                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                                placeholder="e.g., Sunset Apartments"
-                              />
-                            </div>
+        <EditPropertyDrawer
+          isOpen={isDrawerOpen}
+          onClose={() => setIsDrawerOpen(false)}
+          property={selectedProperty}
+          onSave={handleEditSave}
+        />
 
-                            <div>
-                              <label htmlFor="address" className="block text-sm font-medium text-gray-900">
-                                Street Address
-                              </label>
-                              <input
-                                type="text"
-                                name="address"
-                                id="address"
-                                required
-                                value={editedProperty.address}
-                                onChange={handleInputChange}
-                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                              />
-                            </div>
+        {/* Advertise Property Drawer */}
+        <AdvertisePropertyDrawer
+          isOpen={isAdvertiseDrawerOpen}
+          onClose={() => setIsAdvertiseDrawerOpen(false)}
+          propertyName={property.name}
+        />
 
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <label htmlFor="city" className="block text-sm font-medium text-gray-900">
-                                  City
-                                </label>
-                                <input
-                                  type="text"
-                                  name="city"
-                                  id="city"
-                                  required
-                                  value={editedProperty.city}
-                                  onChange={handleInputChange}
-                                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                                />
-                              </div>
-                              <div>
-                                <label htmlFor="state" className="block text-sm font-medium text-gray-900">
-                                  State
-                                </label>
-                                <input
-                                  type="text"
-                                  name="state"
-                                  id="state"
-                                  required
-                                  value={editedProperty.state}
-                                  onChange={handleInputChange}
-                                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                                />
-                              </div>
-                            </div>
+        {/* Issue Drawer */}
+        <IssueDrawer 
+          isOpen={isIssueDrawerOpen}
+          issue={selectedIssue}
+          onClose={() => setIsIssueDrawerOpen(false)}
+        />
 
-                            <div>
-                              <label htmlFor="zipCode" className="block text-sm font-medium text-gray-900">
-                                Post Code
-                              </label>
-                              <input
-                                type="text"
-                                name="zipCode"
-                                id="zipCode"
-                                required
-                                value={editedProperty.zipCode}
-                                onChange={handleInputChange}
-                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                              />
-                            </div>
-
-                            <div>
-                              <label htmlFor="type" className="block text-sm font-medium text-gray-900">
-                                Property Type
-                              </label>
-                              <select
-                                name="type"
-                                id="type"
-                                required
-                                value={editedProperty.type}
-                                onChange={handleInputChange}
-                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                              >
-                                <option value="apartment">Apartment</option>
-                                <option value="house">House</option>
-                                <option value="condo">Condo</option>
-                                <option value="townhouse">Townhouse</option>
-                                <option value="duplex">Duplex</option>
-                                <option value="commercial">Commercial</option>
-                              </select>
-                            </div>
-
-                            <div>
-                              <label htmlFor="status" className="block text-sm font-medium text-gray-900">
-                                Status
-                              </label>
-                              <select
-                                name="status"
-                                id="status"
-                                required
-                                value={editedProperty.status}
-                                onChange={handleInputChange}
-                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                              >
-                                <option value="available">Available</option>
-                                <option value="rented">Rented</option>
-                                <option value="maintenance">Under Maintenance</option>
-                                <option value="renovation">Under Renovation</option>
-                              </select>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <label htmlFor="bedrooms" className="block text-sm font-medium text-gray-900">
-                                  Bedrooms
-                                </label>
-                                <input
-                                  type="number"
-                                  name="bedrooms"
-                                  id="bedrooms"
-                                  required
-                                  value={editedProperty.bedrooms}
-                                  onChange={handleInputChange}
-                                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                                />
-                              </div>
-                              <div>
-                                <label htmlFor="bathrooms" className="block text-sm font-medium text-gray-900">
-                                  Bathrooms
-                                </label>
-                                <input
-                                  type="number"
-                                  name="bathrooms"
-                                  id="bathrooms"
-                                  required
-                                  value={editedProperty.bathrooms}
-                                  onChange={handleInputChange}
-                                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <label htmlFor="squareFeet" className="block text-sm font-medium text-gray-900">
-                                  Square Feet
-                                </label>
-                                <input
-                                  type="number"
-                                  name="squareFeet"
-                                  id="squareFeet"
-                                  required
-                                  value={editedProperty.squareFeet}
-                                  onChange={handleInputChange}
-                                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                                />
-                              </div>
-                              <div>
-                                <label htmlFor="rentAmount" className="block text-sm font-medium text-gray-900">
-                                  Monthly Rent ($)
-                                </label>
-                                <input
-                                  type="number"
-                                  name="rentAmount"
-                                  id="rentAmount"
-                                  required
-                                  value={editedProperty.rentAmount}
-                                  onChange={handleInputChange}
-                                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                                />
-                              </div>
-                            </div>
-
-                            <div>
-                              <label htmlFor="amenities" className="block text-sm font-medium text-gray-900">
-                                Amenities
-                              </label>
-                              <input
-                                type="text"
-                                name="amenities"
-                                id="amenities"
-                                value={editedProperty.amenities}
-                                onChange={handleInputChange}
-                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                                placeholder="e.g., Pool, Gym, Parking"
-                              />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <label htmlFor="yearBuilt" className="block text-sm font-medium text-gray-900">
-                                  Year Built
-                                </label>
-                                <input
-                                  type="number"
-                                  name="yearBuilt"
-                                  id="yearBuilt"
-                                  value={editedProperty.yearBuilt}
-                                  onChange={handleInputChange}
-                                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                                />
-                              </div>
-                              <div>
-                                <label htmlFor="parkingSpots" className="block text-sm font-medium text-gray-900">
-                                  Parking Spots
-                                </label>
-                                <input
-                                  type="number"
-                                  name="parkingSpots"
-                                  id="parkingSpots"
-                                  value={editedProperty.parkingSpots}
-                                  onChange={handleInputChange}
-                                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                                />
-                              </div>
-                            </div>
-
-                            <div>
-                              <label htmlFor="description" className="block text-sm font-medium text-gray-900">
-                                Description
-                              </label>
-                              <textarea
-                                name="description"
-                                id="description"
-                                rows={3}
-                                value={editedProperty.description}
-                                onChange={handleInputChange}
-                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                                placeholder="Property description and additional details..."
-                              />
-                            </div>
-
-                            <div className="mt-5 sm:mt-6">
-                              <button
-                                type="submit"
-                                className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-gray-900 text-base font-medium text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 sm:text-sm"
-                              >
-                                Save Changes
-                              </button>
-                            </div>
-                          </form>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* New Issue Form Drawer */}
+        <IssueFormDrawer
+          isOpen={isNewIssueDrawerOpen}
+          onClose={() => setIsNewIssueDrawerOpen(false)}
+          onSubmit={handleIssueSubmit}
+          title="Report New Issue"
+          preSelectedPropertyId={propertyId}
+        />
       </div>
     </SidebarLayout>
   )

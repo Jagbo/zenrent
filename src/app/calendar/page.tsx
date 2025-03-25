@@ -30,6 +30,7 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/solid'
 import { SidebarContent } from '../components/sidebar-content'
+import { CalendarEventFormDrawer } from '../components/CalendarEventFormDrawer'
 
 // Icons for navigation items
 function DashboardIcon() {
@@ -108,38 +109,12 @@ export default function Calendar() {
   const [currentMonth, setCurrentMonth] = useState(currentDate.getMonth());
   const [currentYear, setCurrentYear] = useState(currentDate.getFullYear());
   const [currentDay, setCurrentDay] = useState(currentDate.getDate());
-  const [newEvent, setNewEvent] = useState({
-    title: '',
-    date: '',
-    startTime: '',
-    endTime: '',
-    location: '',
-    type: 'meeting' as CalendarEvent['type'],
-    description: ''
-  });
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setNewEvent(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (formData: any) => {
     // Here you would typically save the event to your backend
-    console.log('New event:', newEvent);
+    console.log('New event:', formData);
     setIsDrawerOpen(false);
-    setNewEvent({
-      title: '',
-      date: '',
-      startTime: '',
-      endTime: '',
-      location: '',
-      type: 'meeting',
-      description: ''
-    });
+    setSelectedEvent(null);
   };
 
   const handleEventClick = (event: CalendarEvent) => {
@@ -450,7 +425,7 @@ export default function Calendar() {
                 setSelectedEvent(null);
                 setIsDrawerOpen(true);
               }}
-              className="px-4 py-2 bg-gray-900 rounded-md text-sm font-medium text-white hover:bg-gray-800"
+              className="px-4 py-2 bg-[#D9E8FF] rounded-md text-sm font-medium text-black hover:bg-[#C8D7EE]"
             >
               <PlusIcon className="h-5 w-5 inline-block mr-1" />
               Add Event
@@ -458,213 +433,17 @@ export default function Calendar() {
           </div>
         </div>
         
-        {/* Event Form Drawer */}
-        {isDrawerOpen && (
-          <div className="fixed inset-0 overflow-hidden z-50">
-            <div className="absolute inset-0 overflow-hidden">
-              <div 
-                className="absolute inset-0 bg-transparent transition-opacity" 
-                onClick={() => {
+        {/* Calendar Event Form Drawer */}
+        <CalendarEventFormDrawer
+          isOpen={isDrawerOpen}
+          onClose={() => {
                   setIsDrawerOpen(false);
                   setSelectedEvent(null);
                 }}
-              />
-              <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10 z-50">
-                <div className="pointer-events-auto w-screen max-w-md">
-                  <div className="flex h-full flex-col bg-white shadow-xl">
-                    <div className="flex-1 h-0 overflow-y-auto">
-                      <div className="py-6 px-4 bg-gray-50 sm:px-6">
-                        <div className="flex items-center justify-between">
-                          <h2 className="text-lg font-medium text-gray-900">
-                            {selectedEvent ? selectedEvent.title : "Add New Event"}
-                          </h2>
-                          <button
-                            type="button"
-                            className="rounded-md text-gray-400 hover:text-gray-500 focus:outline-none"
-                            onClick={() => {
-                              setIsDrawerOpen(false);
-                              setSelectedEvent(null);
-                            }}
-                          >
-                            <XMarkIcon className="h-6 w-6" />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="flex-1 flex flex-col justify-between">
-                        <div className="px-4 sm:px-6">
-                          {selectedEvent ? (
-                            // Event details view
-                            <div className="py-6">
-                              <div className={`${getEventColor(selectedEvent.type)} px-3 py-1 inline-block rounded-full text-sm font-medium mb-4`}>
-                                {selectedEvent.type.charAt(0).toUpperCase() + selectedEvent.type.slice(1)}
-                              </div>
-                              
-                              <div className="space-y-4">
-                                <div>
-                                  <h3 className="text-sm font-medium text-gray-500">Date & Time</h3>
-                                  <div className="mt-1 flex items-center text-sm">
-                                    <ClockIcon className="h-4 w-4 mr-2 text-gray-400" />
-                                    {selectedEvent.date} | {selectedEvent.time}
-                                  </div>
-                                </div>
-                                
-                                <div>
-                                  <h3 className="text-sm font-medium text-gray-500">Location</h3>
-                                  <div className="mt-1 flex items-center text-sm">
-                                    <MapPinIcon className="h-4 w-4 mr-2 text-gray-400" />
-                                    {selectedEvent.location}
-                                  </div>
-                                </div>
-                                
-                                <div className="pt-4 border-t border-gray-200">
-                                  <div className="flex justify-end space-x-3">
-                                    <button
-                                      type="button"
-                                      className="inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none"
-                                      onClick={() => {
-                                        setIsDrawerOpen(false);
-                                        setSelectedEvent(null);
-                                      }}
-                                    >
-                                      Close
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            // Add new event form
-                            <form onSubmit={handleSubmit} className="space-y-6 pt-6 pb-5">
-                              <div>
-                                <label htmlFor="title" className="block text-sm font-medium text-gray-900">
-                                  Event Title
-                                </label>
-                                <input
-                                  type="text"
-                                  name="title"
-                                  id="title"
-                                  required
-                                  value={newEvent.title}
-                                  onChange={handleInputChange}
-                                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                                />
-                              </div>
-
-                              <div>
-                                <label htmlFor="date" className="block text-sm font-medium text-gray-900">
-                                  Date
-                                </label>
-                                <input
-                                  type="date"
-                                  name="date"
-                                  id="date"
-                                  required
-                                  value={newEvent.date}
-                                  onChange={handleInputChange}
-                                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                                />
-                              </div>
-
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <label htmlFor="startTime" className="block text-sm font-medium text-gray-900">
-                                    Start Time
-                                  </label>
-                                  <input
-                                    type="time"
-                                    name="startTime"
-                                    id="startTime"
-                                    required
-                                    value={newEvent.startTime}
-                                    onChange={handleInputChange}
-                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                                  />
-                                </div>
-                                <div>
-                                  <label htmlFor="endTime" className="block text-sm font-medium text-gray-900">
-                                    End Time
-                                  </label>
-                                  <input
-                                    type="time"
-                                    name="endTime"
-                                    id="endTime"
-                                    required
-                                    value={newEvent.endTime}
-                                    onChange={handleInputChange}
-                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                                  />
-                                </div>
-                              </div>
-
-                              <div>
-                                <label htmlFor="location" className="block text-sm font-medium text-gray-900">
-                                  Location
-                                </label>
-                                <input
-                                  type="text"
-                                  name="location"
-                                  id="location"
-                                  value={newEvent.location}
-                                  onChange={handleInputChange}
-                                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                                />
-                              </div>
-
-                              <div>
-                                <label htmlFor="type" className="block text-sm font-medium text-gray-900">
-                                  Event Type
-                                </label>
-                                <select
-                                  name="type"
-                                  id="type"
-                                  required
-                                  value={newEvent.type}
-                                  onChange={handleInputChange}
-                                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                                >
-                                  <option value="inspection">Inspection</option>
-                                  <option value="payment">Payment</option>
-                                  <option value="maintenance">Maintenance</option>
-                                  <option value="meeting">Meeting</option>
-                                  <option value="showing">Showing</option>
-                                  <option value="contract">Contract</option>
-                                  <option value="admin">Administrative</option>
-                                </select>
-                              </div>
-
-                              <div>
-                                <label htmlFor="description" className="block text-sm font-medium text-gray-900">
-                                  Description
-                                </label>
-                                <textarea
-                                  name="description"
-                                  id="description"
-                                  rows={3}
-                                  value={newEvent.description}
-                                  onChange={handleInputChange}
-                                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-                                />
-                              </div>
-
-                              <div className="mt-5 sm:mt-6">
-                                <button
-                                  type="submit"
-                                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-gray-900 text-base font-medium text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 sm:text-sm"
-                                >
-                                  Add Event
-                                </button>
-                              </div>
-                            </form>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+          onSubmit={handleSubmit}
+          selectedEvent={selectedEvent}
+          title="Add New Event"
+        />
 
         {/* Calendar Navigation */}
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">

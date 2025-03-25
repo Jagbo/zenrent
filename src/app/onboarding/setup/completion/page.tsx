@@ -133,14 +133,14 @@ export default function SetupCompletion() {
     if (billingCycle === 'monthly') {
       return (
         <>
-          <span className="text-3xl font-bold tracking-tight text-gray-900">{plan.price}</span>
+          <span className="text-3xl title-font text-gray-900">{plan.price}</span>
           <span className="ml-1 text-sm font-medium text-gray-500">/month</span>
         </>
       );
     } else {
       return (
         <>
-          <span className="text-3xl font-bold tracking-tight text-gray-900">{getAnnualPrice(plan.price)}</span>
+          <span className="text-3xl title-font text-gray-900">{getAnnualPrice(plan.price)}</span>
           <span className="ml-1 text-sm font-medium text-gray-500">/year</span>
           <span className="ml-2 inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
             Save 20%
@@ -237,7 +237,7 @@ export default function SetupCompletion() {
         {/* Progress Bar */}
         <div className="py-0">
           <nav aria-label="Progress">
-            <ol role="list" className="flex overflow-x-auto border border-gray-300 rounded-md">
+            <ol role="list" className="flex overflow-x-auto border border-gray-300 rounded-md bg-white">
               {steps.map((step, stepIdx) => (
                 <li key={step.name} className="relative flex flex-1 min-w-[80px] sm:min-w-[120px]">
                   {step.status === 'complete' ? (
@@ -296,7 +296,7 @@ export default function SetupCompletion() {
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-indigo-100">
               <RocketLaunchIcon className="h-10 w-10 text-indigo-600" aria-hidden="true" />
             </div>
-            <h2 className="mt-4 text-2xl font-bold tracking-tight text-gray-900">Setup Complete!</h2>
+            <h2 className="mt-4 text-2xl title-font text-gray-900">Setup Complete!</h2>
             <p className="mt-2 text-base text-gray-500">
               Congratulations! You've successfully completed the onboarding process.
             </p>

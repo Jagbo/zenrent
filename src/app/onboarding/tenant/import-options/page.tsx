@@ -69,7 +69,7 @@ export default function TenantImportOptions() {
         {/* Progress Bar */}
         <div className="py-0">
           <nav aria-label="Progress">
-            <ol role="list" className="flex overflow-x-auto border border-gray-300 rounded-md">
+            <ol role="list" className="flex overflow-x-auto border border-gray-300 rounded-md bg-white">
               {steps.map((step, stepIdx) => (
                 <li key={step.name} className="relative flex flex-1 min-w-[80px] sm:min-w-[120px]">
                   {step.status === 'complete' ? (
@@ -124,7 +124,7 @@ export default function TenantImportOptions() {
 
         <div className="grid grid-cols-1 gap-x-8 gap-y-8 py-8 md:grid-cols-3">
           <div className="px-4 sm:px-0">
-            <h2 className="text-base/7 font-semibold text-gray-900">Tenant Import Options</h2>
+            <h2 className="text-base/7 title-font text-gray-900">Tenant Import Options</h2>
             <p className="mt-1 text-sm/6 text-gray-600">
               Choose how you want to add your tenants to the system.
             </p>
@@ -135,7 +135,7 @@ export default function TenantImportOptions() {
               <div className="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8">
                 {/* Import Options */}
                 <div className="border-b border-gray-900/10 pb-6">
-                  <h2 className="text-base/7 font-semibold text-gray-900">Select Import Method</h2>
+                  <h2 className="text-base/7 title-font text-gray-900">Select Import Method</h2>
                   <p className="mt-1 text-sm/6 text-gray-600">
                     Choose the method that works best for you to add your tenants.
                   </p>
@@ -178,7 +178,7 @@ export default function TenantImportOptions() {
                 
                 {/* Import Guidance */}
                 <div className="border-b border-gray-900/10 pb-6">
-                  <h2 className="text-base/7 font-semibold text-gray-900">Import Guidance</h2>
+                  <h2 className="text-base/7 title-font text-gray-900">Import Guidance</h2>
                   
                   <div className="mt-4 rounded-md bg-blue-50 p-4">
                     <div className="flex">
@@ -198,7 +198,7 @@ export default function TenantImportOptions() {
                 
                 {/* Data Protection Notice */}
                 <div>
-                  <h2 className="text-base/7 font-semibold text-gray-900">Data Protection</h2>
+                  <h2 className="text-base/7 title-font text-gray-900">Data Protection</h2>
                   
                   <div className="mt-4 text-sm text-gray-600">
                     <p>

@@ -79,7 +79,7 @@ export default function PropertyImportOptions() {
         {/* Progress Bar */}
         <div className="py-0">
           <nav aria-label="Progress">
-            <ol role="list" className="flex overflow-x-auto border border-gray-300 rounded-md">
+            <ol role="list" className="flex overflow-x-auto border border-gray-300 rounded-md bg-white">
               {steps.map((step, stepIdx) => (
                 <li key={step.name} className="relative flex flex-1 min-w-[80px] sm:min-w-[120px]">
                   {step.status === 'complete' ? (
@@ -134,7 +134,7 @@ export default function PropertyImportOptions() {
 
         <div className="grid grid-cols-1 gap-x-8 gap-y-8 py-8 md:grid-cols-3">
           <div className="px-4 sm:px-0">
-            <h2 className="text-base/7 font-semibold text-gray-900">Property Portfolio</h2>
+            <h2 className="text-base/7 title-font text-gray-900">Property Portfolio</h2>
             <p className="mt-1 text-sm/6 text-gray-600">
               Choose how you'd like to add your properties to ZenRent.
             </p>
@@ -145,7 +145,7 @@ export default function PropertyImportOptions() {
               <div className="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8">
                 {/* Import Options */}
                 <div className="border-b border-gray-900/10 pb-6">
-                  <h2 className="text-base/7 font-semibold text-gray-900">Select Import Method</h2>
+                  <h2 className="text-base/7 title-font text-gray-900">Select Import Method</h2>
                   <p className="mt-1 text-sm/6 text-gray-600">
                     Choose the method that best suits your needs for adding properties.
                   </p>
@@ -198,7 +198,7 @@ export default function PropertyImportOptions() {
                 
                 {/* Import Guidance */}
                 <div className="border-b border-gray-900/10 pb-6">
-                  <h2 className="text-base/7 font-semibold text-gray-900">Import Guidance</h2>
+                  <h2 className="text-base/7 title-font text-gray-900">Import Guidance</h2>
                   <div className="mt-2 text-sm text-gray-600">
                     <p>For the best results when importing your properties:</p>
                     <ul className="mt-2 list-disc pl-5 space-y-1">
@@ -218,7 +218,7 @@ export default function PropertyImportOptions() {
                       <ShieldCheckIcon className="size-6 text-indigo-600" aria-hidden="true" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-medium text-gray-900">Data Protection Notice</h3>
+                      <h3 className="text-sm title-font text-gray-900">Data Protection Notice</h3>
                       <p className="mt-1 text-sm text-gray-600">
                         Your property data is securely stored and processed in accordance with our 
                         <a href="#" className="text-indigo-600 hover:text-indigo-500"> Privacy Policy</a>. 

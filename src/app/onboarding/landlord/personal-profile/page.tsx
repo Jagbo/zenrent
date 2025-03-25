@@ -16,22 +16,12 @@ const steps = [
   { id: '05', name: 'Setup', href: '#', status: 'upcoming' },
 ];
 
-const titles = [
-  { id: 'mr', name: 'Mr' },
-  { id: 'mrs', name: 'Mrs' },
-  { id: 'miss', name: 'Miss' },
-  { id: 'ms', name: 'Ms' },
-  { id: 'dr', name: 'Dr' },
-  { id: 'other', name: 'Other' },
-];
-
 export default function PersonalProfile() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Form state
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
-  const [title, setTitle] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [addressLine1, setAddressLine1] = useState('');
   const [addressLine2, setAddressLine2] = useState('');
@@ -85,24 +75,24 @@ export default function PersonalProfile() {
         {/* Progress Bar */}
         <div className="py-0">
           <nav aria-label="Progress">
-            <ol role="list" className="divide-y divide-gray-300 rounded-md border border-gray-300 md:flex md:divide-y-0">
+            <ol role="list" className="divide-y divide-gray-300 rounded-md border border-gray-300 md:flex md:divide-y-0 bg-white">
               {steps.map((step, stepIdx) => (
                 <li key={step.name} className="relative md:flex md:flex-1">
                   {step.status === 'complete' ? (
                     <a href={step.href} className="group flex w-full items-center">
                       <span className="flex items-center px-6 py-4 text-sm font-medium">
-                        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-indigo-600 group-hover:bg-indigo-800">
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#FF503E] group-hover:bg-[#e3402f]">
                           <CheckIconSolid aria-hidden="true" className="size-6 text-white" />
                         </span>
-                        <span className="ml-4 text-sm font-medium text-gray-900">{step.name}</span>
+                        <span className="ml-4 text-sm font-cabinet-grotesk font-bold text-gray-900">{step.name}</span>
                       </span>
                     </a>
                   ) : step.status === 'current' ? (
                     <a href={step.href} aria-current="step" className="flex items-center px-6 py-4 text-sm font-medium">
-                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-indigo-600">
-                        <span className="text-indigo-600">{step.id}</span>
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-[#FF503E]">
+                        <span className="text-[#FF503E]">{step.id}</span>
                       </span>
-                      <span className="ml-4 text-sm font-medium text-indigo-600">{step.name}</span>
+                      <span className="ml-4 text-sm font-cabinet-grotesk font-bold text-[#FF503E]">{step.name}</span>
                     </a>
                   ) : (
                     <a href={step.href} className="group flex items-center">
@@ -110,7 +100,7 @@ export default function PersonalProfile() {
                         <span className="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-gray-300 group-hover:border-gray-400">
                           <span className="text-gray-500 group-hover:text-gray-900">{step.id}</span>
                         </span>
-                        <span className="ml-4 text-sm font-medium text-gray-500 group-hover:text-gray-900">{step.name}</span>
+                        <span className="ml-4 text-sm font-cabinet-grotesk font-bold text-gray-500 group-hover:text-gray-900">{step.name}</span>
                       </span>
                     </a>
                   )}
@@ -138,7 +128,7 @@ export default function PersonalProfile() {
 
         <div className="grid grid-cols-1 gap-x-8 gap-y-8 py-8 md:grid-cols-3">
           <div className="px-4 sm:px-0">
-            <h2 className="text-base/7 font-semibold text-gray-900">Personal Profile</h2>
+            <h2 className="text-base/7 font-cabinet-grotesk font-bold text-gray-900">Personal Profile</h2>
             <p className="mt-1 text-sm/6 text-gray-600">
               Please provide your personal information to comply with UK regulatory requirements.
             </p>
@@ -149,7 +139,7 @@ export default function PersonalProfile() {
               <div className="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8">
                 {/* Profile Photo */}
                 <div className="border-b border-gray-900/10 pb-6">
-                  <h2 className="text-base/7 font-semibold text-gray-900">Profile Photo</h2>
+                  <h2 className="text-base/7 font-cabinet-grotesk font-bold text-gray-900">Profile Photo</h2>
                   <p className="mt-1 text-sm/6 text-gray-600">
                     Upload a profile photo or use your imported photo.
                   </p>
@@ -192,34 +182,12 @@ export default function PersonalProfile() {
 
                 {/* Personal Information */}
                 <div className="border-b border-gray-900/10 pb-6">
-                  <h2 className="text-base/7 font-semibold text-gray-900">Personal Information</h2>
+                  <h2 className="text-base/7 font-cabinet-grotesk font-bold text-gray-900">Personal Information</h2>
                   <p className="mt-1 text-sm/6 text-gray-600">
                     Required for UK compliance and identity verification.
                   </p>
                   <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-6">
-                    <div className="sm:col-span-2">
-                      <label htmlFor="title" className="block text-sm/6 font-medium text-gray-900">
-                        Title
-                      </label>
-                      <div className="mt-2">
-                        <select
-                          id="title"
-                          name="title"
-                          value={title}
-                          onChange={(e) => setTitle(e.target.value)}
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
-                        >
-                          <option value="">Select title</option>
-                          {titles.map((title) => (
-                            <option key={title.id} value={title.id}>
-                              {title.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="sm:col-span-4">
+                    <div className="sm:col-span-6">
                       <label htmlFor="date-of-birth" className="block text-sm/6 font-medium text-gray-900">
                         Date of birth *
                       </label>
@@ -243,7 +211,7 @@ export default function PersonalProfile() {
 
                 {/* Current Address */}
                 <div>
-                  <h2 className="text-base/7 font-semibold text-gray-900">Current Address</h2>
+                  <h2 className="text-base/7 font-cabinet-grotesk font-bold text-gray-900">Current Address</h2>
                   <p className="mt-1 text-sm/6 text-gray-600">
                     Your current residential address.
                   </p>

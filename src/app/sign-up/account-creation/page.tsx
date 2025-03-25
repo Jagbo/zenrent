@@ -16,11 +16,22 @@ const steps = [
   { id: '05', name: 'Setup', href: '#', status: 'upcoming' },
 ];
 
+// Add titles array
+const titles = [
+  { id: 'mr', name: 'Mr' },
+  { id: 'mrs', name: 'Mrs' },
+  { id: 'miss', name: 'Miss' },
+  { id: 'ms', name: 'Ms' },
+  { id: 'dr', name: 'Dr' },
+  { id: 'other', name: 'Other' },
+];
+
 export default function AccountCreation() {
   const router = useRouter();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [mobile, setMobile] = useState('');
+  const [title, setTitle] = useState(''); // Add title state
   const [accountType, setAccountType] = useState('individual');
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
@@ -53,7 +64,7 @@ export default function AccountCreation() {
         {/* Progress Bar */}
         <div className="py-0">
           <nav aria-label="Progress">
-            <ol role="list" className="flex overflow-x-auto border border-gray-300 rounded-md">
+            <ol role="list" className="flex overflow-x-auto border border-gray-300 rounded-md bg-white">
               {steps.map((step, stepIdx) => (
                 <li key={step.name} className="relative flex flex-1 min-w-[80px] sm:min-w-[120px]">
                   {step.status === 'complete' ? (
@@ -108,7 +119,7 @@ export default function AccountCreation() {
 
         <div className="grid grid-cols-1 gap-x-8 gap-y-8 py-8 md:grid-cols-3">
           <div className="px-4 sm:px-0">
-            <h2 className="text-base/7 font-semibold text-gray-900">Account Creation</h2>
+            <h2 className="text-base/7 title-font text-gray-900">Account Creation</h2>
             <p className="mt-1 text-sm/6 text-gray-600">
               Please provide your information to create your ZenRent account.
             </p>
@@ -119,12 +130,34 @@ export default function AccountCreation() {
               <div className="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8">
                 {/* Personal Details */}
                 <div className="border-b border-gray-900/10 pb-4">
-                  <h2 className="text-base/7 font-semibold text-gray-900">Personal Details</h2>
+                  <h2 className="text-base/7 title-font text-gray-900">Personal Details</h2>
                   <p className="mt-1 text-sm/6 text-gray-600">
                     Information about you as a landlord.
                   </p>
                   <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-6">
-                    <div className="sm:col-span-3">
+                    <div className="sm:col-span-2">
+                      <label htmlFor="title" className="block text-sm/6 font-medium text-gray-900">
+                        Title
+                      </label>
+                      <div className="mt-2">
+                        <select
+                          id="title"
+                          name="title"
+                          value={title}
+                          onChange={(e) => setTitle(e.target.value)}
+                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                        >
+                          <option value="">Select title</option>
+                          {titles.map((title) => (
+                            <option key={title.id} value={title.id}>
+                              {title.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="sm:col-span-2">
                       <label htmlFor="first-name" className="block text-sm/6 font-medium text-gray-900">
                         First name *
                       </label>
@@ -142,7 +175,7 @@ export default function AccountCreation() {
                       </div>
                     </div>
 
-                    <div className="sm:col-span-3">
+                    <div className="sm:col-span-2">
                       <label htmlFor="last-name" className="block text-sm/6 font-medium text-gray-900">
                         Last name *
                       </label>
@@ -166,7 +199,7 @@ export default function AccountCreation() {
                       </label>
                       <div className="mt-2 grid grid-cols-1">
                         <div className="col-start-1 row-start-1 flex items-center rounded-md bg-white pl-3 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600">
-                          <span className="shrink-0 text-base text-gray-500 select-none sm:text-sm/6">+1</span>
+                          <span className="shrink-0 text-base text-gray-500 select-none sm:text-sm/6">+44</span>
                           <input
                             type="tel"
                             name="mobile"
@@ -174,7 +207,7 @@ export default function AccountCreation() {
                             value={mobile}
                             onChange={(e) => setMobile(e.target.value)}
                             className="block min-w-0 grow py-1.5 pr-3 pl-1 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-sm/6"
-                            placeholder="(555) 987-6543"
+                            placeholder="7700 900123"
                           />
                         </div>
                       </div>
@@ -184,7 +217,7 @@ export default function AccountCreation() {
 
                 {/* Account Type */}
                 <div className="border-b border-gray-900/10 pb-4">
-                  <h2 className="text-base/7 font-semibold text-gray-900">Account Type</h2>
+                  <h2 className="text-base/7 title-font text-gray-900">Account Type</h2>
                   <p className="mt-1 text-sm/6 text-gray-600">
                     Select the type of account that best describes you.
                   </p>
@@ -238,7 +271,7 @@ export default function AccountCreation() {
                 {/* Terms & Consent */}
                 <div>
                   <fieldset>
-                    <legend className="text-base/7 font-semibold text-gray-900">Terms & Consent</legend>
+                    <legend className="text-base/7 title-font text-gray-900">Terms & Consent</legend>
                     <p className="mt-1 text-sm/6 text-gray-600">
                       Please review and accept our terms and privacy policy.
                     </p>

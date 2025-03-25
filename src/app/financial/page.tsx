@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { SidebarLayout } from '../components/sidebar-layout'
 import { Heading } from '../components/heading'
 import { Text } from '../components/text'
@@ -56,7 +57,7 @@ import {
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SidebarContent } from '../components/sidebar-content'
-import { useState } from 'react'
+import { ReportGenerationDrawer } from '../components/ReportGenerationDrawer'
 
 // Icons for navigation items
 function DashboardIcon() {
@@ -104,11 +105,11 @@ const revenueData = [
 const chartConfig = {
   income: {
     label: "Income",
-    color: "hsl(var(--chart-4))",
+    color: "#E9823F",
   },
   expenses: {
     label: "Expenses",
-    color: "hsl(var(--chart-5))",
+    color: "#E95D3F",
   }
 }
 
@@ -119,9 +120,34 @@ const chartConfig = {
 //   { id: 3, name: "Energy Performance Certificate.pdf", type: "epc", uploadDate: "Nov 5, 2023", property: "Parkview Residences", fileSize: "1.5 MB" },
 // ]
 
+// Transaction type definition
+interface Transaction {
+  date: string;
+  type: string;
+  category: string;
+  description: string;
+  property: string;
+  amount: string;
+  status: string;
+}
+
 export default function Financial() {
   const [isReportDrawerOpen, setIsReportDrawerOpen] = useState(false);
-  
+  const [activeTab, setActiveTab] = useState('overview')
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
+
+  const handleViewTransaction = (transaction: Transaction) => {
+    setSelectedTransaction(transaction)
+    setIsDrawerOpen(true)
+  }
+
+  const handleReportSubmit = (reportConfig: any) => {
+    // Here you would typically generate the report based on the config
+    console.log('Generating report with config:', reportConfig);
+    setIsReportDrawerOpen(false);
+  };
+
   return (
     <SidebarLayout
       sidebar={<SidebarContent currentPath="/financial" />}
@@ -135,7 +161,7 @@ export default function Financial() {
           </div>
           <div className="mt-4 md:mt-0 flex space-x-3">
             <button 
-              className="px-4 py-2 bg-gray-900 rounded-md text-sm font-medium text-white hover:bg-gray-800"
+              className="px-4 py-2 bg-[#D9E8FF] rounded-md text-sm font-medium text-black hover:bg-[#C8D7EE]"
               onClick={() => setIsReportDrawerOpen(true)}
             >
               Generate Report
@@ -144,66 +170,11 @@ export default function Financial() {
         </div>
         
         {/* Report Generation Drawer */}
-        {isReportDrawerOpen && (
-          <div className="fixed inset-0 overflow-hidden z-50">
-            <div className="absolute inset-0 overflow-hidden">
-              <div 
-                className="absolute inset-0 bg-transparent transition-opacity" 
-                onClick={() => setIsReportDrawerOpen(false)}
-              />
-              <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10 z-50">
-                <div className="pointer-events-auto w-screen max-w-md">
-                  <div className="flex h-full flex-col bg-white shadow-xl">
-                    <div className="flex-1 overflow-y-auto py-6">
-                      <div className="px-4 sm:px-6">
-                        <div className="flex items-start justify-between">
-                          <h2 className="text-lg font-medium text-gray-900">Generate Report</h2>
-                          <button
-                            type="button"
-                            className="ml-3 flex h-7 w-7 items-center justify-center rounded-md bg-white text-gray-400 hover:text-gray-500"
-                            onClick={() => setIsReportDrawerOpen(false)}
-                          >
-                            <XMarkIcon className="h-6 w-6" />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="mt-6 px-4 sm:px-6">
-                        <h3 className="text-sm font-medium text-gray-900 mb-4">Available Reports</h3>
-                        
-                        <div className="space-y-4">
-                          <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
-                            <h4 className="font-medium text-gray-900">Financial Summary</h4>
-                            <p className="text-sm text-gray-500 mt-1">Monthly overview of income, expenses, and cash flow</p>
-                          </div>
-                          
-                          <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
-                            <h4 className="font-medium text-gray-900">Rental Income Report</h4>
-                            <p className="text-sm text-gray-500 mt-1">Detailed breakdown of rental income by property</p>
-                          </div>
-                          
-                          <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
-                            <h4 className="font-medium text-gray-900">Expense Analysis</h4>
-                            <p className="text-sm text-gray-500 mt-1">Categorized expense report with trends and insights</p>
-                          </div>
-                          
-                          <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
-                            <h4 className="font-medium text-gray-900">Property Profitability</h4>
-                            <p className="text-sm text-gray-500 mt-1">ROI and profitability metrics for each property</p>
-                          </div>
-                          
-                          <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
-                            <h4 className="font-medium text-gray-900">Tax Preparation Report</h4>
-                            <p className="text-sm text-gray-500 mt-1">Annual report suitable for tax filing purposes</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <ReportGenerationDrawer
+          isOpen={isReportDrawerOpen}
+          onClose={() => setIsReportDrawerOpen(false)}
+          onSubmit={handleReportSubmit}
+        />
         
         {/* Financial Summary Cards */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -281,8 +252,8 @@ export default function Financial() {
                       cursor={false}
                       content={<ChartTooltipContent indicator="dashed" />}
                     />
-                    <Bar dataKey="income" fill="var(--color-income)" radius={4} />
-                    <Bar dataKey="expenses" fill="var(--color-expenses)" radius={4} />
+                    <Bar dataKey="income" fill="#E9823F" radius={4} />
+                    <Bar dataKey="expenses" fill="#E95D3F" radius={4} />
                   </BarChart>
                 </ChartContainer>
               </CardContent>
@@ -310,23 +281,23 @@ export default function Financial() {
                     config={{
                       maintenance: {
                         label: "Maintenance",
-                        color: "hsl(var(--chart-1))",
+                        color: "#E95D3F"
                       },
                       utilities: {
                         label: "Utilities",
-                        color: "hsl(var(--chart-2))",
+                        color: "#E9823F"
                       },
                       taxes: {
                         label: "Property Taxes",
-                        color: "hsl(var(--chart-3))",
+                        color: "#29A3BE"
                       },
                       insurance: {
                         label: "Insurance",
-                        color: "hsl(var(--chart-4))",
+                        color: "#4264CB"
                       },
                       other: {
                         label: "Other",
-                        color: "hsl(var(--chart-5))",
+                        color: "#F5A623"
                       }
                     }}
                     className="mx-auto aspect-square max-h-[300px]"
@@ -334,11 +305,11 @@ export default function Financial() {
                     <PieChart>
                       <Pie 
                         data={[
-                          { name: "Maintenance", value: 18300, fill: "var(--color-maintenance)" },
-                          { name: "Utilities", value: 10000, fill: "var(--color-utilities)" },
-                          { name: "Property Taxes", value: 8000, fill: "var(--color-taxes)" },
-                          { name: "Insurance", value: 5000, fill: "var(--color-insurance)" },
-                          { name: "Other", value: 20000, fill: "var(--color-other)" }
+                          { name: "Maintenance", value: 18300, fill: "#E95D3F" },
+                          { name: "Utilities", value: 10000, fill: "#E9823F" },
+                          { name: "Property Taxes", value: 8000, fill: "#29A3BE" },
+                          { name: "Insurance", value: 5000, fill: "#4264CB" },
+                          { name: "Other", value: 20000, fill: "#F5A623" }
                         ]} 
                         dataKey="value"
                         nameKey="name"
@@ -369,7 +340,7 @@ export default function Financial() {
                   <ChartContainer config={{
                     occupancy: {
                       label: "Occupancy Rate (%)",
-                      color: "hsl(var(--chart-1))",
+                      color: "#E9823F",
                     }
                   }}>
                     <LineChart
@@ -403,10 +374,10 @@ export default function Financial() {
                       <Line
                         dataKey="occupancy"
                         type="natural"
-                        stroke="var(--color-occupancy)"
+                        stroke="#E9823F"
                         strokeWidth={2}
                         dot={{
-                          fill: "var(--color-occupancy)",
+                          fill: "#E9823F",
                         }}
                         activeDot={{
                           r: 6,
@@ -520,15 +491,15 @@ export default function Financial() {
                 <ChartContainer config={{
                   rent: {
                     label: "Rental Income",
-                    color: "hsl(var(--chart-1))"
+                    color: "#E9823F"
                   },
                   fees: {
                     label: "Fees & Deposits",
-                    color: "hsl(var(--chart-2))"
+                    color: "#29A3BE"
                   },
                   other: {
                     label: "Other Income",
-                    color: "hsl(var(--chart-3))"
+                    color: "#4264CB"
                   }
                 }}>
                   <BarChart accessibilityLayer data={[
@@ -551,9 +522,9 @@ export default function Financial() {
                       cursor={false}
                       content={<ChartTooltipContent indicator="dashed" />}
                     />
-                    <Bar dataKey="rent" name="rent" fill="var(--color-rent)" radius={4} />
-                    <Bar dataKey="fees" name="fees" fill="var(--color-fees)" radius={4} />
-                    <Bar dataKey="other" name="other" fill="var(--color-other)" radius={4} />
+                    <Bar dataKey="rent" name="rent" fill="#E9823F" radius={4} />
+                    <Bar dataKey="fees" name="fees" fill="#29A3BE" radius={4} />
+                    <Bar dataKey="other" name="other" fill="#4264CB" radius={4} />
                   </BarChart>
                 </ChartContainer>
               </CardContent>
@@ -576,19 +547,23 @@ export default function Financial() {
                 <ChartContainer config={{
                   maintenance: {
                     label: "Maintenance",
-                    color: "hsl(var(--chart-5))"
+                    color: "#E95D3F"
                   },
                   utilities: {
                     label: "Utilities",
-                    color: "hsl(var(--chart-6))"
+                    color: "#E9823F"
                   },
                   taxes: {
                     label: "Property Taxes",
-                    color: "hsl(var(--chart-7))"
+                    color: "#29A3BE"
                   },
                   insurance: {
                     label: "Insurance",
-                    color: "hsl(var(--chart-8))"
+                    color: "#4264CB"
+                  },
+                  other: {
+                    label: "Other",
+                    color: "#F5A623"
                   }
                 }}>
                   <BarChart accessibilityLayer data={[
@@ -611,10 +586,10 @@ export default function Financial() {
                       cursor={false}
                       content={<ChartTooltipContent indicator="dashed" />}
                     />
-                    <Bar dataKey="maintenance" name="maintenance" fill="var(--color-maintenance)" radius={4} />
-                    <Bar dataKey="utilities" name="utilities" fill="var(--color-utilities)" radius={4} />
-                    <Bar dataKey="taxes" name="taxes" fill="var(--color-taxes)" radius={4} />
-                    <Bar dataKey="insurance" name="insurance" fill="var(--color-insurance)" radius={4} />
+                    <Bar dataKey="maintenance" name="maintenance" fill="#E95D3F" radius={4} />
+                    <Bar dataKey="utilities" name="utilities" fill="#E9823F" radius={4} />
+                    <Bar dataKey="taxes" name="taxes" fill="#29A3BE" radius={4} />
+                    <Bar dataKey="insurance" name="insurance" fill="#4264CB" radius={4} />
                   </BarChart>
                 </ChartContainer>
               </CardContent>
@@ -654,6 +629,7 @@ export default function Financial() {
                     <tr>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
@@ -665,6 +641,7 @@ export default function Financial() {
                     <tr>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 8, 2024</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Income</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Rent</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Monthly Rent - Room 204</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Sunset Apartments</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">+£1,850.00</td>
@@ -672,12 +649,24 @@ export default function Financial() {
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Completed</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <a href="#" className="text-blue-600 hover:text-blue-900">View</a>
+                        <a href="#" className="text-blue-600 hover:text-blue-900" onClick={(e) => {
+                          e.preventDefault()
+                          handleViewTransaction({
+                            date: "Mar 8, 2024",
+                            type: "Income",
+                            category: "Rent",
+                            description: "Monthly Rent - Room 204",
+                            property: "Sunset Apartments",
+                            amount: "+£1,850.00",
+                            status: "Completed"
+                          })
+                        }}>View</a>
                       </td>
                     </tr>
                     <tr>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 7, 2024</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Expense</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Maintenance</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Emergency Plumbing Repair</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Oakwood Heights</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">-£850.00</td>
@@ -685,12 +674,24 @@ export default function Financial() {
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Completed</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <a href="#" className="text-blue-600 hover:text-blue-900">View</a>
+                        <a href="#" className="text-blue-600 hover:text-blue-900" onClick={(e) => {
+                          e.preventDefault()
+                          handleViewTransaction({
+                            date: "Mar 7, 2024",
+                            type: "Expense",
+                            category: "Maintenance",
+                            description: "Emergency Plumbing Repair",
+                            property: "Oakwood Heights",
+                            amount: "-£850.00",
+                            status: "Completed"
+                          })
+                        }}>View</a>
                       </td>
                     </tr>
                     <tr>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 5, 2024</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Income</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Fees</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Late Fee - Room 112</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Sunset Apartments</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">+£75.00</td>
@@ -698,12 +699,24 @@ export default function Financial() {
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Completed</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <a href="#" className="text-blue-600 hover:text-blue-900">View</a>
+                        <a href="#" className="text-blue-600 hover:text-blue-900" onClick={(e) => {
+                          e.preventDefault()
+                          handleViewTransaction({
+                            date: "Mar 5, 2024",
+                            type: "Income",
+                            category: "Fees",
+                            description: "Late Fee - Room 112",
+                            property: "Sunset Apartments",
+                            amount: "+£75.00",
+                            status: "Completed"
+                          })
+                        }}>View</a>
                       </td>
                     </tr>
                     <tr>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 3, 2024</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Expense</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Property Care</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Landscaping Services</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Royal Gardens</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">-£450.00</td>
@@ -711,12 +724,24 @@ export default function Financial() {
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Pending</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <a href="#" className="text-blue-600 hover:text-blue-900">View</a>
+                        <a href="#" className="text-blue-600 hover:text-blue-900" onClick={(e) => {
+                          e.preventDefault()
+                          handleViewTransaction({
+                            date: "Mar 3, 2024",
+                            type: "Expense",
+                            category: "Property Care",
+                            description: "Landscaping Services",
+                            property: "Royal Gardens",
+                            amount: "-£450.00",
+                            status: "Pending"
+                          })
+                        }}>View</a>
                       </td>
                     </tr>
                     <tr>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 1, 2024</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Income</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Rent</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Monthly Rent - Room 305</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Parkview Residences</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">+£2,100.00</td>
@@ -724,7 +749,18 @@ export default function Financial() {
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Completed</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <a href="#" className="text-blue-600 hover:text-blue-900">View</a>
+                        <a href="#" className="text-blue-600 hover:text-blue-900" onClick={(e) => {
+                          e.preventDefault()
+                          handleViewTransaction({
+                            date: "Mar 1, 2024",
+                            type: "Income",
+                            category: "Rent",
+                            description: "Monthly Rent - Room 305",
+                            property: "Parkview Residences",
+                            amount: "+£2,100.00",
+                            status: "Completed"
+                          })
+                        }}>View</a>
                       </td>
                     </tr>
                   </tbody>
@@ -732,7 +768,7 @@ export default function Financial() {
               </div>
               
               <div className="px-6 py-4 border-t border-gray-200">
-                <button className="text-sm text-blue-600 hover:underline">View all transactions</button>
+                <Link href="/financial/transactions" className="text-sm text-blue-600 hover:underline">View all transactions</Link>
               </div>
             </div>
           </TabsContent>
@@ -747,15 +783,15 @@ export default function Financial() {
                 <ChartContainer config={{
                   capRate: {
                     label: "Cap Rate (%)",
-                    color: "hsl(var(--chart-1))"
+                    color: "#E9823F"
                   },
                   cashOnCash: {
                     label: "Cash on Cash (%)",
-                    color: "hsl(var(--chart-2))"
+                    color: "#29A3BE"
                   },
                   roi: {
                     label: "ROI (%)",
-                    color: "hsl(var(--chart-3))"
+                    color: "#4264CB"
                   }
                 }}>
                   <LineChart accessibilityLayer data={[
@@ -782,21 +818,21 @@ export default function Financial() {
                       type="monotone" 
                       dataKey="capRate" 
                       name="capRate"
-                      stroke="var(--color-capRate)" 
+                      stroke="#E9823F" 
                       strokeWidth={2} 
                     />
                     <Line 
                       type="monotone" 
                       dataKey="cashOnCash" 
                       name="cashOnCash"
-                      stroke="var(--color-cashOnCash)" 
+                      stroke="#29A3BE" 
                       strokeWidth={2} 
                     />
                     <Line 
                       type="monotone" 
                       dataKey="roi" 
                       name="roi"
-                      stroke="var(--color-roi)" 
+                      stroke="#4264CB" 
                       strokeWidth={2} 
                     />
                   </LineChart>
@@ -924,6 +960,75 @@ export default function Financial() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Transaction Details Drawer */}
+      {isDrawerOpen && selectedTransaction && (
+        <div className="fixed inset-0 overflow-hidden z-50">
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={() => setIsDrawerOpen(false)} />
+            <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
+              <div className="pointer-events-auto w-screen max-w-md">
+                <div className="flex h-full flex-col bg-white shadow-xl">
+                  <div className="flex-1 overflow-y-auto py-6">
+                    <div className="px-4 sm:px-6">
+                      <div className="flex items-start justify-between">
+                        <h2 className="text-lg font-medium text-gray-900">Transaction Details</h2>
+                        <button
+                          type="button"
+                          className="ml-3 flex h-7 w-7 items-center justify-center rounded-md bg-white text-gray-400 hover:text-gray-500"
+                          onClick={() => setIsDrawerOpen(false)}
+                        >
+                          <XMarkIcon className="h-6 w-6" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-6 px-4 sm:px-6">
+                      <dl className="divide-y divide-gray-200">
+                        <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
+                          <dt className="text-sm font-medium text-gray-500">Date</dt>
+                          <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">{selectedTransaction.date}</dd>
+                        </div>
+                        <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
+                          <dt className="text-sm font-medium text-gray-500">Type</dt>
+                          <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">{selectedTransaction.type}</dd>
+                        </div>
+                        <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
+                          <dt className="text-sm font-medium text-gray-500">Category</dt>
+                          <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">{selectedTransaction.category}</dd>
+                        </div>
+                        <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
+                          <dt className="text-sm font-medium text-gray-500">Description</dt>
+                          <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">{selectedTransaction.description}</dd>
+                        </div>
+                        <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
+                          <dt className="text-sm font-medium text-gray-500">Property</dt>
+                          <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">{selectedTransaction.property}</dd>
+                        </div>
+                        <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
+                          <dt className="text-sm font-medium text-gray-500">Amount</dt>
+                          <dd className={`mt-1 text-sm sm:col-span-2 sm:mt-0 ${selectedTransaction.amount.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
+                            {selectedTransaction.amount}
+                          </dd>
+                        </div>
+                        <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
+                          <dt className="text-sm font-medium text-gray-500">Status</dt>
+                          <dd className="mt-1 text-sm sm:col-span-2 sm:mt-0">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              selectedTransaction.status === 'Completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {selectedTransaction.status}
+                            </span>
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </SidebarLayout>
   )
 } 

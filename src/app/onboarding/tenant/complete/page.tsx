@@ -31,7 +31,7 @@ export default function TenantComplete() {
         {/* Progress Bar */}
         <div className="py-0">
           <nav aria-label="Progress">
-            <ol role="list" className="flex overflow-x-auto border border-gray-300 rounded-md">
+            <ol role="list" className="flex overflow-x-auto border border-gray-300 rounded-md bg-white">
               {steps.map((step, stepIdx) => (
                 <li key={step.name} className="relative flex flex-1 min-w-[80px] sm:min-w-[120px]">
                   {step.status === 'complete' ? (
@@ -86,7 +86,7 @@ export default function TenantComplete() {
 
         <div className="grid grid-cols-1 gap-x-8 gap-y-8 py-8 md:grid-cols-3">
           <div className="px-4 sm:px-0">
-            <h2 className="text-base/7 font-semibold text-gray-900">Tenant Setup Complete</h2>
+            <h2 className="text-base/7 title-font text-gray-900">Tenant Setup Complete</h2>
             <p className="mt-1 text-sm/6 text-gray-600">
               You have successfully completed the tenant setup process.
             </p>
@@ -98,7 +98,7 @@ export default function TenantComplete() {
                 <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-green-100">
                   <CheckCircleIcon className="h-16 w-16 text-green-600" aria-hidden="true" />
                 </div>
-                <h2 className="mt-4 text-xl font-semibold text-gray-900">All Tenants Added</h2>
+                <h2 className="mt-4 text-xl title-font text-gray-900">All Tenants Added</h2>
                 <p className="mt-2 text-center text-sm text-gray-600">
                   You have successfully added all your tenants. You can now proceed to set up your notifications.
                 </p>

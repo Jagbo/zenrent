@@ -282,7 +282,7 @@ export default function TenancySetup() {
         {/* Progress Bar */}
         <div className="py-0">
           <nav aria-label="Progress">
-            <ol role="list" className="flex overflow-x-auto border border-gray-300 rounded-md">
+            <ol role="list" className="flex overflow-x-auto border border-gray-300 rounded-md bg-white">
               {steps.map((step, stepIdx) => (
                 <li key={step.name} className="relative flex flex-1 min-w-[80px] sm:min-w-[120px]">
                   {step.status === 'complete' ? (
@@ -337,9 +337,9 @@ export default function TenancySetup() {
 
         <div className="grid grid-cols-1 gap-x-8 gap-y-8 py-8 md:grid-cols-3">
           <div className="px-4 sm:px-0">
-            <h2 className="text-base/7 font-semibold text-gray-900">Tenancy Setup</h2>
+            <h2 className="text-base/7 title-font text-gray-900">Tenancy Setup</h2>
             <p className="mt-1 text-sm/6 text-gray-600">
-              Record the legal parameters of the tenancy agreement.
+              Configure the tenancy details for your property.
             </p>
           </div>
 
@@ -364,7 +364,7 @@ export default function TenancySetup() {
                 {/* Tenancy Dates - Only show full property tenancy dates for non-HMO properties */}
                 {propertyData.isHmo ? (
                   <div className="border-b border-gray-900/10 pb-6">
-                    <h2 className="text-base/7 font-semibold text-gray-900">HMO Property</h2>
+                    <h2 className="text-base/7 title-font text-gray-900">HMO Property</h2>
                     <p className="mt-1 text-sm/6 text-gray-600">
                       For HMO properties, each room has its own tenancy agreement and tenant information.
                     </p>
@@ -373,7 +373,7 @@ export default function TenancySetup() {
                   <>
                 {/* Tenancy Type */}
                 <div className="border-b border-gray-900/10 pb-6">
-                  <h2 className="text-base/7 font-semibold text-gray-900">Tenancy Type</h2>
+                  <h2 className="text-base/7 title-font text-gray-900">Tenancy Type</h2>
                   <p className="mt-1 text-sm/6 text-gray-600">
                     Specify the type and term of the tenancy agreement.
                   </p>
@@ -426,7 +426,7 @@ export default function TenancySetup() {
                 
                 {/* Tenancy Dates */}
                 <div className="border-b border-gray-900/10 pb-6">
-                  <h2 className="text-base/7 font-semibold text-gray-900">Tenancy Dates</h2>
+                  <h2 className="text-base/7 title-font text-gray-900">Tenancy Dates</h2>
                   <p className="mt-1 text-sm/6 text-gray-600">
                     Specify the start and end dates of the tenancy.
                   </p>
@@ -507,7 +507,7 @@ export default function TenancySetup() {
                 
                     {/* Rent Schedule - Only for non-HMO */}
                 <div className="border-b border-gray-900/10 pb-6">
-                  <h2 className="text-base/7 font-semibold text-gray-900">Rent Schedule</h2>
+                  <h2 className="text-base/7 title-font text-gray-900">Rent Schedule</h2>
                   <p className="mt-1 text-sm/6 text-gray-600">
                         Specify the rent amount and payment schedule.
                   </p>
@@ -601,7 +601,7 @@ export default function TenancySetup() {
                 
                     {/* Deposit Information - Only for non-HMO */}
                 <div className="border-b border-gray-900/10 pb-6">
-                  <h2 className="text-base/7 font-semibold text-gray-900">Deposit Information</h2>
+                  <h2 className="text-base/7 title-font text-gray-900">Deposit Information</h2>
                   <p className="mt-1 text-sm/6 text-gray-600">
                         Record the deposit details and protection scheme.
                   </p>
@@ -687,7 +687,7 @@ export default function TenancySetup() {
                 
                 {/* Tenant Information Section */}
                 <div className="border-b border-gray-900/10 pb-6">
-                  <h2 className="text-base/7 font-semibold text-gray-900">
+                  <h2 className="text-base/7 title-font text-gray-900">
                     {propertyData.isHmo ? 'Room Tenants' : 'Tenants'}
                   </h2>
                   <p className="mt-1 text-sm/6 text-gray-600">

@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { PlusIcon } from "@heroicons/react/24/solid";
-import { IssueDetailsDrawer } from "./IssueDetailsDrawer";
+import { IssueDrawer } from "../../app/components/IssueDrawer";
 
 type Issue = {
   id: string;
@@ -220,9 +220,9 @@ export function IssuesBoard({ issues: initialIssues, onUpdateIssues }: IssuesBoa
         </div>
       </DragDropContext>
 
-      <IssueDetailsDrawer
+      <IssueDrawer
         issue={selectedIssue}
-        open={isDrawerOpen}
+        isOpen={isDrawerOpen}
         onClose={handleDrawerClose}
       />
     </>

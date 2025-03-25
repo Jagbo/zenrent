@@ -59,7 +59,8 @@ import {
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SidebarContent } from '../components/sidebar-content'
-import { IssueDetailsDrawer } from "@/components/issues/IssueDetailsDrawer"
+import { IssueDrawer } from "../components/IssueDrawer"
+import { IssueFormDrawer } from '../components/IssueFormDrawer'
 
 // Icons for navigation items
 function DashboardIcon() {
@@ -241,65 +242,65 @@ const chartConfigs = {
   issues: {
     issues: {
       label: "Issues",
-      color: "hsl(var(--chart-1))"
+      color: "#E9823F"
     }
   },
   profitMargin: {
     profit: {
       label: "Profit Margin",
-      color: "hsl(var(--chart-2))"
+      color: "#29A3BE"
     }
   },
   occupancy: {
     occupancy: {
       label: "Occupancy Rate",
-      color: "hsl(var(--chart-3))"
+      color: "#4264CB"
     }
   },
   // Finance tab
   income: {
     desktop: {
       label: "Rental Income",
-      color: "hsl(var(--chart-4))"
+      color: "#E9823F"
     },
     mobile: {
       label: "Other Income",
-      color: "hsl(var(--chart-5))"
+      color: "#E95D3F"
     }
   },
   expenses: {
     desktop: {
       label: "Operating Expenses",
-      color: "hsl(var(--chart-6))"
+      color: "#29A3BE"
     },
     mobile: {
       label: "Maintenance Costs",
-      color: "hsl(var(--chart-7))"
+      color: "#4264CB"
     }
   },
   arrears: {
     arrears: {
       label: "Arrears",
-      color: "hsl(var(--chart-8))"
+      color: "#F5A623"
     }
   },
   // Issues tab
   active: {
     active: {
       label: "Active Issues",
-      color: "hsl(var(--chart-9))"
+      color: "#E9823F"
     }
   },
   urgent: {
     urgent: {
       label: "Urgent Issues",
-      color: "hsl(var(--chart-1))"
+      color: "#E95D3F"
     }
   },
   backlog: {
     backlog: {
       label: "Backlog Issues",
-      color: "hsl(var(--chart-2))"
+      color: "#29A3BE"
     }
   }
 }
@@ -320,11 +321,19 @@ export default function Dashboard() {
   // Add state for selected issue and drawer open state
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isFormDrawerOpen, setIsFormDrawerOpen] = useState(false);
 
   // Function to handle opening the drawer
   const openDrawer = (issue: Issue) => {
     setSelectedIssue(issue);
     setIsDrawerOpen(true);
+  };
+
+  // Function to handle form submission
+  const handleIssueSubmit = (formData: any) => {
+    console.log('New issue data:', formData);
+    // Here you would typically send this data to your API
+    setIsFormDrawerOpen(false);
   };
 
   // Dashboard open issues data
@@ -395,7 +404,7 @@ export default function Dashboard() {
           <div className="mt-4 md:mt-0 flex space-x-3">
             <Link 
               href="/properties" 
-              className="px-4 py-2 bg-gray-900 rounded-md text-sm font-medium text-white hover:bg-gray-800"
+              className="px-4 py-2 bg-[#D9E8FF] rounded-md text-sm font-medium text-black hover:bg-[#C8D7EE]"
             >
               View Properties
             </Link>
@@ -473,8 +482,8 @@ export default function Dashboard() {
                         type="monotone"
                         dataKey="value"
                         name="issues"
-                        stroke="var(--color-issues)"
-                        fill="var(--color-issues)"
+                        stroke="#E9823F"
+                        fill="#E9823F"
                         fillOpacity={0.2}
                       />
                     </AreaChart>
@@ -512,7 +521,7 @@ export default function Dashboard() {
                       <Bar
                         dataKey="value"
                         name="profit"
-                        fill="var(--color-profit)"
+                        fill="#29A3BE"
                         radius={4}
                       />
                     </BarChart>
@@ -551,7 +560,7 @@ export default function Dashboard() {
                         type="monotone"
                         dataKey="value"
                         name="occupancy"
-                        stroke="var(--color-occupancy)"
+                        stroke="#4264CB"
                         strokeWidth={2}
                       />
                     </LineChart>
@@ -590,8 +599,8 @@ export default function Dashboard() {
                         cursor={false}
                         content={<ChartTooltipContent indicator="dashed" />}
                       />
-                      <Bar dataKey="desktop" fill="var(--color-desktop)" radius={4} />
-                      <Bar dataKey="mobile" fill="var(--color-mobile)" radius={4} />
+                      <Bar dataKey="desktop" fill="#E9823F" radius={4} />
+                      <Bar dataKey="mobile" fill="#E95D3F" radius={4} />
                     </BarChart>
                   </ChartContainer>
                 </CardContent>
@@ -627,8 +636,8 @@ export default function Dashboard() {
                         cursor={false}
                         content={<ChartTooltipContent indicator="dashed" />}
                       />
-                      <Bar dataKey="desktop" fill="var(--color-desktop)" radius={4} />
-                      <Bar dataKey="mobile" fill="var(--color-mobile)" radius={4} />
+                      <Bar dataKey="desktop" fill="#29A3BE" radius={4} />
+                      <Bar dataKey="mobile" fill="#4264CB" radius={4} />
                     </BarChart>
                   </ChartContainer>
                 </CardContent>
@@ -668,7 +677,7 @@ export default function Dashboard() {
                         type="monotone"
                         dataKey="value"
                         name="arrears"
-                        stroke="var(--color-arrears)"
+                        stroke="#F5A623"
                         strokeWidth={2}
                       />
                     </LineChart>
@@ -825,7 +834,10 @@ export default function Dashboard() {
                 <h3 className="text-lg font-medium text-gray-900">Open Issues</h3>
                 <p className="text-sm text-gray-500 mt-1">Recent maintenance requests and issues that need attention.</p>
               </div>
-              <button className="mt-4 sm:mt-0 px-4 py-2 bg-gray-900 rounded-md text-sm font-medium text-white hover:bg-gray-800">
+              <button 
+                className="mt-4 sm:mt-0 px-4 py-2 bg-[#D9E8FF] rounded-md text-sm font-medium text-black hover:bg-[#C8D7EE]"
+                onClick={() => setIsFormDrawerOpen(true)}
+              >
                 Add issue
               </button>
             </div>
@@ -837,7 +849,6 @@ export default function Dashboard() {
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issue</th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -858,17 +869,6 @@ export default function Dashboard() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{issue.property}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button 
-                          className="text-blue-600 hover:text-blue-900"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openDrawer(issue);
-                          }}
-                        >
-                          View
-                        </button>
-                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -994,7 +994,7 @@ export default function Dashboard() {
                 </button>
               </div>
               <h4 className="text-sm font-medium text-gray-900">January</h4>
-              <button className="px-4 py-2 bg-blue-600 rounded-md text-sm font-medium text-white hover:bg-blue-700">
+              <button className="px-4 py-2 bg-[#D9E8FF] rounded-md text-sm font-medium text-black hover:bg-[#C8D7EE]">
                 Add event
               </button>
             </div>
@@ -1003,13 +1003,21 @@ export default function Dashboard() {
       </div>
 
       {/* Issue Details Drawer */}
-      <IssueDetailsDrawer
+      <IssueDrawer
         issue={selectedIssue}
-        open={isDrawerOpen}
+        isOpen={isDrawerOpen}
         onClose={() => {
           setIsDrawerOpen(false);
           setSelectedIssue(null);
         }}
+      />
+
+      {/* Issue Form Drawer */}
+      <IssueFormDrawer
+        isOpen={isFormDrawerOpen}
+        onClose={() => setIsFormDrawerOpen(false)}
+        onSubmit={handleIssueSubmit}
+        title="Create New Issue"
       />
     </SidebarLayout>
   )

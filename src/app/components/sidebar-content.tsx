@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import {
   HomeIcon,
   BuildingOfficeIcon,
@@ -11,6 +12,8 @@ import {
   CodeBracketIcon,
   Cog6ToothIcon,
 } from '@heroicons/react/24/outline'
+import { getProperties, IProperty } from '../../lib/propertyService'
+import { useAuth } from '../../lib/auth'
 
 // Define navigation items
 const navigation = [
@@ -24,8 +27,8 @@ const navigation = [
   { name: 'Integrations', path: '/integrations', icon: CodeBracketIcon },
 ]
 
-// Define properties
-const properties = [
+// Fallback properties in case API fails
+const fallbackProperties = [
   { id: '123-main', name: '123 Main Street', path: '/properties/123-main' },
   { id: '456-park', name: '456 Park Avenue', path: '/properties/456-park' },
   { id: '789-ocean', name: '789 Ocean Drive', path: '/properties/789-ocean' },
@@ -36,15 +39,49 @@ function classNames(...classes: string[]) {
 }
 
 export function SidebarContent({ currentPath }: { currentPath: string }) {
+  const { user } = useAuth();
+  const [properties, setProperties] = useState<Array<{ id: string; name: string; path: string; }>>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch properties when the component mounts
+  useEffect(() => {
+    const fetchProperties = async () => {
+      try {
+        setLoading(true);
+        const propertiesData = await getProperties(user?.id);
+        
+        if (propertiesData && propertiesData.length > 0) {
+          // Map Supabase properties to the format needed for sidebar
+          const formattedProperties = propertiesData.map((property: IProperty) => ({
+            id: property.id,
+            name: property.name || property.address,
+            path: `/properties/${property.id}`
+          }));
+          setProperties(formattedProperties);
+        } else {
+          // Use fallback if no properties found
+          setProperties(fallbackProperties);
+        }
+      } catch (error) {
+        console.error('Error fetching properties for sidebar:', error);
+        setProperties(fallbackProperties);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProperties();
+  }, [user?.id]);
+
   return (
     <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-200 bg-white px-6 pb-4">
       <div className="flex h-16 shrink-0 items-center">
         <img
           alt="ZenRent"
-          src="https://tailwindcss.com/plus-assets/img/logos/mark.svg?color=indigo&shade=600"
+          src="/images/logo/ZenRent-logo.png"
           className="h-8 w-auto"
         />
-        <span className="ml-3 text-lg font-semibold">ZenRent</span>
+        
       </div>
       <nav className="flex flex-1 flex-col">
         <ul role="list" className="flex flex-1 flex-col gap-y-7">
@@ -57,15 +94,15 @@ export function SidebarContent({ currentPath }: { currentPath: string }) {
                     href={item.path}
                     className={classNames(
                       currentPath === item.path
-                        ? 'bg-gray-50 text-indigo-600'
-                        : 'text-gray-700 hover:bg-gray-50 hover:text-indigo-600',
+                        ? 'bg-[#F9F7F7] text-[#330015]'
+                        : 'text-gray-700 hover:bg-[#F9F7F7] hover:text-[#330015]',
                       'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold',
                     )}
                   >
                     <item.icon
                       aria-hidden="true"
                       className={classNames(
-                        currentPath === item.path ? 'text-indigo-600' : 'text-gray-400 group-hover:text-indigo-600',
+                        currentPath === item.path ? 'text-[#330015]' : 'text-gray-400 group-hover:text-[#330015]',
                         'size-6 shrink-0',
                       )}
                     />
@@ -80,31 +117,37 @@ export function SidebarContent({ currentPath }: { currentPath: string }) {
           <li>
             <div className="text-xs/6 font-semibold text-gray-400">Your properties</div>
             <ul role="list" className="-mx-2 mt-2 space-y-1">
-              {properties.map((property) => (
-                <li key={property.id}>
-                  <a
-                    href={property.path}
-                    className={classNames(
-                      currentPath === property.path
-                        ? 'bg-gray-50 text-indigo-600'
-                        : 'text-gray-700 hover:bg-gray-50 hover:text-indigo-600',
-                      'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold',
-                    )}
-                  >
-                    <span
+              {loading ? (
+                <li className="px-2 py-1 text-sm text-gray-500">Loading properties...</li>
+              ) : properties.length === 0 ? (
+                <li className="px-2 py-1 text-sm text-gray-500">No properties found</li>
+              ) : (
+                properties.map((property) => (
+                  <li key={property.id}>
+                    <a
+                      href={property.path}
                       className={classNames(
                         currentPath === property.path
-                          ? 'border-indigo-600 text-indigo-600'
-                          : 'border-gray-200 text-gray-400 group-hover:border-indigo-600 group-hover:text-indigo-600',
-                        'flex size-6 shrink-0 items-center justify-center rounded-lg border bg-white text-[0.625rem] font-medium',
+                          ? 'bg-[#F9F7F7] text-[#330015]'
+                          : 'text-gray-700 hover:bg-[#F9F7F7] hover:text-[#330015]',
+                        'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold',
                       )}
                     >
-                      {property.name.charAt(0)}
-                    </span>
-                    <span className="truncate">{property.name}</span>
-                  </a>
-                </li>
-              ))}
+                      <span
+                        className={classNames(
+                          currentPath === property.path
+                            ? 'border-[#330015] text-[#330015]'
+                            : 'border-gray-200 text-gray-400 group-hover:border-[#330015] group-hover:text-[#330015]',
+                          'flex size-6 shrink-0 items-center justify-center rounded-lg border bg-white text-[0.625rem] font-medium',
+                        )}
+                      >
+                        {property.name.charAt(0)}
+                      </span>
+                      <span className="truncate">{property.name}</span>
+                    </a>
+                  </li>
+                ))
+              )}
             </ul>
           </li>
           
@@ -116,7 +159,7 @@ export function SidebarContent({ currentPath }: { currentPath: string }) {
             >
               <Cog6ToothIcon
                 aria-hidden="true"
-                className="size-6 shrink-0 text-gray-400 group-hover:text-indigo-600"
+                className="size-6 shrink-0 text-gray-400 group-hover:text-[#330015]"
               />
               Settings
             </a>

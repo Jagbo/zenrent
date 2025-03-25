@@ -44,17 +44,16 @@ export function Sidebar() {
 
   return (
     <div className="flex h-full flex-col bg-white dark:bg-zinc-900">
-      <div className="flex h-16 items-center gap-2 px-6">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600">
+      <div className="flex h-16 items-center justify-center px-6">
+        <div className="flex h-12 w-12 items-center justify-center">
           <Image
-            src="/next.svg"
+            src="/images/logo/ZenRent-logo.png"
             alt="ZenRent Logo"
-            width={24}
-            height={24}
-            className="dark:invert"
+            width={48}
+            height={48}
+            className="h-auto w-auto object-contain"
           />
         </div>
-        <span className="text-lg font-semibold">ZenRent</span>
       </div>
       <div className="flex-1 overflow-y-auto px-3 py-6">
         <nav className="space-y-1">

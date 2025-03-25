@@ -241,7 +241,7 @@ function SupplierGrid({ suppliers }: { suppliers: Supplier[] }) {
         <ul role="list" className="grid grid-cols-1 gap-x-6 gap-y-8 md:grid-cols-2 lg:grid-cols-3 xl:gap-x-8">
           {suppliers.map((supplier) => (
             <li key={supplier.id} className="overflow-hidden rounded-xl border border-gray-200">
-              <div className="flex items-center gap-x-4 border-b border-gray-900/5 bg-gray-50 p-6">
+              <div className="flex items-center gap-x-4 border-b border-gray-900/5 bg-gray-100 p-6">
                 <div className="h-12 w-12 flex-none overflow-hidden rounded-lg bg-white">
                   <Image
                     alt={supplier.name}
@@ -280,7 +280,7 @@ function SupplierGrid({ suppliers }: { suppliers: Supplier[] }) {
                   </MenuItems>
                 </Menu>
               </div>
-              <dl className="-my-3 divide-y divide-gray-100 px-6 py-4 text-sm/6">
+              <dl className="-my-3 divide-y divide-gray-100 px-6 py-4 text-sm/6 bg-white">
                 <div className="flex justify-between gap-x-4 py-3">
                   <dt className="text-gray-500">Contact</dt>
                   <dd className="text-gray-700">{supplier.contact.email}</dd>

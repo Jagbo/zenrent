@@ -1,9 +1,9 @@
+@import url('https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @import "tailwindcss";
-
 @plugin "tailwindcss-animate";
 
 @custom-variant dark (&:is(.dark *));
@@ -22,11 +22,38 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
+  /* Direct color definitions for chart colors */
+  --color-chart-1: #E9823F;
+  --color-chart-2: #29A3BE;
+  --color-chart-3: #4264CB;
+  --color-chart-4: #F5A623;
+  --color-chart-5: #E95D3F;
+  --color-chart-6: #E9823F;
+  --color-chart-7: #29A3BE;
+  --color-chart-8: #E95D3F;
+  --color-chart-9: #F5A623;
+  /* Direct color definitions for specific chart data series */
+  --color-issues: #E9823F;
+  --color-profit: #29A3BE;
+  --color-occupancy: #4264CB;
+  --color-maintenance: #E95D3F;
+  --color-utilities: #E9823F;
+  --color-taxes: #29A3BE;
+  --color-insurance: #4264CB;
+  --color-other: #F5A623;
+  --color-rent: #E9823F;
+  --color-fees: #29A3BE;
+  --color-income: #E9823F;
+  --color-expenses: #E95D3F;
+  --color-desktop: #E9823F;
+  --color-mobile: #E95D3F;
+  --color-arrears: #F5A623;
+  --color-capRate: #E9823F;
+  --color-cashOnCash: #29A3BE;
+  --color-roi: #4264CB;
+  --color-active: #E9823F;
+  --color-urgent: #E95D3F;
+  --color-backlog: #29A3BE;
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -55,7 +82,7 @@ body {
 }
 
 :root {
-  --background: oklch(1 0 0);
+  --background: #F9F7F7;
   --foreground: oklch(0.13 0.028 261.692);
   --card: white;
   --card-foreground: oklch(0.13 0.028 261.692);
@@ -88,6 +115,8 @@ body {
   --sidebar-accent-foreground: oklch(0.21 0.034 264.665);
   --sidebar-border: oklch(0.928 0.006 264.531);
   --sidebar-ring: oklch(0.707 0.022 261.325);
+  --btn-bg-blue: #D9E8FF;
+  --btn-bg-primary: #740748;
 }
 
 .dark {
@@ -125,11 +154,24 @@ body {
   --sidebar-ring: oklch(0.446 0.03 256.802);
 }
 
+.btn-blue {
+  --btn-bg: var(--btn-bg-blue);
+}
+
+.btn-primary {
+  --btn-bg: var(--btn-bg-primary);
+  background-color: var(--btn-bg);
+}
+
 @layer base {
   * {
     @apply border-border outline-none;
   }
   body {
     @apply bg-background text-foreground;
+  }
+  .title-font {
+    font-family: 'Cabinet Grotesk', sans-serif;
+    font-weight: 800;
   }
 }

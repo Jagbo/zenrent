@@ -75,6 +75,8 @@ export default function DirectoryPage() {
     'Development': [
       { path: '/supabase-test', name: 'Supabase Test' },
       { path: '/sidebar-demo', name: 'Sidebar Demo' },
+      { path: '/dir/icon', name: 'Icon Directory' },
+      { path: '/dir/colour', name: 'Colour Directory' },
     ],
   }
 

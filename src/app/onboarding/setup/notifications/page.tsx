@@ -106,7 +106,7 @@ export default function NotificationPreferences() {
         {/* Progress Bar */}
         <div className="py-0">
           <nav aria-label="Progress">
-            <ol role="list" className="flex overflow-x-auto border border-gray-300 rounded-md">
+            <ol role="list" className="flex overflow-x-auto border border-gray-300 rounded-md bg-white">
               {steps.map((step, stepIdx) => (
                 <li key={step.name} className="relative flex flex-1 min-w-[80px] sm:min-w-[120px]">
                   {step.status === 'complete' ? (
@@ -161,7 +161,7 @@ export default function NotificationPreferences() {
 
         <div className="grid grid-cols-1 gap-x-8 gap-y-8 py-8 md:grid-cols-3">
           <div className="px-4 sm:px-0">
-            <h2 className="text-base/7 font-semibold text-gray-900">Notification Preferences</h2>
+            <h2 className="text-base/7 title-font text-gray-900">Notification Preferences</h2>
             <p className="mt-1 text-sm/6 text-gray-600">
               Customize how and when you receive alerts about important property management events.
             </p>
@@ -172,7 +172,7 @@ export default function NotificationPreferences() {
               <div className="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8">
                 {/* Email Notifications */}
                 <div className="border-b border-gray-900/10 pb-6">
-                  <h2 className="text-base/7 font-semibold text-gray-900 flex items-center">
+                  <h2 className="text-base/7 title-font text-gray-900 flex items-center">
                     <EnvelopeIcon className="h-5 w-5 mr-2 text-gray-500" />
                     Email Notifications
                   </h2>
@@ -234,7 +234,7 @@ export default function NotificationPreferences() {
                 
                 {/* SMS Notifications */}
                 <div className="border-b border-gray-900/10 pb-6">
-                  <h2 className="text-base/7 font-semibold text-gray-900 flex items-center">
+                  <h2 className="text-base/7 title-font text-gray-900 flex items-center">
                     <DevicePhoneMobileIcon className="h-5 w-5 mr-2 text-gray-500" />
                     SMS Notifications
                   </h2>
@@ -268,7 +268,7 @@ export default function NotificationPreferences() {
                 
                 {/* Mobile App Notifications */}
                 <div>
-                  <h2 className="text-base/7 font-semibold text-gray-900 flex items-center">
+                  <h2 className="text-base/7 title-font text-gray-900 flex items-center">
                     <BellIcon className="h-5 w-5 mr-2 text-gray-500" />
                     Mobile App Notifications
                   </h2>
