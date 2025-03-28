@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { SidebarLayout } from '../components/sidebar-layout'
 import { Heading } from '../components/heading'
 import { Text } from '../components/text'
@@ -29,7 +29,8 @@ import {
   AdjustmentsHorizontalIcon,
   FunnelIcon,
   XMarkIcon,
-  CheckIcon
+  CheckIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/solid'
 import {
   Card,
@@ -45,6 +46,8 @@ import { IssuesBoard } from "@/components/issues/IssuesBoard"
 import { IssueDrawer } from "../components/IssueDrawer"
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 import { IssueFormDrawer } from '../components/IssueFormDrawer'
+import { getAllIssues, createIssue } from '../../lib/issueService'
+import { classNames } from '@/lib/utils'
 
 // Define Issue type
 type Issue = {
@@ -102,58 +105,9 @@ export default function Issues() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isFormDrawerOpen, setIsFormDrawerOpen] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('all');
-  const [issuesData, setIssuesData] = useState<Issue[]>([
-    {
-      id: "1254",
-      title: "Water leak in bathroom ceiling",
-      type: "Bug" as const,
-      status: "Todo" as const,
-      priority: "High" as const,
-      property: "Sunset Apartments Room 204",
-      reported: "Mar 8, 2024",
-      assignedTo: "JS"
-    },
-    {
-      id: "1253", 
-      title: "Broken heating system",
-      type: "Bug" as const,
-      status: "In Progress" as const,
-      priority: "High" as const,
-      property: "Oakwood Heights Room 103",
-      reported: "Mar 7, 2024",
-      assignedTo: "RW"
-    },
-    {
-      id: "1252",
-      title: "Mailbox key replacement",
-      type: "Feature" as const,
-      status: "Todo" as const,
-      priority: "Low" as const,
-      property: "Sunset Apartments Room 112",
-      reported: "Mar 6, 2024",
-      assignedTo: ""
-    },
-    {
-      id: "1251",
-      title: "Noisy neighbors complaint",
-      type: "Bug" as const,
-      status: "Todo" as const,
-      priority: "Medium" as const,
-      property: "Parkview Residences Room 305",
-      reported: "Mar 5, 2024",
-      assignedTo: "SJ"
-    },
-    {
-      id: "1250",
-      title: "Parking spot dispute",
-      type: "Documentation" as const,
-      status: "Done" as const,
-      priority: "Medium" as const,
-      property: "Oakwood Heights Room 210",
-      reported: "Mar 4, 2024",
-      assignedTo: "MA"
-    }
-  ]);
+  const [issuesData, setIssuesData] = useState<Issue[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [newIssue, setNewIssue] = useState({
     title: '',
     description: '',
@@ -172,6 +126,41 @@ export default function Issues() {
   const [typeFilter, setTypeFilter] = useState("All")
   const [searchQuery, setSearchQuery] = useState("")
   const [showFilterMenu, setShowFilterMenu] = useState(false)
+
+  // Update tabs array with current menu items
+  const tabs = [
+    { name: 'List', value: 'list', current: true },
+    { name: 'Board', value: 'board', current: false },
+  ]
+
+  // Fetch issues from Supabase when component mounts
+  useEffect(() => {
+    const fetchIssues = async () => {
+      try {
+        console.log('Issues page: Starting to fetch issues');
+        setIsLoading(true);
+        
+        const issues = await getAllIssues();
+        console.log('Issues page: Received issues data:', issues.length, 'issues');
+        
+        if (issues.length === 0) {
+          console.log('Issues page: No issues returned from API');
+        } else {
+          console.log('Issues page: First issue sample:', issues[0]);
+        }
+        
+        setIssuesData(issues);
+        setError(null);
+      } catch (err) {
+        console.error('Issues page: Error fetching issues:', err);
+        setError('Failed to load issues. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchIssues();
+  }, []);
 
   // Function to handle opening the drawer
   const openDrawer = (issue: Issue) => {
@@ -192,37 +181,63 @@ export default function Issues() {
     }));
   };
 
-  const handleSubmit = (formData: any) => {
-    // Here you would typically save the issue to your backend
-    console.log('New issue:', formData);
-    
-    // Add a mock issue to the local state
-    const newMockIssue: Issue = {
-      id: `${Math.floor(Math.random() * 1000)}`,
-      title: formData.title,
-      type: "Bug" as const,
-      status: "Todo" as const,
-      priority: formData.priority as any,
-      property: `${formData.propertyId} ${formData.unitNumber}`.trim(),
-      reported: new Date().toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}),
-      assignedTo: formData.assignedTo
-    };
-    
-    setIssuesData(prev => [newMockIssue, ...prev]);
-    setIsFormDrawerOpen(false);
-    
-    // Reset form data
-    setNewIssue({
-      title: '',
-      description: '',
-      propertyId: '',
-      unitNumber: '',
-      category: 'maintenance',
-      priority: 'medium',
-      reportedBy: '',
-      assignedTo: '',
-      dueDate: ''
-    });
+  const handleSubmit = async (formData: any) => {
+    try {
+      // Create issue in Supabase
+      const issueData = {
+        title: formData.title,
+        description: formData.description || '',
+        property_id: formData.propertyId,
+        unit_id: formData.unitNumber || null,
+        status: 'Todo' as const,
+        priority: formData.priority as 'Low' | 'Medium' | 'High',
+        type: 'Bug' as const,
+        assigned_to: formData.assignedTo || null,
+        due_date: formData.dueDate || null,
+        is_emergency: formData.priority === 'High'
+      };
+      
+      const newIssueResult = await createIssue(issueData);
+      
+      if (newIssueResult) {
+        // Add the new issue to the UI state
+        setIssuesData(prev => [newIssueResult, ...prev]);
+      } else {
+        console.error('Failed to create issue, but no error was thrown');
+      }
+    } catch (err) {
+      console.error('Error creating issue:', err);
+      // Fallback for development - create a mock issue
+      if (process.env.NODE_ENV === 'development') {
+        const newMockIssue: Issue = {
+          id: `${Math.floor(Math.random() * 1000)}`,
+          title: formData.title,
+          type: "Bug" as const,
+          status: "Todo" as const,
+          priority: formData.priority as any,
+          property: `${formData.propertyId} ${formData.unitNumber}`.trim(),
+          reported: new Date().toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}),
+          assignedTo: formData.assignedTo
+        };
+        
+        setIssuesData(prev => [newMockIssue, ...prev]);
+      }
+    } finally {
+      setIsFormDrawerOpen(false);
+      
+      // Reset form data
+      setNewIssue({
+        title: '',
+        description: '',
+        propertyId: '',
+        unitNumber: '',
+        category: 'maintenance',
+        priority: 'medium',
+        reportedBy: '',
+        assignedTo: '',
+        dueDate: ''
+      });
+    }
   };
 
   const handleIssuesUpdate = (updatedIssues: Issue[]) => {
@@ -238,14 +253,22 @@ export default function Issues() {
       const matchesSearch = searchQuery === "" || 
         issue.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (issue.property && issue.property.toLowerCase().includes(searchQuery.toLowerCase())) || 
-        issue.id.toLowerCase().includes(searchQuery.toLowerCase())
+        issue.id.toString().toLowerCase().includes(searchQuery.toLowerCase())
         
       return matchesStatus && matchesPriority && matchesType && matchesSearch
     })
   }
 
   // Filter the issues
-  const filteredIssues = filterIssues(issuesData)
+  const filteredIssues = filterIssues(issuesData);
+
+  // State for selected tab
+  const [selectedTab, setSelectedTab] = useState('list');
+
+  // Function to handle tab change
+  const handleTabChange = (value: string) => {
+    setSelectedTab(value);
+  };
 
   return (
     <SidebarLayout
@@ -260,90 +283,133 @@ export default function Issues() {
           </div>
           <div className="mt-4 md:mt-0 flex space-x-3">
             <div className="flex space-x-2">
-              {/* Status Filter */}
+              {/* Combined Filter */}
               <Menu as="div" className="relative">
                 <MenuButton className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center">
                   <FunnelIcon className="h-5 w-5 mr-1" />
-                  Status: {statusFilter}
+                  <span className="mr-1">Filters</span>
+                  {(statusFilter !== "All" || priorityFilter !== "All" || typeFilter !== "All") ? (
+                    <>
+                      <span className="mx-1 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {[
+                          statusFilter !== "All" ? 1 : 0,
+                          priorityFilter !== "All" ? 1 : 0,
+                          typeFilter !== "All" ? 1 : 0
+                        ].reduce((a, b) => a + b, 0)}
+                      </span>
+                      <span className="hidden sm:inline-block ml-1 text-xs text-gray-500 truncate max-w-[100px]">
+                        {[
+                          statusFilter !== "All" ? statusFilter : "",
+                          priorityFilter !== "All" ? priorityFilter : "",
+                          typeFilter !== "All" ? typeFilter : ""
+                        ].filter(Boolean).join(", ")}
+                      </span>
+                    </>
+                  ) : null}
                 </MenuButton>
-                <MenuItems className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                  {statusFilters.map((status) => (
-                    <MenuItem key={status}>
-                      {({ active }) => (
+                <MenuItems className="absolute right-0 z-10 mt-2 w-64 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                  <div className="px-3 py-2 border-b border-gray-100">
+                    <h3 className={`text-xs font-cabinet-grotesk-bold ${statusFilter !== "All" ? "text-blue-600" : "text-gray-500"} uppercase tracking-wider flex items-center justify-between`}>
+                      Status
+                      {statusFilter !== "All" && (
+                        <span className="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full">
+                          {statusFilter}
+                        </span>
+                      )}
+                    </h3>
+                    <div className="mt-2 space-y-1">
+                      {statusFilters.map((status) => (
                         <button
+                          key={status}
                           onClick={() => setStatusFilter(status)}
-                          className={`flex w-full items-center px-4 py-2 text-sm ${
-                            active ? 'bg-gray-100' : ''
+                          className={`flex w-full items-center px-2 py-1 text-sm rounded-md ${
+                            status === statusFilter ? 'bg-blue-50 font-medium' : 'hover:bg-gray-50'
                           }`}
                         >
                           {status === statusFilter && (
-                            <CheckIcon className="mr-2 h-4 w-4" />
+                            <CheckIcon className="mr-2 h-4 w-4 text-blue-500" />
                           )}
-                          <span className={status === statusFilter ? 'font-semibold' : ''}>
+                          <span className={status === statusFilter ? 'text-blue-700' : 'text-gray-700'}>
                             {status}
                           </span>
                         </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="px-3 py-2 border-b border-gray-100">
+                    <h3 className={`text-xs font-cabinet-grotesk-bold ${priorityFilter !== "All" ? "text-blue-600" : "text-gray-500"} uppercase tracking-wider flex items-center justify-between`}>
+                      Priority
+                      {priorityFilter !== "All" && (
+                        <span className="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full">
+                          {priorityFilter}
+                        </span>
                       )}
-                    </MenuItem>
-                  ))}
-                </MenuItems>
-              </Menu>
-
-              {/* Priority Filter */}
-              <Menu as="div" className="relative">
-                <MenuButton className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center">
-                  <FunnelIcon className="h-5 w-5 mr-1" />
-                  Priority: {priorityFilter}
-                </MenuButton>
-                <MenuItems className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                  {priorityFilters.map((priority) => (
-                    <MenuItem key={priority}>
-                      {({ active }) => (
+                    </h3>
+                    <div className="mt-2 space-y-1">
+                      {priorityFilters.map((priority) => (
                         <button
+                          key={priority}
                           onClick={() => setPriorityFilter(priority)}
-                          className={`flex w-full items-center px-4 py-2 text-sm ${
-                            active ? 'bg-gray-100' : ''
+                          className={`flex w-full items-center px-2 py-1 text-sm rounded-md ${
+                            priority === priorityFilter ? 'bg-blue-50 font-medium' : 'hover:bg-gray-50'
                           }`}
                         >
                           {priority === priorityFilter && (
-                            <CheckIcon className="mr-2 h-4 w-4" />
+                            <CheckIcon className="mr-2 h-4 w-4 text-blue-500" />
                           )}
-                          <span className={priority === priorityFilter ? 'font-semibold' : ''}>
+                          <span className={priority === priorityFilter ? 'text-blue-700' : 'text-gray-700'}>
                             {priority}
                           </span>
                         </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="px-3 py-2">
+                    <h3 className={`text-xs font-cabinet-grotesk-bold ${typeFilter !== "All" ? "text-blue-600" : "text-gray-500"} uppercase tracking-wider flex items-center justify-between`}>
+                      Type
+                      {typeFilter !== "All" && (
+                        <span className="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full">
+                          {typeFilter}
+                        </span>
                       )}
-                    </MenuItem>
-                  ))}
-                </MenuItems>
-              </Menu>
-
-              {/* Type Filter */}
-              <Menu as="div" className="relative">
-                <MenuButton className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center">
-                  <FunnelIcon className="h-5 w-5 mr-1" />
-                  Type: {typeFilter}
-                </MenuButton>
-                <MenuItems className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                  {typeFilters.map((type) => (
-                    <MenuItem key={type}>
-                      {({ active }) => (
+                    </h3>
+                    <div className="mt-2 space-y-1">
+                      {typeFilters.map((type) => (
                         <button
+                          key={type}
                           onClick={() => setTypeFilter(type)}
-                          className={`flex w-full items-center px-4 py-2 text-sm ${
-                            active ? 'bg-gray-100' : ''
+                          className={`flex w-full items-center px-2 py-1 text-sm rounded-md ${
+                            type === typeFilter ? 'bg-blue-50 font-medium' : 'hover:bg-gray-50'
                           }`}
                         >
                           {type === typeFilter && (
-                            <CheckIcon className="mr-2 h-4 w-4" />
+                            <CheckIcon className="mr-2 h-4 w-4 text-blue-500" />
                           )}
-                          <span className={type === typeFilter ? 'font-semibold' : ''}>
+                          <span className={type === typeFilter ? 'text-blue-700' : 'text-gray-700'}>
                             {type}
                           </span>
                         </button>
-                      )}
-                    </MenuItem>
-                  ))}
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {(statusFilter !== "All" || priorityFilter !== "All" || typeFilter !== "All") && (
+                    <div className="px-3 py-2 border-t border-gray-100">
+                      <button
+                        onClick={() => {
+                          setStatusFilter("All");
+                          setPriorityFilter("All");
+                          setTypeFilter("All");
+                        }}
+                        className="flex items-center justify-center w-full py-1.5 px-3 text-sm bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
+                      >
+                        <XMarkIcon className="h-4 w-4 mr-1.5" />
+                        Reset all filters
+                      </button>
+                    </div>
+                  )}
                 </MenuItems>
               </Menu>
             </div>
@@ -408,18 +474,58 @@ export default function Issues() {
         </div>
         
         {/* Issues Tabs */}
-        <Tabs defaultValue="list" className="w-full">
-          <TabsList className="w-full grid grid-cols-2 mb-4">
-            <TabsTrigger value="list">List</TabsTrigger>
-            <TabsTrigger value="board">Board</TabsTrigger>
-          </TabsList>
-          
+        <div>
+          <div className="grid grid-cols-1 sm:hidden">
+            <select
+              value={selectedTab}
+              onChange={(e) => handleTabChange(e.target.value)}
+              aria-label="Select a tab"
+              className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-2 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-[#D9E8FF]"
+            >
+              {tabs.map((tab) => (
+                <option key={tab.name} value={tab.value}>{tab.name}</option>
+              ))}
+            </select>
+            <ChevronDownIcon
+              aria-hidden="true"
+              className="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end fill-gray-500"
+            />
+          </div>
+          <div className="hidden sm:block">
+            <nav aria-label="Tabs" className="isolate flex divide-x divide-gray-200 rounded-lg shadow-sm">
+              {tabs.map((tab, tabIdx) => (
+                <button
+                  key={tab.name}
+                  onClick={() => handleTabChange(tab.value)}
+                  aria-current={tab.current ? 'page' : undefined}
+                  className={classNames(
+                    tab.current ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700',
+                    tabIdx === 0 ? 'rounded-l-lg' : '',
+                    tabIdx === tabs.length - 1 ? 'rounded-r-lg' : '',
+                    'group relative min-w-0 flex-1 overflow-hidden bg-white px-4 py-4 text-center text-sm font-medium hover:bg-gray-50 focus:z-10',
+                  )}
+                >
+                  <span>{tab.name}</span>
+                  <span
+                    aria-hidden="true"
+                    className={classNames(
+                      tab.current ? 'bg-[#FF503E]' : 'bg-transparent',
+                      'absolute inset-x-0 bottom-0 h-0.5',
+                    )}
+                  />
+                </button>
+              ))}
+            </nav>
+          </div>
+        </div>
+
+        <Tabs value={selectedTab} onValueChange={handleTabChange} className="w-full">
           <TabsContent value="list">
             {/* Issues Table */}
             <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
               <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900">All Issues</h3>
+                  <h3 className="text-lg font-cabinet-grotesk-bold text-gray-900">All Issues</h3>
                   <p className="text-sm text-gray-500">Recent maintenance requests and issues that need attention.</p>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -502,51 +608,59 @@ export default function Issues() {
               </div>
               
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issue</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reported</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredIssues.map((issue) => (
-                      <tr 
-                        key={issue.id}
-                        onClick={() => openDrawer(issue)}
-                        className="cursor-pointer hover:bg-gray-50"
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">#{issue.id}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{issue.title}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            issue.status === 'Todo' ? 'bg-yellow-100 text-yellow-800' :
-                            issue.status === 'In Progress' ? 'bg-blue-100 text-blue-800' :
-                            issue.status === 'Done' ? 'bg-green-100 text-green-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {issue.status}
-                          </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            issue.priority === 'High' ? 'bg-red-100 text-red-800' :
-                            issue.priority === 'Medium' ? 'bg-blue-100 text-blue-800' :
-                            'bg-green-100 text-green-800'
-                          }`}>
-                            {issue.priority}
-                          </span>
-                      </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{issue.property}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{issue.reported}</td>
-                    </tr>
-                    ))}
-                  </tbody>
-                </table>
+                {isLoading ? (
+                  <div className="flex justify-center items-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                  </div>
+                ) : error ? (
+                  <div className="text-center py-8 text-red-500">{error}</div>
+                ) : filteredIssues.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">No issues found</div>
+                ) : (
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issue</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reported</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filteredIssues.map((issue) => (
+                        <tr 
+                          key={issue.id}
+                          onClick={() => openDrawer(issue)}
+                          className="cursor-pointer hover:bg-gray-50"
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{issue.title}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              issue.status === 'Todo' ? 'bg-yellow-100 text-yellow-800' :
+                              issue.status === 'In Progress' ? 'bg-blue-100 text-blue-800' :
+                              issue.status === 'Done' ? 'bg-green-100 text-green-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {issue.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              issue.priority === 'High' ? 'bg-red-100 text-red-800' :
+                              issue.priority === 'Medium' ? 'bg-blue-100 text-blue-800' :
+                              'bg-green-100 text-green-800'
+                            }`}>
+                              {issue.priority}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{issue.property}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{issue.reported}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
               
               {/* Pagination */}

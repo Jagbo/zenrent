@@ -70,8 +70,8 @@ export default function AccountCreation() {
                   {step.status === 'complete' ? (
                     <a href={step.href} className="group flex w-full items-center">
                       <span className="flex flex-col items-center md:flex-row md:items-center px-3 py-3 text-sm font-medium sm:px-6 sm:py-4">
-                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full bg-indigo-600 group-hover:bg-indigo-800">
-                          <CheckIcon aria-hidden="true" className="size-4 sm:size-6 text-white" />
+                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full bg-d9e8ff group-hover:bg-d9e8ff-80">
+                          <CheckIcon aria-hidden="true" className="size-4 sm:size-6 text-gray-900" />
                         </span>
                         <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-gray-900">{step.name}</span>
                       </span>
@@ -79,10 +79,10 @@ export default function AccountCreation() {
                   ) : step.status === 'current' ? (
                     <a href={step.href} aria-current="step" className="flex items-center">
                       <span className="flex flex-col items-center md:flex-row md:items-center px-3 py-3 text-sm font-medium sm:px-6 sm:py-4">
-                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full border-2 border-indigo-600">
-                          <span className="text-xs sm:text-sm text-indigo-600">{step.id}</span>
+                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full border-2 border-d9e8ff">
+                          <span className="text-xs sm:text-sm text-d9e8ff">{step.id}</span>
                         </span>
-                        <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-indigo-600">{step.name}</span>
+                        <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-d9e8ff">{step.name}</span>
                       </span>
                     </a>
                   ) : (
@@ -145,7 +145,7 @@ export default function AccountCreation() {
                           name="title"
                           value={title}
                           onChange={(e) => setTitle(e.target.value)}
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-d9e8ff sm:text-sm/6"
                         >
                           <option value="">Select title</option>
                           {titles.map((title) => (
@@ -170,7 +170,7 @@ export default function AccountCreation() {
                           value={firstName}
                           onChange={(e) => setFirstName(e.target.value)}
                           autoComplete="given-name"
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-d9e8ff sm:text-sm/6"
                         />
                       </div>
                     </div>
@@ -188,7 +188,7 @@ export default function AccountCreation() {
                           value={lastName}
                           onChange={(e) => setLastName(e.target.value)}
                           autoComplete="family-name"
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-d9e8ff sm:text-sm/6"
                         />
                       </div>
                     </div>
@@ -198,7 +198,7 @@ export default function AccountCreation() {
                         Mobile number
                       </label>
                       <div className="mt-2 grid grid-cols-1">
-                        <div className="col-start-1 row-start-1 flex items-center rounded-md bg-white pl-3 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600">
+                        <div className="col-start-1 row-start-1 flex items-center rounded-md bg-white pl-3 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-d9e8ff">
                           <span className="shrink-0 text-base text-gray-500 select-none sm:text-sm/6">+44</span>
                           <input
                             type="tel"
@@ -224,10 +224,10 @@ export default function AccountCreation() {
                   <div className="mt-4 flex gap-6">
                     <div 
                       className={`flex flex-1 flex-col items-center gap-3 rounded-lg border p-4 cursor-pointer
-                        ${accountType === 'individual' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-300'}`}
+                        ${accountType === 'individual' ? 'border-d9e8ff bg-d9e8ff-10' : 'border-gray-300'}`}
                       onClick={() => setAccountType('individual')}
                     >
-                      <HomeIcon className="h-8 w-8 text-indigo-600" />
+                      <HomeIcon className="h-8 w-8 text-d9e8ff" />
                       <div className="flex flex-col items-center">
                         <span className="font-medium text-gray-900">Individual Landlord</span>
                         <span className="text-sm text-gray-500 text-center mt-1">For personal property owners</span>
@@ -239,17 +239,17 @@ export default function AccountCreation() {
                           type="radio"
                           checked={accountType === 'individual'}
                           onChange={() => setAccountType('individual')}
-                          className="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white not-checked:before:hidden checked:border-indigo-600 checked:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden"
+                          className="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white not-checked:before:hidden checked:border-d9e8ff checked:bg-d9e8ff focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden"
                         />
                       </div>
                     </div>
                     
                     <div 
                       className={`flex flex-1 flex-col items-center gap-3 rounded-lg border p-4 cursor-pointer
-                        ${accountType === 'company' ? 'border-indigo-600 bg-indigo-50' : 'border-gray-300'}`}
+                        ${accountType === 'company' ? 'border-d9e8ff bg-d9e8ff-10' : 'border-gray-300'}`}
                       onClick={() => setAccountType('company')}
                     >
-                      <BuildingOfficeIcon className="h-8 w-8 text-indigo-600" />
+                      <BuildingOfficeIcon className="h-8 w-8 text-d9e8ff" />
                       <div className="flex flex-col items-center">
                         <span className="font-medium text-gray-900">Company Landlord</span>
                         <span className="text-sm text-gray-500 text-center mt-1">For property management businesses</span>
@@ -261,7 +261,7 @@ export default function AccountCreation() {
                           type="radio"
                           checked={accountType === 'company'}
                           onChange={() => setAccountType('company')}
-                          className="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white not-checked:before:hidden checked:border-indigo-600 checked:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden"
+                          className="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white not-checked:before:hidden checked:border-d9e8ff checked:bg-d9e8ff focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden"
                         />
                       </div>
                     </div>
@@ -287,7 +287,7 @@ export default function AccountCreation() {
                               checked={agreeTerms}
                               onChange={(e) => setAgreeTerms(e.target.checked)}
                               aria-describedby="terms-description"
-                              className="col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 bg-white checked:border-indigo-600 checked:bg-indigo-600 indeterminate:border-indigo-600 indeterminate:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 forced-colors:appearance-auto"
+                              className="col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 bg-white checked:border-d9e8ff checked:bg-d9e8ff indeterminate:border-d9e8ff indeterminate:bg-d9e8ff focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 forced-colors:appearance-auto"
                             />
                             <svg
                               fill="none"
@@ -316,7 +316,7 @@ export default function AccountCreation() {
                             I agree to the Terms of Service *
                           </label>
                           <p id="terms-description" className="text-gray-500">
-                            By checking this box, you agree to our <a href="#" className="text-indigo-600 hover:text-indigo-500">Terms of Service</a>.
+                            By checking this box, you agree to our <a href="#" className="text-d9e8ff hover:text-d9e8ff-80">Terms of Service</a>.
                           </p>
                         </div>
                       </div>
@@ -332,7 +332,7 @@ export default function AccountCreation() {
                               checked={agreePrivacy}
                               onChange={(e) => setAgreePrivacy(e.target.checked)}
                               aria-describedby="privacy-description"
-                              className="col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 bg-white checked:border-indigo-600 checked:bg-indigo-600 indeterminate:border-indigo-600 indeterminate:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 forced-colors:appearance-auto"
+                              className="col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 bg-white checked:border-d9e8ff checked:bg-d9e8ff indeterminate:border-d9e8ff indeterminate:bg-d9e8ff focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 forced-colors:appearance-auto"
                             />
                             <svg
                               fill="none"
@@ -361,7 +361,7 @@ export default function AccountCreation() {
                             I agree to the Privacy Policy *
                           </label>
                           <p id="privacy-description" className="text-gray-500">
-                            By checking this box, you agree to our <a href="#" className="text-indigo-600 hover:text-indigo-500">Privacy Policy</a>.
+                            By checking this box, you agree to our <a href="#" className="text-d9e8ff hover:text-d9e8ff-80">Privacy Policy</a>.
                           </p>
                         </div>
                       </div>
@@ -376,7 +376,7 @@ export default function AccountCreation() {
               </button>
               <button
                 type="submit"
-                className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                className="rounded-md bg-d9e8ff px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs hover:bg-d9e8ff-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff"
               >
                 Create Account
               </button>

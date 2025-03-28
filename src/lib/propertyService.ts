@@ -32,6 +32,9 @@ export interface ITenant {
   image?: string;
   about?: string;
   rent_amount?: number;
+  property_address?: string;
+  property_id?: string;
+  property_code?: string;
 }
 
 export interface ILease {

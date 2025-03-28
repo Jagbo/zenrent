@@ -81,8 +81,8 @@ export default function NotificationPreferences() {
       <button
         type="button"
         className={`${
-          enabled ? 'bg-indigo-600' : 'bg-gray-200'
-        } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2`}
+          enabled ? 'bg-d9e8ff' : 'bg-gray-200'
+        } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-d9e8ff focus:ring-offset-2`}
         role="switch"
         aria-checked={enabled}
         onClick={onChange}
@@ -112,7 +112,7 @@ export default function NotificationPreferences() {
                   {step.status === 'complete' ? (
                     <a href={step.href} className="group flex w-full items-center">
                       <span className="flex flex-col items-center md:flex-row md:items-center px-3 py-3 text-sm font-medium sm:px-6 sm:py-4">
-                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full bg-indigo-600 group-hover:bg-indigo-800">
+                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full bg-d9e8ff group-hover:bg-d9e8ff-80">
                           <CheckIconSolid aria-hidden="true" className="size-4 sm:size-6 text-white" />
                         </span>
                         <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-gray-900">{step.name}</span>
@@ -121,10 +121,10 @@ export default function NotificationPreferences() {
                   ) : step.status === 'current' ? (
                     <a href={step.href} aria-current="step" className="flex items-center">
                       <span className="flex flex-col items-center md:flex-row md:items-center px-3 py-3 text-sm font-medium sm:px-6 sm:py-4">
-                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full border-2 border-indigo-600">
-                          <span className="text-xs sm:text-sm text-indigo-600">{step.id}</span>
+                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full border-2 border-d9e8ff">
+                          <span className="text-xs sm:text-sm text-gray-900">{step.id}</span>
                         </span>
-                        <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-indigo-600">{step.name}</span>
+                        <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-gray-900">{step.name}</span>
                       </span>
                     </a>
                   ) : (
@@ -304,7 +304,7 @@ export default function NotificationPreferences() {
               </button>
               <button
                 type="submit"
-                className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                className="rounded-md bg-d9e8ff px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-d9e8ff-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff"
               >
                 Save Preferences
               </button>

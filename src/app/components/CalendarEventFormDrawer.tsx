@@ -56,7 +56,7 @@ export const CalendarEventFormDrawer: React.FC<CalendarEventFormDrawerProps> = (
       maintenance: 'bg-yellow-100 text-yellow-800',
       meeting: 'bg-blue-100 text-blue-800',
       showing: 'bg-pink-100 text-pink-800',
-      contract: 'bg-indigo-100 text-indigo-800',
+      contract: 'bg-[#D9E8FF]/10 text-indigo-800',
       admin: 'bg-gray-100 text-gray-800'
     };
     return colors[type as keyof typeof colors] || colors.admin;
@@ -129,7 +129,7 @@ export const CalendarEventFormDrawer: React.FC<CalendarEventFormDrawerProps> = (
               name="title"
               id="title"
               required
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
               value={formData.title}
               onChange={handleChange}
             />
@@ -144,7 +144,7 @@ export const CalendarEventFormDrawer: React.FC<CalendarEventFormDrawerProps> = (
               name="date"
               id="date"
               required
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
               value={formData.date}
               onChange={handleChange}
             />
@@ -160,7 +160,7 @@ export const CalendarEventFormDrawer: React.FC<CalendarEventFormDrawerProps> = (
                 name="startTime"
                 id="startTime"
                 required
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
                 value={formData.startTime}
                 onChange={handleChange}
               />
@@ -174,7 +174,7 @@ export const CalendarEventFormDrawer: React.FC<CalendarEventFormDrawerProps> = (
                 name="endTime"
                 id="endTime"
                 required
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
                 value={formData.endTime}
                 onChange={handleChange}
               />
@@ -189,7 +189,7 @@ export const CalendarEventFormDrawer: React.FC<CalendarEventFormDrawerProps> = (
               type="text"
               name="location"
               id="location"
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
               value={formData.location}
               onChange={handleChange}
             />
@@ -203,7 +203,7 @@ export const CalendarEventFormDrawer: React.FC<CalendarEventFormDrawerProps> = (
               name="type"
               id="type"
               required
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
               value={formData.type}
               onChange={handleChange}
             >
@@ -225,7 +225,7 @@ export const CalendarEventFormDrawer: React.FC<CalendarEventFormDrawerProps> = (
               name="description"
               id="description"
               rows={3}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
               value={formData.description}
               onChange={handleChange}
             />
@@ -241,7 +241,7 @@ export const CalendarEventFormDrawer: React.FC<CalendarEventFormDrawerProps> = (
             </button>
             <button
               type="submit"
-              className="flex-1 bg-indigo-600 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none"
+              className="flex-1 bg-[#D9E8FF] py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-[#D9E8FF]/80 focus:outline-none"
             >
               {initialData.title ? 'Update Event' : 'Add Event'}
             </button>

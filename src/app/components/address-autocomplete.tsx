@@ -211,7 +211,7 @@ export function AddressAutocomplete({ onAddressSelect, addressLine1, className =
           autoCapitalize="off"
           spellCheck="false"
           placeholder="Start typing address or postcode (min. 3 characters)"
-          className={`block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6 ${className}`}
+          className={`block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[#D9E8FF] sm:text-sm/6 ${className}`}
         />
         <MapPinIcon className="absolute right-3 size-5 text-gray-400" aria-hidden="true" />
       </div>

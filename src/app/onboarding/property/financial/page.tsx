@@ -171,7 +171,7 @@ export default function PropertyFinancial() {
                           required
                           value={formData.monthlyRent}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 pl-7 pr-12 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 pl-7 pr-12 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                           placeholder="0.00"
                         />
                       </div>
@@ -192,7 +192,7 @@ export default function PropertyFinancial() {
                           required
                           value={formData.depositAmount}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 pl-7 pr-12 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 pl-7 pr-12 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                           placeholder="0.00"
                         />
                       </div>
@@ -208,7 +208,7 @@ export default function PropertyFinancial() {
                           name="rentalFrequency"
                           value={formData.rentalFrequency}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                         >
                           <option>Monthly</option>
                           <option>Weekly</option>
@@ -228,7 +228,7 @@ export default function PropertyFinancial() {
                           required
                           value={formData.depositScheme}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                         >
                           <option value="">Select a scheme</option>
                           <option value="DPS">DPS (Deposit Protection Service)</option>
@@ -249,7 +249,7 @@ export default function PropertyFinancial() {
                           id="availableFrom"
                           value={formData.availableFrom}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 pr-10 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 pr-10 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                         />
                         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
                           <CalendarIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
@@ -285,7 +285,7 @@ export default function PropertyFinancial() {
                           id="mortgageLender"
                           value={formData.mortgageLender}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                         />
                       </div>
                     </div>
@@ -304,7 +304,7 @@ export default function PropertyFinancial() {
                           id="monthlyPayment"
                           value={formData.monthlyPayment}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 pl-7 pr-12 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 pl-7 pr-12 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                           placeholder="0.00"
                         />
                       </div>
@@ -321,7 +321,7 @@ export default function PropertyFinancial() {
                           id="interestRate"
                           value={formData.interestRate}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 pr-10 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 pr-10 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                           placeholder="0.00"
                         />
                         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
@@ -341,7 +341,7 @@ export default function PropertyFinancial() {
                           id="fixedTermEndDate"
                           value={formData.fixedTermEndDate}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 pr-10 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 pr-10 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                         />
                         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
                           <CalendarIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
@@ -370,7 +370,7 @@ export default function PropertyFinancial() {
                           id="insuranceProvider"
                           value={formData.insuranceProvider}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                         />
                       </div>
                     </div>
@@ -386,7 +386,7 @@ export default function PropertyFinancial() {
                           id="policyNumber"
                           value={formData.policyNumber}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                         />
                       </div>
                     </div>
@@ -402,7 +402,7 @@ export default function PropertyFinancial() {
                           id="renewalDate"
                           value={formData.renewalDate}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 pr-10 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 pr-10 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                         />
                         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
                           <CalendarIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
@@ -434,7 +434,7 @@ export default function PropertyFinancial() {
                           id="regularExpenses"
                           value={formData.regularExpenses}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 pl-7 pr-12 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 pl-7 pr-12 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                           placeholder="0.00"
                         />
                       </div>
@@ -457,7 +457,7 @@ export default function PropertyFinancial() {
                           id="managementFees"
                           value={formData.managementFees}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 pl-7 pr-12 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 pl-7 pr-12 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                           placeholder="0.00"
                         />
                       </div>
@@ -473,7 +473,7 @@ export default function PropertyFinancial() {
               <button
                 type="button"
                 onClick={handleSaveAsDraft}
-                className="text-sm/6 font-semibold text-indigo-600 hover:text-indigo-500"
+                className="text-sm/6 font-semibold text-gray-900 hover:text-gray-700"
               >
                 Save as Draft
               </button>
@@ -486,7 +486,7 @@ export default function PropertyFinancial() {
               </button>
               <button
                 type="submit"
-                className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-[#D9E8FF]/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
               >
                 Save and Continue
               </button>

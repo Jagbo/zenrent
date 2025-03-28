@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { SidebarLayout } from '../components/sidebar-layout'
 import { Heading } from '../components/heading'
 import { Text } from '../components/text'
@@ -31,6 +31,14 @@ import {
 } from '@heroicons/react/24/solid'
 import { SidebarContent } from '../components/sidebar-content'
 import { CalendarEventFormDrawer } from '../components/CalendarEventFormDrawer'
+import { 
+  fetchCalendarEvents, 
+  fetchWeekEvents, 
+  fetchDayEvents,
+  CalendarEvent,
+  getEventColor,
+  formatEventTime
+} from '../../lib/calendar-utils'
 
 // Icons for navigation items
 function DashboardIcon() {
@@ -65,42 +73,6 @@ function IntegrationsIcon() {
   return <CodeBracketIcon className="w-5 h-5" />
 }
 
-// Define event type
-interface CalendarEvent {
-  id: number;
-  title: string;
-  date: string;
-  time: string;
-  location: string;
-  type: 'inspection' | 'payment' | 'maintenance' | 'meeting' | 'showing' | 'contract' | 'admin';
-}
-
-// Define calendar events for the demo
-const events: CalendarEvent[] = [
-  { id: 1, title: "Property Inspection", date: "2024-03-01", time: "10:00 AM - 11:00 AM", location: "Sunset Apartments Room 204", type: "inspection" },
-  { id: 2, title: "Rent Due", date: "2024-03-04", time: "All day", location: "All properties", type: "payment" },
-  { id: 3, title: "Maintenance Visit", date: "2024-03-08", time: "2:00 PM - 4:00 PM", location: "Oakwood Heights Room 103", type: "maintenance" },
-  { id: 4, title: "Tenant Meeting", date: "2024-03-12", time: "3:00 PM - 3:30 PM", location: "Parkview Residences Room 305", type: "meeting" },
-  { id: 5, title: "Property Showing", date: "2024-03-15", time: "11:00 AM - 12:00 PM", location: "Sunset Apartments Room 112", type: "showing" },
-  { id: 6, title: "Lease Signing", date: "2024-03-18", time: "10:00 AM - 11:00 AM", location: "Main Office", type: "contract" },
-  { id: 7, title: "Contractor Meeting", date: "2024-03-22", time: "9:00 AM - 10:00 AM", location: "Oakwood Heights", type: "maintenance" },
-  { id: 8, title: "Monthly Report Due", date: "2024-03-31", time: "All day", location: "N/A", type: "admin" }
-];
-
-// Get background color based on event type
-function getEventColor(type: string): string {
-  switch (type) {
-    case 'inspection': return 'bg-blue-100 text-blue-800';
-    case 'payment': return 'bg-green-100 text-green-800';
-    case 'maintenance': return 'bg-purple-100 text-purple-800';
-    case 'meeting': return 'bg-red-100 text-red-800';
-    case 'showing': return 'bg-yellow-100 text-yellow-800';
-    case 'contract': return 'bg-indigo-100 text-indigo-800';
-    case 'admin': return 'bg-gray-100 text-gray-800';
-    default: return 'bg-blue-100 text-blue-800';
-  }
-}
-
 export default function Calendar() {
   const [currentView, setCurrentView] = useState('month');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -109,12 +81,53 @@ export default function Calendar() {
   const [currentMonth, setCurrentMonth] = useState(currentDate.getMonth());
   const [currentYear, setCurrentYear] = useState(currentDate.getFullYear());
   const [currentDay, setCurrentDay] = useState(currentDate.getDate());
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (formData: any) => {
-    // Here you would typically save the event to your backend
-    console.log('New event:', formData);
-    setIsDrawerOpen(false);
-    setSelectedEvent(null);
+  // Function to fetch events based on current view
+  const loadEvents = async () => {
+    setIsLoading(true);
+    try {
+      let fetchedEvents: CalendarEvent[] = [];
+      
+      if (currentView === 'month') {
+        fetchedEvents = await fetchCalendarEvents(currentYear, currentMonth + 1);
+      } else if (currentView === 'week') {
+        const weekStart = new Date(currentYear, currentMonth, currentDay);
+        fetchedEvents = await fetchWeekEvents(weekStart.toISOString().split('T')[0]);
+      } else if (currentView === 'day') {
+        const selectedDate = new Date(currentYear, currentMonth, currentDay);
+        fetchedEvents = await fetchDayEvents(selectedDate.toISOString().split('T')[0]);
+      } else {
+        // List view - fetch current month events
+        fetchedEvents = await fetchCalendarEvents(currentYear, currentMonth + 1);
+      }
+      
+      setEvents(fetchedEvents);
+    } catch (error) {
+      console.error('Error loading events:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load events when view or date changes
+  useEffect(() => {
+    loadEvents();
+  }, [currentView, currentYear, currentMonth, currentDay]);
+
+  // Update handleSubmit to use the calendar utils
+  const handleSubmit = async (formData: any) => {
+    try {
+      // Here you would typically save the event to your backend
+      console.log('New event:', formData);
+      // Refresh events after adding new one
+      await loadEvents();
+      setIsDrawerOpen(false);
+      setSelectedEvent(null);
+    } catch (error) {
+      console.error('Error creating event:', error);
+    }
   };
 
   const handleEventClick = (event: CalendarEvent) => {
@@ -206,16 +219,16 @@ export default function Calendar() {
     }
   };
 
-  // Render the month view (grid)
+  // Update findEventsForDay to work with the new event format
+  const findEventsForDay = (day: number) => {
+    return events.filter(event => {
+      const eventDate = new Date(event.date);
+      return eventDate.getDate() === day;
+    });
+  };
+
+  // Update renderMonthView to handle loading state
   const renderMonthView = () => {
-    // Find events for specific days
-    const findEventsForDay = (day: number) => {
-      return events.filter(event => {
-        const eventDay = parseInt(event.date.split('-')[2]);
-        return eventDay === day;
-      });
-    };
-    
     return (
       <div className="grid grid-cols-7 gap-px bg-gray-200 border border-gray-200 rounded-lg overflow-hidden">
         {/* Day headers */}
@@ -247,7 +260,9 @@ export default function Calendar() {
         {/* Days from current month */}
         {[...Array(31)].map((_, index) => {
           const day = index + 1;
-          const isCurrentDay = day === 10;
+          const isCurrentDay = day === new Date().getDate() && 
+                             currentMonth === new Date().getMonth() && 
+                             currentYear === new Date().getFullYear();
           const dayEvents = findEventsForDay(day);
           
           return (
@@ -256,15 +271,19 @@ export default function Calendar() {
               className={`bg-white h-32 p-2 ${isCurrentDay ? 'border-2 border-blue-500' : ''}`}
             >
               <div className={`text-sm ${isCurrentDay ? 'font-bold' : ''}`}>{day}</div>
-              {dayEvents.map(event => (
-                <div 
-                  key={event.id} 
-                  className={`mt-1 text-xs p-1 ${getEventColor(event.type)} rounded cursor-pointer hover:opacity-75`}
-                  onClick={() => handleEventClick(event)}
-                >
-                  {event.title}
-                </div>
-              ))}
+              {isLoading ? (
+                <div className="animate-pulse mt-1 h-4 bg-gray-200 rounded"></div>
+              ) : (
+                dayEvents.map(event => (
+                  <div 
+                    key={event.id} 
+                    className={`mt-1 text-xs p-1 ${getEventColor(event.event_type)} rounded cursor-pointer hover:opacity-75`}
+                    onClick={() => handleEventClick(event)}
+                  >
+                    {event.title}
+                  </div>
+                ))
+              )}
             </div>
           );
         })}
@@ -272,7 +291,7 @@ export default function Calendar() {
     );
   };
 
-  // Render the week view
+  // Update renderWeekView to use the new event format
   const renderWeekView = () => {
     return (
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -295,48 +314,58 @@ export default function Calendar() {
             ))}
           </div>
           
-          {[...Array(7)].map((_, dayIndex) => (
-            <div key={dayIndex} className="border-r border-gray-200 relative">
-              {events
-                .filter(event => {
-                  const eventDay = parseInt(event.date.split('-')[2]);
-                  return eventDay === dayIndex + 3;
-                })
-                .map(event => (
-                  <div
-                    key={event.id}
-                    className={`absolute left-0 right-0 mx-1 p-1 ${getEventColor(event.type)} text-xs rounded border cursor-pointer hover:opacity-75`}
-                    style={{
-                      top: '2rem',
-                      height: '3rem'
-                    }}
-                    onClick={() => handleEventClick(event)}
-                  >
-                    {event.title}
-                  </div>
-                ))}
-            </div>
-          ))}
+          {[...Array(7)].map((_, dayIndex) => {
+            const currentDate = new Date(currentYear, currentMonth, currentDay + dayIndex);
+            const dayEvents = events.filter(event => {
+              const eventDate = new Date(event.date);
+              return eventDate.getDate() === currentDate.getDate();
+            });
+            
+            return (
+              <div key={dayIndex} className="border-r border-gray-200 relative">
+                {isLoading ? (
+                  <div className="animate-pulse m-1 h-8 bg-gray-200 rounded"></div>
+                ) : (
+                  dayEvents.map(event => (
+                    <div
+                      key={event.id}
+                      className={`absolute left-0 right-0 mx-1 p-1 ${getEventColor(event.event_type)} text-xs rounded border cursor-pointer hover:opacity-75`}
+                      style={{
+                        top: '2rem',
+                        height: '3rem'
+                      }}
+                      onClick={() => handleEventClick(event)}
+                    >
+                      {event.title}
+                    </div>
+                  ))
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     );
   };
 
-  // Render the day view
+  // Update renderDayView to use the new event format
   const renderDayView = () => {
     return (
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         <div className="p-4 border-b border-gray-200 text-center">
-          <h3 className="text-lg font-medium">Wednesday, March 10, 2024</h3>
+          <h3 className="text-lg font-medium">
+            {new Date(currentYear, currentMonth, currentDay).toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            })}
+          </h3>
         </div>
         
         <div className="h-96 overflow-y-auto">
           {[...Array(10)].map((_, index) => {
             const hour = index + 8;
-            const dayEvents = events.filter(event => {
-              const eventDay = parseInt(event.date.split('-')[2]);
-              return eventDay === 10;
-            });
             
             return (
               <div key={hour} className="grid grid-cols-12 border-b border-gray-200">
@@ -344,23 +373,27 @@ export default function Calendar() {
                   {hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
                 </div>
                 <div className="col-span-11 p-2">
-                  {dayEvents.map(event => (
-                    <div
-                      key={event.id}
-                      className={`${getEventColor(event.type)} p-2 rounded border cursor-pointer hover:opacity-75`}
-                      onClick={() => handleEventClick(event)}
-                    >
-                      <div className="font-medium">{event.title}</div>
-                      <div className="text-xs flex items-center mt-1">
-                        <ClockIcon className="h-3 w-3 mr-1" />
-                        {event.time}
+                  {isLoading ? (
+                    <div className="animate-pulse h-8 bg-gray-200 rounded"></div>
+                  ) : (
+                    events.map(event => (
+                      <div
+                        key={event.id}
+                        className={`${getEventColor(event.event_type)} p-2 rounded border cursor-pointer hover:opacity-75`}
+                        onClick={() => handleEventClick(event)}
+                      >
+                        <div className="font-medium">{event.title}</div>
+                        <div className="text-xs flex items-center mt-1">
+                          <ClockIcon className="h-3 w-3 mr-1" />
+                          {formatEventTime(event)}
+                        </div>
+                        <div className="text-xs flex items-center mt-1">
+                          <MapPinIcon className="h-3 w-3 mr-1" />
+                          {event.location}
+                        </div>
                       </div>
-                      <div className="text-xs flex items-center mt-1">
-                        <MapPinIcon className="h-3 w-3 mr-1" />
-                        {event.location}
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             );
@@ -370,39 +403,51 @@ export default function Calendar() {
     );
   };
 
-  // Render the list view
+  // Update renderListView to use the new event format
   const renderListView = () => {
     return (
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         <div className="p-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium">March 2024 Events</h3>
+          <h3 className="text-lg font-medium">
+            {new Date(currentYear, currentMonth).toLocaleString('default', { month: 'long' })} {currentYear} Events
+          </h3>
         </div>
         
         <div className="divide-y divide-gray-200">
-          {events.map(event => (
-            <div 
-              key={event.id} 
-              className="p-4 hover:bg-gray-50 cursor-pointer"
-              onClick={() => handleEventClick(event)}
-            >
-              <div className="flex items-start">
-                <div className={`${getEventColor(event.type)} px-2 py-1 rounded-full text-xs font-medium mr-3`}>
-                  {event.date.split('-')[2]}
-                </div>
-                <div className="flex-1">
-                  <h4 className="text-sm font-medium">{event.title}</h4>
-                  <div className="mt-1 flex items-center text-xs text-gray-500">
-                    <ClockIcon className="h-3 w-3 mr-1" />
-                    {event.time}
+          {isLoading ? (
+            <div className="p-4">
+              <div className="animate-pulse space-y-4">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="h-16 bg-gray-200 rounded"></div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            events.map(event => (
+              <div 
+                key={event.id}
+                className="p-4 hover:bg-gray-50 cursor-pointer"
+                onClick={() => handleEventClick(event)}
+              >
+                <div className="flex items-start">
+                  <div className={`${getEventColor(event.event_type)} px-2 py-1 rounded-full text-xs font-medium mr-3`}>
+                    {new Date(event.date).getDate()}
                   </div>
-                  <div className="mt-1 flex items-center text-xs text-gray-500">
-                    <MapPinIcon className="h-3 w-3 mr-1" />
-                    {event.location}
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium">{event.title}</h4>
+                    <div className="mt-1 flex items-center text-xs text-gray-500">
+                      <ClockIcon className="h-3 w-3 mr-1" />
+                      {formatEventTime(event)}
+                    </div>
+                    <div className="mt-1 flex items-center text-xs text-gray-500">
+                      <MapPinIcon className="h-3 w-3 mr-1" />
+                      {event.location}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     );

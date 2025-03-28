@@ -155,7 +155,7 @@ export default function PropertyCompliance() {
                         type="checkbox"
                         checked={formData.gasChecked}
                         onChange={handleInputChange}
-                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                        className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-d9e8ff"
                       />
                     </div>
                     <div className="ml-3 text-sm leading-6">
@@ -179,7 +179,7 @@ export default function PropertyCompliance() {
                             id="gasDate"
                             value={formData.gasDate}
                             onChange={handleInputChange}
-                            className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                            className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-d9e8ff focus:ring-d9e8ff sm:text-sm sm:leading-6"
                           />
                         </div>
                       </div>
@@ -195,7 +195,7 @@ export default function PropertyCompliance() {
                             id="gasExpiry"
                             value={formData.gasExpiry}
                             onChange={handleInputChange}
-                            className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                            className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-d9e8ff focus:ring-d9e8ff sm:text-sm sm:leading-6"
                           />
                         </div>
                       </div>
@@ -213,7 +213,7 @@ export default function PropertyCompliance() {
                         type="checkbox"
                         checked={formData.electricalChecked}
                         onChange={handleInputChange}
-                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                        className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-d9e8ff"
                       />
                     </div>
                     <div className="ml-3 text-sm leading-6">
@@ -237,7 +237,7 @@ export default function PropertyCompliance() {
                             id="electricalDate"
                             value={formData.electricalDate}
                             onChange={handleInputChange}
-                            className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                            className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-d9e8ff focus:ring-d9e8ff sm:text-sm sm:leading-6"
                           />
                         </div>
                       </div>
@@ -253,7 +253,7 @@ export default function PropertyCompliance() {
                             id="electricalExpiry"
                             value={formData.electricalExpiry}
                             onChange={handleInputChange}
-                            className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                            className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-d9e8ff focus:ring-d9e8ff sm:text-sm sm:leading-6"
                           />
                         </div>
                       </div>
@@ -271,7 +271,7 @@ export default function PropertyCompliance() {
                         type="checkbox"
                         checked={formData.epcChecked}
                         onChange={handleInputChange}
-                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                        className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-d9e8ff"
                       />
                     </div>
                     <div className="ml-3 text-sm leading-6">
@@ -295,7 +295,7 @@ export default function PropertyCompliance() {
                             id="epcDate"
                             value={formData.epcDate}
                             onChange={handleInputChange}
-                            className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                            className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-d9e8ff focus:ring-d9e8ff sm:text-sm sm:leading-6"
                           />
                         </div>
                       </div>
@@ -311,7 +311,7 @@ export default function PropertyCompliance() {
                             id="epcExpiry"
                             value={formData.epcExpiry}
                             onChange={handleInputChange}
-                            className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                            className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-d9e8ff focus:ring-d9e8ff sm:text-sm sm:leading-6"
                           />
                         </div>
                       </div>
@@ -324,7 +324,7 @@ export default function PropertyCompliance() {
               <button
                 type="button"
                 onClick={handleSaveAsDraft}
-                className="text-sm/6 font-semibold text-indigo-600 hover:text-indigo-500"
+                className="text-sm/6 font-semibold text-gray-900 hover:text-gray-700"
               >
                 Save as Draft
               </button>
@@ -337,7 +337,7 @@ export default function PropertyCompliance() {
               </button>
               <button
                 type="submit"
-                className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                className="rounded-md bg-d9e8ff px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-d9e8ff-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff"
               >
                 Complete Property Setup
               </button>

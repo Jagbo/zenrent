@@ -249,7 +249,7 @@ export default function AddProperty() {
                   {step.status === 'complete' ? (
                     <a href={step.href} className="group flex w-full items-center">
                       <span className="flex flex-col items-center md:flex-row md:items-center px-3 py-3 text-sm font-medium sm:px-6 sm:py-4">
-                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full bg-indigo-600 group-hover:bg-indigo-800">
+                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full bg-[#D9E8FF] group-hover:bg-[#D9E8FF]/80">
                           <CheckIconSolid aria-hidden="true" className="size-4 sm:size-6 text-white" />
                         </span>
                         <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-gray-900">{step.name}</span>
@@ -258,10 +258,10 @@ export default function AddProperty() {
                   ) : step.status === 'current' ? (
                     <a href={step.href} aria-current="step" className="flex items-center">
                       <span className="flex flex-col items-center md:flex-row md:items-center px-3 py-3 text-sm font-medium sm:px-6 sm:py-4">
-                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full border-2 border-indigo-600">
-                          <span className="text-xs sm:text-sm text-indigo-600">{step.id}</span>
+                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full border-2 border-[#D9E8FF]">
+                          <span className="text-xs sm:text-sm text-gray-900">{step.id}</span>
                         </span>
-                        <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-indigo-600">{step.name}</span>
+                        <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-gray-900">{step.name}</span>
                       </span>
                     </a>
                   ) : (
@@ -390,7 +390,7 @@ export default function AddProperty() {
                           required
                           value={formData.propertyType}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                         >
                           <option value="">Select property type</option>
                           <option value="flat">Flat</option>
@@ -412,7 +412,7 @@ export default function AddProperty() {
                           name="propertySubtype"
                           value={formData.propertySubtype}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                         >
                           <option value="">Select subtype</option>
                           {formData.propertyType === 'flat' && (
@@ -456,7 +456,7 @@ export default function AddProperty() {
                           min="0"
                           value={formData.bedrooms}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                         />
                       </div>
                     </div>
@@ -475,7 +475,7 @@ export default function AddProperty() {
                           step="0.5"
                           value={formData.bathrooms}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                         />
                       </div>
                     </div>
@@ -490,7 +490,7 @@ export default function AddProperty() {
                           name="furnishingStatus"
                           value={formData.furnishingStatus}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                         >
                           <option value="">Select status</option>
                           <option value="furnished">Furnished</option>
@@ -522,7 +522,7 @@ export default function AddProperty() {
                           min="0"
                           value={formData.squareFootage}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                         />
                       </div>
                     </div>
@@ -537,7 +537,7 @@ export default function AddProperty() {
                           name="councilTaxBand"
                           value={formData.councilTaxBand}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                         >
                           <option value="">Select band</option>
                           <option value="A">A</option>
@@ -562,7 +562,7 @@ export default function AddProperty() {
                           name="epcRating"
                           value={formData.epcRating}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                         >
                           <option value="">Select rating</option>
                           <option value="A">A</option>
@@ -586,7 +586,7 @@ export default function AddProperty() {
                           name="heatingType"
                           value={formData.heatingType}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                         >
                           <option value="">Select heating type</option>
                           <option value="gas-central">Gas Central Heating</option>
@@ -611,7 +611,7 @@ export default function AddProperty() {
                           name="parking"
                           value={formData.parking}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                         >
                           <option value="">Select parking</option>
                           <option value="on-street">On-street Parking</option>
@@ -633,7 +633,7 @@ export default function AddProperty() {
                           name="outdoorSpace"
                           value={formData.outdoorSpace}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                         >
                           <option value="">Select outdoor space</option>
                           <option value="private-garden">Private Garden</option>
@@ -672,7 +672,7 @@ export default function AddProperty() {
                                 type="checkbox"
                                 checked={formData.features.includes(feature.id)}
                                 onChange={handleInputChange}
-                                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                                className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-[#D9E8FF]"
                               />
                             </div>
                             <div className="ml-3 text-sm leading-6">
@@ -707,7 +707,7 @@ export default function AddProperty() {
                             id="hmoLicenseNumber"
                             value={formData.hmoLicenseNumber}
                             onChange={handleInputChange}
-                            className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                            className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                           />
                         </div>
                       </div>
@@ -723,7 +723,7 @@ export default function AddProperty() {
                             id="hmoLicenseExpiry"
                             value={formData.hmoLicenseExpiry}
                             onChange={handleInputChange}
-                            className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                            className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                           />
                         </div>
                       </div>
@@ -740,7 +740,7 @@ export default function AddProperty() {
                             min="1"
                             value={formData.hmoMaxOccupancy}
                             onChange={handleInputChange}
-                            className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                            className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                           />
                         </div>
                       </div>
@@ -767,7 +767,7 @@ export default function AddProperty() {
                                   type="checkbox"
                                   checked={formData.hmoSharedFacilities.includes(facility.id)}
                                   onChange={handleInputChange}
-                                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                                  className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-[#D9E8FF]"
                                 />
                               </div>
                               <div className="ml-3 text-sm leading-6">
@@ -804,7 +804,7 @@ export default function AddProperty() {
                             value="freehold"
                             checked={formData.propertyOwnership === 'freehold'}
                             onChange={handleInputChange}
-                            className="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                            className="h-4 w-4 border-gray-300 text-gray-900 focus:ring-[#D9E8FF]"
                           />
                           <label htmlFor="freehold" className="ml-3 block text-sm font-medium leading-6 text-gray-900">
                             Freehold
@@ -818,7 +818,7 @@ export default function AddProperty() {
                             value="leasehold"
                             checked={formData.propertyOwnership === 'leasehold'}
                             onChange={handleInputChange}
-                            className="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                            className="h-4 w-4 border-gray-300 text-gray-900 focus:ring-[#D9E8FF]"
                           />
                           <label htmlFor="leasehold" className="ml-3 block text-sm font-medium leading-6 text-gray-900">
                             Leasehold
@@ -832,7 +832,7 @@ export default function AddProperty() {
                             value="share-of-freehold"
                             checked={formData.propertyOwnership === 'share-of-freehold'}
                             onChange={handleInputChange}
-                            className="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                            className="h-4 w-4 border-gray-300 text-gray-900 focus:ring-[#D9E8FF]"
                           />
                           <label htmlFor="share-of-freehold" className="ml-3 block text-sm font-medium leading-6 text-gray-900">
                             Share of Freehold
@@ -855,7 +855,7 @@ export default function AddProperty() {
                               min="0"
                               value={formData.leaseLengthRemaining}
                               onChange={handleInputChange}
-                              className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                              className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                             />
                           </div>
                         </div>
@@ -874,7 +874,7 @@ export default function AddProperty() {
                               id="groundRent"
                               value={formData.groundRent}
                               onChange={handleInputChange}
-                              className="block w-full rounded-md border border-gray-300 py-1.5 pl-7 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                              className="block w-full rounded-md border border-gray-300 py-1.5 pl-7 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                               placeholder="0.00"
                             />
                           </div>
@@ -894,7 +894,7 @@ export default function AddProperty() {
                               id="serviceCharge"
                               value={formData.serviceCharge}
                               onChange={handleInputChange}
-                              className="block w-full rounded-md border border-gray-300 py-1.5 pl-7 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                              className="block w-full rounded-md border border-gray-300 py-1.5 pl-7 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                               placeholder="0.00"
                             />
                           </div>
@@ -911,7 +911,7 @@ export default function AddProperty() {
                               id="managementCompany"
                               value={formData.managementCompany}
                               onChange={handleInputChange}
-                              className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                              className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                             />
                           </div>
                         </div>
@@ -925,7 +925,7 @@ export default function AddProperty() {
               <button
                 type="button"
                 onClick={handleSaveAsDraft}
-                className="text-sm/6 font-semibold text-indigo-600 hover:text-indigo-500"
+                className="text-sm/6 font-semibold text-gray-900 hover:text-gray-700"
               >
                 Save as Draft
               </button>
@@ -938,7 +938,7 @@ export default function AddProperty() {
               </button>
               <button
                 type="submit"
-                className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-[#D9E8FF]/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
               >
                 Save Property
               </button>

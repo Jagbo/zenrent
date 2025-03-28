@@ -1,3 +1,5 @@
+'use client'
+
 import React from 'react';
 
 export function SideboardOnboardingContent() {
@@ -16,18 +18,18 @@ export function SideboardOnboardingContent() {
       
       {/* Content in the middle */}
       <div className="flex-1 p-8">
-        <h1 className="text-2xl font-bold text-gray-900">Welcome to ZenRent</h1>
+        <h1 style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 700 }} className="text-2xl text-gray-900">Simplified property management. Designed to streamline your rentals.</h1>
         <p className="mt-4 text-gray-600">
-          The smart way to manage your properties and streamline your rental business.
+          Find peace your of mind.
         </p>
       </div>
       
       {/* Image taking up 1/3 of the height and full width */}
-      <div className="h-1/3">
+      <div className="h-1/3 p-4">
         <img
-          src="https://images.unsplash.com/photo-1556156653-e5a7c69cc263?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80"
+          src="/images/hero-gradient.webp"
           alt="Property management illustration"
-          className="h-full w-full object-cover"
+          className="h-full w-full object-cover rounded-lg"
         />
       </div>
     </div>

@@ -175,9 +175,9 @@ export default function SetupCompletion() {
 
   // Render single plan card
   const PlanCard = ({ plan }: { plan: any }) => (
-    <div className={`flex flex-col border rounded-lg p-6 ${plan.recommended ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-gray-300'}`}>
+    <div className={`flex flex-col border rounded-lg p-6 ${plan.recommended ? 'border-indigo-500 ring-1 ring-[#D9E8FF]/80' : 'border-gray-300'}`}>
       {plan.recommended && (
-        <span className="inline-flex items-center rounded-full bg-indigo-100 px-3 py-1.5 text-xs font-medium text-indigo-800 mb-4">
+        <span className="inline-flex items-center rounded-full bg-[#D9E8FF]/10 px-3 py-1.5 text-xs font-medium text-indigo-800 mb-4">
           Recommended based on your properties
         </span>
       )}
@@ -213,8 +213,8 @@ export default function SetupCompletion() {
         onClick={() => handlePlanSelect(plan.id)}
         className={`mt-6 rounded-md px-4 py-3 text-sm font-semibold shadow-sm ${
           selectedPlan === plan.id 
-            ? 'bg-indigo-600 text-white hover:bg-indigo-500' 
-            : 'bg-white text-indigo-600 ring-1 ring-inset ring-indigo-300 hover:bg-indigo-50'
+            ? 'bg-[#D9E8FF] text-white hover:bg-[#D9E8FF]/80' 
+            : 'bg-white text-gray-900 ring-1 ring-inset ring-[#D9E8FF]/50 hover:bg-[#D9E8FF]/5'
         }`}
       >
         {selectedPlan === plan.id ? 'Selected' : 'Select Plan'}
@@ -243,7 +243,7 @@ export default function SetupCompletion() {
                   {step.status === 'complete' ? (
                     <a href={step.href} className="group flex w-full items-center">
                       <span className="flex flex-col items-center md:flex-row md:items-center px-3 py-3 text-sm font-medium sm:px-6 sm:py-4">
-                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full bg-indigo-600 group-hover:bg-indigo-800">
+                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full bg-[#D9E8FF] group-hover:bg-[#D9E8FF]/80">
                           <CheckIconSolid aria-hidden="true" className="size-4 sm:size-6 text-white" />
                         </span>
                         <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-gray-900">{step.name}</span>
@@ -252,10 +252,10 @@ export default function SetupCompletion() {
                   ) : step.status === 'current' ? (
                     <a href={step.href} aria-current="step" className="flex items-center">
                       <span className="flex flex-col items-center md:flex-row md:items-center px-3 py-3 text-sm font-medium sm:px-6 sm:py-4">
-                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full border-2 border-indigo-600">
-                          <span className="text-xs sm:text-sm text-indigo-600">{step.id}</span>
+                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full border-2 border-[#D9E8FF]">
+                          <span className="text-xs sm:text-sm text-gray-900">{step.id}</span>
                         </span>
-                        <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-indigo-600">{step.name}</span>
+                        <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-gray-900">{step.name}</span>
                       </span>
                     </a>
                   ) : (
@@ -293,8 +293,8 @@ export default function SetupCompletion() {
         <div className="py-8">
           {/* Celebration Header */}
           <div className="text-center mb-8">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-indigo-100">
-              <RocketLaunchIcon className="h-10 w-10 text-indigo-600" aria-hidden="true" />
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#D9E8FF]/10">
+              <RocketLaunchIcon className="h-10 w-10 text-gray-900" aria-hidden="true" />
             </div>
             <h2 className="mt-4 text-2xl title-font text-gray-900">Setup Complete!</h2>
             <p className="mt-2 text-base text-gray-500">
@@ -348,7 +348,7 @@ export default function SetupCompletion() {
                       {properties.length} {properties.length === 1 ? 'Property' : 'Properties'} Added
                     </span>
                     {hasHmo && (
-                      <span className="ml-4 inline-flex items-center rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-600/20">
+                      <span className="ml-4 inline-flex items-center rounded-md bg-[#D9E8FF]/5 px-2 py-1 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-[#D9E8FF]/20">
                         Includes HMO
                       </span>
                     )}
@@ -399,7 +399,7 @@ export default function SetupCompletion() {
                     <button
                       type="button"
                       onClick={() => setShowPlanSelector(true)}
-                      className="mt-4 text-sm font-medium text-indigo-600 hover:text-indigo-500"
+                      className="mt-4 text-sm font-medium text-gray-900 hover:text-gray-700"
                     >
                       View all plans
                     </button>
@@ -430,7 +430,7 @@ export default function SetupCompletion() {
               <div className="mt-4">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   {quickLinks.map((link) => (
-                    <div key={link.name} className="relative flex items-center space-x-3 rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 hover:border-gray-400">
+                    <div key={link.name} className="relative flex items-center space-x-3 rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm focus-within:ring-2 focus-within:ring-[#D9E8FF]/80 focus-within:ring-offset-2 hover:border-gray-400">
                       <div className="flex-shrink-0">
                         <link.icon className="h-5 w-5 text-gray-400" aria-hidden="true" />
                       </div>
@@ -461,7 +461,7 @@ export default function SetupCompletion() {
                 </div>
                 <div className="flex items-center space-x-2 mt-2">
                   <QuestionMarkCircleIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
-                  <a href="/support" className="text-sm text-indigo-600 hover:text-indigo-500">
+                  <a href="/support" className="text-sm text-gray-900 hover:text-gray-700">
                     Visit our Help Center
                   </a>
                 </div>
@@ -474,7 +474,7 @@ export default function SetupCompletion() {
             <button
               type="button"
               onClick={handleTakeTour}
-              className="flex-1 rounded-md bg-white px-3.5 py-2.5 text-sm font-semibold text-indigo-600 shadow-sm ring-1 ring-inset ring-indigo-300 hover:bg-indigo-50"
+              className="flex-1 rounded-md bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-[#D9E8FF]/50 hover:bg-[#D9E8FF]/5"
             >
               <div className="flex items-center justify-center">
                 <AcademicCapIcon className="h-5 w-5 mr-2" aria-hidden="true" />
@@ -484,7 +484,7 @@ export default function SetupCompletion() {
             <button
               type="button"
               onClick={handleGoToPayment}
-              className="flex-1 rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+              className="flex-1 rounded-md bg-[#D9E8FF] px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#D9E8FF]/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
             >
               <div className="flex items-center justify-center">
                 Go to Payment

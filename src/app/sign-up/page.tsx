@@ -44,7 +44,7 @@ export default function Example() {
               <h2 className="mt-8 text-2xl/9 title-font text-gray-900">Create your account</h2>
               <p className="mt-2 text-sm/6 text-gray-500">
                 Already have an account?{' '}
-                <a href="/login" className="font-semibold text-indigo-600 hover:text-indigo-500">
+                <a href="/login" className="font-semibold text-[#330015] hover:text-[#330015]/80">
                   Sign in
                 </a>
               </p>
@@ -145,7 +145,7 @@ export default function Example() {
                     </div>
 
                     <div className="text-sm/6">
-                      <a href="#" className="font-semibold text-indigo-600 hover:text-indigo-500">
+                      <a href="#" className="font-semibold text-[#330015] hover:text-[#330015]/80">
                         Forgot password?
                       </a>
                     </div>
@@ -154,7 +154,7 @@ export default function Example() {
                   <div>
                     <button
                       type="submit"
-                      className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                      className="flex w-full justify-center rounded-md bg-[#D9E8FF] px-3 py-1.5 text-sm/6 font-semibold text-gray-900 shadow-xs hover:bg-[#D9E8FF]/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
                     >
                       Sign up
                     </button>
@@ -218,7 +218,7 @@ export default function Example() {
         <div className="relative hidden w-0 flex-1 lg:block">
           <img
             alt=""
-            src="https://images.unsplash.com/photo-1496917756835-20cb06e75b4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=1908&q=80"
+            src="/images/hero-gradient.webp"
             className="absolute inset-0 size-full object-cover"
           />
         </div>

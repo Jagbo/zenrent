@@ -1,4 +1,4 @@
-@import url('https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800&display=swap');
+@import url('https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@700,800&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -117,6 +117,13 @@ body {
   --sidebar-ring: oklch(0.707 0.022 261.325);
   --btn-bg-blue: #D9E8FF;
   --btn-bg-primary: #740748;
+  --color-d9e8ff: #D9E8FF;
+  --checkbox-bg-d9e8ff: #D9E8FF;
+  --color-d9e8ff-hover: #C8D7EE;
+  --color-d9e8ff-10: rgba(217, 232, 255, 0.1);
+  --color-d9e8ff-20: rgba(217, 232, 255, 0.2);
+  --color-d9e8ff-50: rgba(217, 232, 255, 0.5);
+  --color-d9e8ff-80: rgba(217, 232, 255, 0.8);
 }
 
 .dark {
@@ -155,12 +162,22 @@ body {
 }
 
 .btn-blue {
-  --btn-bg: var(--btn-bg-blue);
+  --btn-bg: var(--color-d9e8ff);
+  background-color: var(--btn-bg);
 }
 
 .btn-primary {
   --btn-bg: var(--btn-bg-primary);
   background-color: var(--btn-bg);
+}
+
+/* Checkbox styles */
+.checkbox-d9e8ff {
+  --checkbox-bg: var(--checkbox-bg-d9e8ff);
+}
+
+.checkbox-amber {
+  --checkbox-bg: var(--color-amber-400);
 }
 
 @layer base {
@@ -170,8 +187,37 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+  h3 {
+    font-family: 'Cabinet Grotesk', sans-serif;
+    font-weight: 700;
+  }
   .title-font {
     font-family: 'Cabinet Grotesk', sans-serif;
     font-weight: 800;
+  }
+  .font-cabinet-grotesk-bold {
+    font-family: 'Cabinet Grotesk', sans-serif;
+    font-weight: 700;
+  }
+}
+
+@layer utilities {
+  .bg-d9e8ff {
+    background-color: var(--color-d9e8ff);
+  }
+  .bg-d9e8ff-80 {
+    background-color: var(--color-d9e8ff-80);
+  }
+  .text-d9e8ff {
+    color: var(--color-d9e8ff);
+  }
+  .border-d9e8ff {
+    border-color: var(--color-d9e8ff);
+  }
+  .outline-d9e8ff {
+    outline-color: var(--color-d9e8ff);
+  }
+  .ring-d9e8ff {
+    --tw-ring-color: var(--color-d9e8ff);
   }
 }

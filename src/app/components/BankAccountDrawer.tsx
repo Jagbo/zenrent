@@ -175,7 +175,7 @@ export const BankAccountDrawer: React.FC<BankAccountDrawerProps> = ({
                 className={classNames(
                   'flex items-center justify-between p-4 rounded-lg border cursor-pointer',
                   selectedProperty === property.id
-                    ? 'border-indigo-600 bg-indigo-50'
+                    ? 'border-[#D9E8FF] bg-[#D9E8FF]/5'
                     : 'border-gray-200 hover:border-indigo-300'
                 )}
               >
@@ -191,7 +191,7 @@ export const BankAccountDrawer: React.FC<BankAccountDrawerProps> = ({
                   type="radio"
                   checked={selectedProperty === property.id}
                   onChange={() => {}}
-                  className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-600"
+                  className="h-4 w-4 text-gray-900 border-gray-300 focus:ring-[#D9E8FF]"
                 />
               </div>
             ))}

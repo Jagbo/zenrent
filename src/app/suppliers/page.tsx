@@ -7,10 +7,10 @@ import { Text } from '../components/text'
 import { SidebarContent } from '../components/sidebar-content'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { TabsContent } from "@/components/ui/tabs"
 import { Card } from "@/components/ui/card"
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
-import { EllipsisHorizontalIcon, MagnifyingGlassIcon } from '@heroicons/react/20/solid'
+import { ChevronDownIcon, EllipsisHorizontalIcon, MagnifyingGlassIcon } from '@heroicons/react/20/solid'
 
 // Define types for our supplier data
 interface ServiceInfo {
@@ -156,6 +156,19 @@ export default function Suppliers() {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState<'all' | SupplierCategory>('all')
 
+  const tabs = [
+    { name: 'All', value: 'all', current: activeTab === 'all' },
+    { name: 'Cleaner', value: 'Cleaner', current: activeTab === 'Cleaner' },
+    { name: 'Handyman', value: 'Handyman', current: activeTab === 'Handyman' },
+    { name: 'Plumbing', value: 'Plumbing', current: activeTab === 'Plumbing' },
+    { name: 'Electrics', value: 'Electrics', current: activeTab === 'Electrics' },
+    { name: 'Other', value: 'Other', current: activeTab === 'Other' },
+  ]
+
+  const handleTabChange = (value: 'all' | SupplierCategory) => {
+    setActiveTab(value)
+  }
+
   // Filter suppliers based on search query
   const getFilteredSuppliers = (): Supplier[] => {
     const allSuppliers = Object.entries(suppliers).flatMap(([_, list]) => list)
@@ -194,35 +207,57 @@ export default function Suppliers() {
         </div>
         
         {/* Tabs */}
-        <Tabs defaultValue="all" className="w-full" onValueChange={(value) => setActiveTab(value as 'all' | SupplierCategory)}>
-          <TabsList className="w-full grid grid-cols-6">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="Cleaner">Cleaner</TabsTrigger>
-            <TabsTrigger value="Handyman">Handyman</TabsTrigger>
-            <TabsTrigger value="Plumbing">Plumbing</TabsTrigger>
-            <TabsTrigger value="Electrics">Electrics</TabsTrigger>
-            <TabsTrigger value="Other">Other</TabsTrigger>
-          </TabsList>
+        <div>
+          {/* Mobile dropdown */}
+          <div className="grid grid-cols-1 sm:hidden">
+            <select
+              value={activeTab}
+              onChange={(e) => handleTabChange(e.target.value as 'all' | SupplierCategory)}
+              aria-label="Select a tab"
+              className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-2 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-[#D9E8FF]"
+            >
+              {tabs.map((tab) => (
+                <option key={tab.name} value={tab.value}>{tab.name}</option>
+              ))}
+            </select>
+            <ChevronDownIcon
+              aria-hidden="true"
+              className="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end fill-gray-500"
+            />
+          </div>
           
-          <TabsContent value="all" className="pt-6">
+          {/* Desktop tabs */}
+          <div className="hidden sm:block">
+            <nav aria-label="Tabs" className="isolate flex divide-x divide-gray-200 rounded-lg shadow-sm">
+              {tabs.map((tab, tabIdx) => (
+                <a
+                  key={tab.name}
+                  onClick={() => handleTabChange(tab.value as 'all' | SupplierCategory)}
+                  aria-current={tab.current ? 'page' : undefined}
+                  className={classNames(
+                    tab.current ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700',
+                    tabIdx === 0 ? 'rounded-l-lg' : '',
+                    tabIdx === tabs.length - 1 ? 'rounded-r-lg' : '',
+                    'group relative min-w-0 flex-1 overflow-hidden bg-white px-4 py-4 text-center text-sm font-medium hover:bg-gray-50 focus:z-10 cursor-pointer',
+                  )}
+                >
+                  <span>{tab.name}</span>
+                  <span
+                    aria-hidden="true"
+                    className={classNames(
+                      tab.current ? 'bg-[#D9E8FF]/50' : 'bg-transparent',
+                      'absolute inset-x-0 bottom-0 h-0.5',
+                    )}
+                  />
+                </a>
+              ))}
+            </nav>
+          </div>
+          
+          <div className="pt-6">
             <SupplierGrid suppliers={getFilteredSuppliers()} />
-          </TabsContent>
-          <TabsContent value="Cleaner" className="pt-6">
-            <SupplierGrid suppliers={getFilteredSuppliers()} />
-          </TabsContent>
-          <TabsContent value="Handyman" className="pt-6">
-            <SupplierGrid suppliers={getFilteredSuppliers()} />
-          </TabsContent>
-          <TabsContent value="Plumbing" className="pt-6">
-            <SupplierGrid suppliers={getFilteredSuppliers()} />
-          </TabsContent>
-          <TabsContent value="Electrics" className="pt-6">
-            <SupplierGrid suppliers={getFilteredSuppliers()} />
-          </TabsContent>
-          <TabsContent value="Other" className="pt-6">
-            <SupplierGrid suppliers={getFilteredSuppliers()} />
-          </TabsContent>
-        </Tabs>
+          </div>
+        </div>
       </div>
     </SidebarLayout>
   )
@@ -234,7 +269,7 @@ function SupplierGrid({ suppliers }: { suppliers: Supplier[] }) {
     <>
       {suppliers.length === 0 ? (
         <div className="text-center py-10">
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No suppliers found</h3>
+          <h3 className="mt-2 text-sm font-cabinet-grotesk-bold text-gray-900">No suppliers found</h3>
           <p className="mt-1 text-sm text-gray-500">Try adjusting your search or filter criteria.</p>
         </div>
       ) : (

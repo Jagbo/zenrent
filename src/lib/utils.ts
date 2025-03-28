@@ -8,3 +8,10 @@ export function cn(...inputs: ClassValue[]) {
 export function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ');
 }
+
+export function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('en-GB', {
+    style: 'currency',
+    currency: 'GBP',
+  }).format(amount)
+}

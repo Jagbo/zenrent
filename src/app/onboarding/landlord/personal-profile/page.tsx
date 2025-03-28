@@ -162,7 +162,7 @@ export default function PersonalProfile() {
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 border border-gray-300 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                        className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 border border-gray-300 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff"
                       >
                         <PhotoIcon className="inline-block -ml-0.5 mr-1.5 size-5 text-gray-400" aria-hidden="true" />
                         Upload photo
@@ -171,7 +171,7 @@ export default function PersonalProfile() {
                         <button
                           type="button"
                           onClick={() => setProfilePhoto(null)}
-                          className="ml-3 text-sm font-medium text-indigo-600 hover:text-indigo-500"
+                          className="ml-3 text-sm font-medium text-gray-900 hover:text-gray-700"
                         >
                           Remove
                         </button>
@@ -200,7 +200,7 @@ export default function PersonalProfile() {
                             required
                             value={dateOfBirth}
                             onChange={(e) => setDateOfBirth(e.target.value)}
-                            className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                            className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-d9e8ff sm:text-sm/6"
                           />
                           <CalendarIcon className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 size-5 text-gray-400" aria-hidden="true" />
                         </div>
@@ -245,7 +245,7 @@ export default function PersonalProfile() {
                           type="text"
                           value={addressLine2}
                           onChange={(e) => setAddressLine2(e.target.value)}
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-d9e8ff sm:text-sm/6"
                         />
                       </div>
                     </div>
@@ -262,7 +262,7 @@ export default function PersonalProfile() {
                           required
                           value={townCity}
                           onChange={(e) => setTownCity(e.target.value)}
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-d9e8ff sm:text-sm/6"
                         />
                       </div>
                     </div>
@@ -279,7 +279,7 @@ export default function PersonalProfile() {
                           required
                           value={county}
                           onChange={(e) => setCounty(e.target.value)}
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-d9e8ff sm:text-sm/6"
                         />
                       </div>
                     </div>
@@ -296,7 +296,7 @@ export default function PersonalProfile() {
                           required
                           value={postcode}
                           onChange={(e) => setPostcode(e.target.value)}
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-d9e8ff sm:text-sm/6"
                         />
                       </div>
                     </div>
@@ -308,7 +308,7 @@ export default function PersonalProfile() {
               <button
                 type="button"
                 onClick={handleSaveAsDraft}
-                className="text-sm/6 font-semibold text-indigo-600 hover:text-indigo-500"
+                className="text-sm/6 font-semibold text-gray-900 hover:text-gray-700"
               >
                 Save as Draft
               </button>
@@ -322,7 +322,7 @@ export default function PersonalProfile() {
                 </button>
                 <button
                   type="submit"
-                  className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                  className="rounded-md bg-custom-d9e8ff px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs hover:bg-custom-d9e8ff-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-custom-d9e8ff"
                 >
                   Save and Continue
                 </button>

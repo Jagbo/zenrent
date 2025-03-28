@@ -13,56 +13,26 @@ INSERT INTO auth.users (
   phone
 ) VALUES (
   '00000000-0000-0000-0000-000000000001', -- fixed UUID for reference
-  'j.agbodo@gmail.com',
+  'j.agbodo@mail.com',  -- corrected email as per rule
   crypt('Password123!', gen_salt('bf')),
   NOW(),
   NOW(),
   NOW(),
   NOW(),
   '{"provider":"email","providers":["email"]}',
-  '{"name":"Joshua Agbodo"}',
+  '{"name":"James Agbodo"}',
   false,
   '+44 7700 900123'
 );
 
--- Insert notification types
-INSERT INTO public.notification_types (name, category, description) VALUES 
-('payment_received', 'rent', 'Notification for when a rent payment is received'), 
-('upcoming_rent_due', 'rent', 'Notification for when rent is due in 5 days'),
-('rent_due_today', 'rent', 'Notification for when rent is due today'),
-('rent_overdue_initial', 'rent', 'Notification for when rent is 1 day overdue'),
-('rent_overdue_escalation', 'rent', 'Notification for when rent is several days overdue'),
-('partial_payment', 'rent', 'Notification for when a partial rent payment is received'),
-('new_issue', 'maintenance', 'Notification for when a new maintenance issue is reported'),
-('urgent_issue', 'maintenance', 'Notification for when an urgent maintenance issue is reported'),
-('issue_status_update', 'maintenance', 'Notification for when a maintenance issue status is updated'),
-('issue_resolution', 'maintenance', 'Notification for when a maintenance issue is resolved'),
-('quote_received', 'maintenance', 'Notification for when a quote is received for a maintenance issue'),
-('maintenance_scheduled', 'maintenance', 'Notification for when maintenance work is scheduled'),
-('invoice_received', 'financial', 'Notification for when an invoice is received'),
-('upcoming_payment', 'financial', 'Notification for when a regular payment is due soon'),
-('service_charge_update', 'financial', 'Notification for when a service charge is updated'),
-('annual_return_reminder', 'financial', 'Notification for when a tax return is due soon'),
-('lease_expiry', 'tenancy', 'Notification for when a lease is expiring soon'),
-('new_tenant_application', 'tenancy', 'Notification for when a new tenant application is received'),
-('tenant_notice', 'tenancy', 'Notification for when a tenant gives notice to vacate'),
-('inspection_due', 'tenancy', 'Notification for when a property inspection is due'),
-('certificate_expiring', 'compliance', 'Notification for when a certificate is expiring soon'),
-('compliance_breach', 'compliance', 'Notification for when there is a compliance breach risk'),
-('deposit_protection', 'compliance', 'Notification for when a tenant deposit needs to be protected'),
-('vacancy_alert', 'property', 'Notification for when a property has been vacant for a while'),
-('rent_increase', 'property', 'Notification for a potential rent increase opportunity'),
-('property_performance', 'property', 'Monthly property performance summary notification'),
-('portfolio_performance', 'property', 'Notification about portfolio performance issues');
-
--- Create bank connections and transactions
+-- Create bank connections using property_code (as per rule)
 INSERT INTO public.bank_connections (id, property_id, plaid_access_token, plaid_item_id, cursor, created_at)
 VALUES 
 (1, 'prop_15_crescent_road', 'access-sandbox-123456789', 'item-sandbox-123456789', 'cursor-123456789', NOW() - INTERVAL '30 days'),
 (2, 'prop_42_harley_street', 'access-sandbox-987654321', 'item-sandbox-987654321', 'cursor-987654321', NOW() - INTERVAL '25 days'),
 (3, 'prop_8_victoria_gardens', 'access-sandbox-456789123', 'item-sandbox-456789123', 'cursor-456789123', NOW() - INTERVAL '20 days');
 
--- Create bank transactions for the properties
+-- Create bank transactions using property_code (as per rule)
 INSERT INTO public.bank_transactions (property_id, plaid_transaction_id, amount, date, name, merchant_name, category, pending, created_at)
 VALUES
 -- 15 Crescent Road transactions
@@ -89,14 +59,154 @@ VALUES
 ('prop_8_victoria_gardens', 'tx_34567891205', -145.00, NOW() - INTERVAL '25 days', 'MANCHESTER CITY COUNCIL', 'Manchester City Council', ARRAY['Housing', 'Council Tax'], false, NOW() - INTERVAL '25 days'),
 ('prop_8_victoria_gardens', 'tx_34567891206', -120.00, NOW() - INTERVAL '2 days', 'NORTH WEST MAINTENANCE', 'NW Maintenance', ARRAY['Home', 'Maintenance'], false, NOW() - INTERVAL '2 days');
 
--- Create sample UK properties
--- Property 1 details 
+-- Seed test user properties
+UPDATE properties 
+SET 
+  purchase_date = '2020-06-15',
+  purchase_price = 380000,
+  current_valuation = 450000,
+  description = 'Modern apartment in prime London location with excellent transport links. Recently renovated with high-end finishes.',
+  energy_rating = 'B',
+  council_tax_band = 'D',
+  has_garden = false,
+  has_parking = true,
+  gas_safety_expiry = NOW() + INTERVAL '6 months',
+  electrical_safety_expiry = NOW() + INTERVAL '4 years',
+  notes = 'Prime location property with strong rental demand',
+  metadata = jsonb_build_object(
+    'amenities', ARRAY['Central Heating', 'Double Glazing', 'Fitted Kitchen', 'Garden Access', 'Bike Storage'],
+    'year_built', 2005,
+    'square_footage', 850
+  ),
+  created_at = NOW() - INTERVAL '3 years',
+  updated_at = NOW()
+WHERE id = '7a2e1487-f17b-4ceb-b6d1-56934589025b';
+
+UPDATE properties 
+SET 
+  purchase_date = '2019-03-20',
+  purchase_price = 320000,
+  current_valuation = 380000,
+  description = 'Spacious family home in quiet residential area. Features a large garden and modern kitchen.',
+  energy_rating = 'C',
+  council_tax_band = 'C',
+  has_garden = true,
+  has_parking = true,
+  gas_safety_expiry = NOW() + INTERVAL '8 months',
+  electrical_safety_expiry = NOW() + INTERVAL '3 years',
+  notes = 'Well-maintained property with long-term tenants',
+  metadata = jsonb_build_object(
+    'amenities', ARRAY['Garden', 'Central Heating', 'Double Glazing', 'Off-Street Parking', 'Conservatory'],
+    'year_built', 1998,
+    'square_footage', 1200
+  ),
+  created_at = NOW() - INTERVAL '4 years',
+  updated_at = NOW()
+WHERE id = 'bd8e3211-2403-47ac-9947-7a4842c5a4e3';
+
+UPDATE properties 
+SET 
+  purchase_date = '2021-09-10',
+  purchase_price = 450000,
+  current_valuation = 520000,
+  description = 'Luxurious detached house with modern amenities and excellent schools nearby. Recently refurbished throughout.',
+  energy_rating = 'A',
+  council_tax_band = 'E',
+  has_garden = true,
+  has_parking = true,
+  gas_safety_expiry = NOW() + INTERVAL '10 months',
+  electrical_safety_expiry = NOW() + INTERVAL '4 years',
+  notes = 'High-end property with premium fixtures and fittings',
+  metadata = jsonb_build_object(
+    'amenities', ARRAY['Garden', 'Central Heating', 'Double Glazing', 'Garage', 'Home Office', 'Smart Home System'],
+    'year_built', 2010,
+    'square_footage', 1800
+  ),
+  created_at = NOW() - INTERVAL '2 years',
+  updated_at = NOW()
+WHERE id = 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8';
+
+-- Seed income data for the last 6 months
+INSERT INTO income (id, property_id, date, income_type, category, description, amount)
+VALUES
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '5 months', 'Rent', 'Monthly Rent', 'Monthly rental income', 2500),
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '4 months', 'Rent', 'Monthly Rent', 'Monthly rental income', 2500),
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '3 months', 'Rent', 'Monthly Rent', 'Monthly rental income', 2500),
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '2 months', 'Rent', 'Monthly Rent', 'Monthly rental income', 2500),
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '1 month', 'Rent', 'Monthly Rent', 'Monthly rental income', 2500),
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE, 'Rent', 'Monthly Rent', 'Monthly rental income', 2500),
+  
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE - INTERVAL '5 months', 'Rent', 'Monthly Rent', 'Monthly rental income', 2000),
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE - INTERVAL '4 months', 'Rent', 'Monthly Rent', 'Monthly rental income', 2000),
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE - INTERVAL '3 months', 'Rent', 'Monthly Rent', 'Monthly rental income', 2000),
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE - INTERVAL '2 months', 'Rent', 'Monthly Rent', 'Monthly rental income', 2000),
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE - INTERVAL '1 month', 'Rent', 'Monthly Rent', 'Monthly rental income', 2000),
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE, 'Rent', 'Monthly Rent', 'Monthly rental income', 2000),
+  
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '5 months', 'Rent', 'Monthly Rent', 'Monthly rental income', 3000),
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '4 months', 'Rent', 'Monthly Rent', 'Monthly rental income', 3000),
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '3 months', 'Rent', 'Monthly Rent', 'Monthly rental income', 3000),
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '2 months', 'Rent', 'Monthly Rent', 'Monthly rental income', 3000),
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '1 month', 'Rent', 'Monthly Rent', 'Monthly rental income', 3000),
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE, 'Rent', 'Monthly Rent', 'Monthly rental income', 3000);
+
+-- Seed expense data for the last 6 months
+INSERT INTO expenses (id, property_id, date, expense_type, category, description, amount)
+VALUES
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '5 months', 'Maintenance', 'Regular Maintenance', 'Monthly maintenance and repairs', 800),
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '4 months', 'Maintenance', 'Regular Maintenance', 'Monthly maintenance and repairs', 800),
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '3 months', 'Maintenance', 'Regular Maintenance', 'Monthly maintenance and repairs', 800),
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '2 months', 'Maintenance', 'Regular Maintenance', 'Monthly maintenance and repairs', 800),
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '1 month', 'Maintenance', 'Regular Maintenance', 'Monthly maintenance and repairs', 800),
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE, 'Maintenance', 'Regular Maintenance', 'Monthly maintenance and repairs', 800),
+  
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE - INTERVAL '5 months', 'Maintenance', 'Regular Maintenance', 'Monthly maintenance and repairs', 600),
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE - INTERVAL '4 months', 'Maintenance', 'Regular Maintenance', 'Monthly maintenance and repairs', 600),
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE - INTERVAL '3 months', 'Maintenance', 'Regular Maintenance', 'Monthly maintenance and repairs', 600),
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE - INTERVAL '2 months', 'Maintenance', 'Regular Maintenance', 'Monthly maintenance and repairs', 600),
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE - INTERVAL '1 month', 'Maintenance', 'Regular Maintenance', 'Monthly maintenance and repairs', 600),
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE, 'Maintenance', 'Regular Maintenance', 'Monthly maintenance and repairs', 600),
+  
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '5 months', 'Maintenance', 'Regular Maintenance', 'Monthly maintenance and repairs', 1000),
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '4 months', 'Maintenance', 'Regular Maintenance', 'Monthly maintenance and repairs', 1000),
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '3 months', 'Maintenance', 'Regular Maintenance', 'Monthly maintenance and repairs', 1000),
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '2 months', 'Maintenance', 'Regular Maintenance', 'Monthly maintenance and repairs', 1000),
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '1 month', 'Maintenance', 'Regular Maintenance', 'Monthly maintenance and repairs', 1000),
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE, 'Maintenance', 'Regular Maintenance', 'Monthly maintenance and repairs', 1000);
+
+-- Seed financial metrics
+INSERT INTO financial_metrics (id, property_id, period_start, period_end, roi_percentage, yield_percentage, occupancy_rate)
+VALUES
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE, CURRENT_DATE + INTERVAL '1 month', 7.8, 6.7, 95.0),
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE, CURRENT_DATE + INTERVAL '1 month', 7.2, 6.3, 95.0),
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE, CURRENT_DATE + INTERVAL '1 month', 8.5, 6.9, 95.0);
+
+-- Sample service charges (using property UUIDs from properties table)
+INSERT INTO service_charges (id, property_id, date, type, description, status, amount) VALUES
+    -- 15 Crescent Road service charges
+    (uuid_generate_v4(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', '2024-01-01', 'maintenance', 'Building maintenance and cleaning', 'active', 100.00),
+    
+    -- 42 Harley Street service charges
+    (uuid_generate_v4(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', '2024-01-01', 'maintenance', 'Common area maintenance', 'active', 150.00);
+
+-- Sample invoices (using property UUIDs from properties table)
+INSERT INTO invoices (id, property_id, date, invoice_number, description, status, amount) VALUES
+    -- 15 Crescent Road invoices
+    (uuid_generate_v4(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', '2024-03-01', 'INV-2024-001', 'March maintenance invoice', 'paid', 250.00),
+    
+    -- 42 Harley Street invoices
+    (uuid_generate_v4(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', '2024-03-01', 'INV-2024-002', 'March insurance invoice', 'pending', 450.00),
+    
+    -- 8 Victoria Gardens invoices
+    (uuid_generate_v4(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', '2024-03-01', 'INV-2024-003', 'March utilities invoice', 'paid', 200.00);
+
+-- Create notifications with proper property linkage
 DO $$
 DECLARE
   user_id UUID := '00000000-0000-0000-0000-000000000001';
-  property1_id UUID := gen_random_uuid();
-  property2_id UUID := gen_random_uuid();
-  property3_id UUID := gen_random_uuid();
+  property1_id UUID := 'bd8e3211-2403-47ac-9947-7a4842c5a4e3';
+  property2_id UUID := 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8';
+  property3_id UUID := '7a2e1487-f17b-4ceb-b6d1-56934589025b';
   tenant1_id UUID := gen_random_uuid();
   tenant2_id UUID := gen_random_uuid();
   tenant3_id UUID := gen_random_uuid();
@@ -149,4 +259,111 @@ BEGIN
   -- Create issue resolution notification
   INSERT INTO public.maintenance_notifications (notification_id, property_id, property_address, issue_id, issue_title, issue_type, resolution_details, resolution_date, cost_amount)
   VALUES (notification7_id, property3_id, '8 Victoria Gardens, Manchester, M4 7DJ', gen_random_uuid(), 'Broken window latch', 'Window/Door', 'Replaced window latch and realigned window frame', NOW() - INTERVAL '7 days', 95);
-END $$; 
+END $$;
+
+-- Update financial metrics with more detailed data
+INSERT INTO financial_metrics (id, property_id, period_start, period_end, roi_percentage, yield_percentage, occupancy_rate)
+VALUES
+  -- 8 Victoria Gardens (Monthly metrics for the last 6 months)
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '5 months', CURRENT_DATE - INTERVAL '4 months', 7.8, 6.7, 100.0),
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '4 months', CURRENT_DATE - INTERVAL '3 months', 7.9, 6.8, 100.0),
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '3 months', CURRENT_DATE - INTERVAL '2 months', 8.0, 6.9, 100.0),
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '2 months', CURRENT_DATE - INTERVAL '1 month', 8.1, 7.0, 100.0),
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '1 month', CURRENT_DATE, 8.2, 7.1, 100.0),
+  
+  -- 15 Crescent Road (Monthly metrics for the last 6 months)
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE - INTERVAL '5 months', CURRENT_DATE - INTERVAL '4 months', 7.2, 6.3, 95.0),
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE - INTERVAL '4 months', CURRENT_DATE - INTERVAL '3 months', 7.3, 6.4, 95.0),
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE - INTERVAL '3 months', CURRENT_DATE - INTERVAL '2 months', 7.4, 6.5, 100.0),
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE - INTERVAL '2 months', CURRENT_DATE - INTERVAL '1 month', 7.5, 6.6, 100.0),
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE - INTERVAL '1 month', CURRENT_DATE, 7.6, 6.7, 100.0),
+  
+  -- 42 Harley Street (Monthly metrics for the last 6 months)
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '5 months', CURRENT_DATE - INTERVAL '4 months', 8.5, 6.9, 100.0),
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '4 months', CURRENT_DATE - INTERVAL '3 months', 8.6, 7.0, 100.0),
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '3 months', CURRENT_DATE - INTERVAL '2 months', 8.7, 7.1, 100.0),
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '2 months', CURRENT_DATE - INTERVAL '1 month', 8.8, 7.2, 100.0),
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '1 month', CURRENT_DATE, 8.9, 7.3, 100.0);
+
+-- Add more detailed income records
+INSERT INTO income (id, property_id, date, income_type, category, description, amount)
+VALUES
+  -- 8 Victoria Gardens (Additional income types)
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '2 months', 'Parking', 'Additional Services', 'Monthly parking space rental', 150),
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '1 month', 'Parking', 'Additional Services', 'Monthly parking space rental', 150),
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE, 'Parking', 'Additional Services', 'Monthly parking space rental', 150),
+  
+  -- 15 Crescent Road (Additional income types)
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE - INTERVAL '2 months', 'Storage', 'Additional Services', 'Storage unit rental', 100),
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE - INTERVAL '1 month', 'Storage', 'Additional Services', 'Storage unit rental', 100),
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE, 'Storage', 'Additional Services', 'Storage unit rental', 100),
+  
+  -- 42 Harley Street (Additional income types)
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '2 months', 'Parking', 'Additional Services', 'Monthly parking space rental', 200),
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '1 month', 'Parking', 'Additional Services', 'Monthly parking space rental', 200),
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE, 'Parking', 'Additional Services', 'Monthly parking space rental', 200);
+
+-- Add more detailed expense records
+INSERT INTO expenses (id, property_id, date, expense_type, category, description, amount)
+VALUES
+  -- 8 Victoria Gardens (Additional expense types)
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '2 months', 'Insurance', 'Building Insurance', 'Monthly building insurance premium', 120),
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '1 month', 'Insurance', 'Building Insurance', 'Monthly building insurance premium', 120),
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE, 'Insurance', 'Building Insurance', 'Monthly building insurance premium', 120),
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '2 months', 'Utilities', 'Electricity', 'Common area electricity', 75),
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '1 month', 'Utilities', 'Electricity', 'Common area electricity', 80),
+  (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE, 'Utilities', 'Electricity', 'Common area electricity', 85),
+  
+  -- 15 Crescent Road (Additional expense types)
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE - INTERVAL '2 months', 'Insurance', 'Building Insurance', 'Monthly building insurance premium', 150),
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE - INTERVAL '1 month', 'Insurance', 'Building Insurance', 'Monthly building insurance premium', 150),
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE, 'Insurance', 'Building Insurance', 'Monthly building insurance premium', 150),
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE - INTERVAL '2 months', 'Utilities', 'Water', 'Water and sewerage', 45),
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE - INTERVAL '1 month', 'Utilities', 'Water', 'Water and sewerage', 48),
+  (gen_random_uuid(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE, 'Utilities', 'Water', 'Water and sewerage', 50),
+  
+  -- 42 Harley Street (Additional expense types)
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '2 months', 'Insurance', 'Building Insurance', 'Monthly building insurance premium', 200),
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '1 month', 'Insurance', 'Building Insurance', 'Monthly building insurance premium', 200),
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE, 'Insurance', 'Building Insurance', 'Monthly building insurance premium', 200),
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '2 months', 'Service', 'Cleaning', 'Monthly cleaning service', 150),
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '1 month', 'Service', 'Cleaning', 'Monthly cleaning service', 150),
+  (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE, 'Service', 'Cleaning', 'Monthly cleaning service', 150);
+
+-- Add more service charges
+INSERT INTO service_charges (id, property_id, date, type, description, status, amount)
+VALUES
+  -- 8 Victoria Gardens
+  (uuid_generate_v4(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '2 months', 'maintenance', 'Building maintenance and cleaning', 'active', 180),
+  (uuid_generate_v4(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '1 month', 'maintenance', 'Building maintenance and cleaning', 'active', 180),
+  (uuid_generate_v4(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE, 'maintenance', 'Building maintenance and cleaning', 'active', 180),
+  
+  -- 15 Crescent Road
+  (uuid_generate_v4(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE - INTERVAL '2 months', 'maintenance', 'Building maintenance and cleaning', 'active', 150),
+  (uuid_generate_v4(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE - INTERVAL '1 month', 'maintenance', 'Building maintenance and cleaning', 'active', 150),
+  (uuid_generate_v4(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE, 'maintenance', 'Building maintenance and cleaning', 'active', 150),
+  
+  -- 42 Harley Street
+  (uuid_generate_v4(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '2 months', 'maintenance', 'Building maintenance and cleaning', 'active', 220),
+  (uuid_generate_v4(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '1 month', 'maintenance', 'Building maintenance and cleaning', 'active', 220),
+  (uuid_generate_v4(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE, 'maintenance', 'Building maintenance and cleaning', 'active', 220);
+
+-- Add more invoices
+INSERT INTO invoices (id, property_id, date, invoice_number, description, status, amount)
+VALUES
+  -- 8 Victoria Gardens
+  (uuid_generate_v4(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '2 months', 'INV-2024-004', 'Plumbing repairs', 'paid', 350),
+  (uuid_generate_v4(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '1 month', 'INV-2024-005', 'Electrical inspection', 'paid', 280),
+  (uuid_generate_v4(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE, 'INV-2024-006', 'Window cleaning', 'pending', 120),
+  
+  -- 15 Crescent Road
+  (uuid_generate_v4(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE - INTERVAL '2 months', 'INV-2024-007', 'Boiler service', 'paid', 180),
+  (uuid_generate_v4(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE - INTERVAL '1 month', 'INV-2024-008', 'Garden maintenance', 'paid', 150),
+  (uuid_generate_v4(), 'bd8e3211-2403-47ac-9947-7a4842c5a4e3', CURRENT_DATE, 'INV-2024-009', 'Pest control', 'pending', 200),
+  
+  -- 42 Harley Street
+  (uuid_generate_v4(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '2 months', 'INV-2024-010', 'HVAC maintenance', 'paid', 450),
+  (uuid_generate_v4(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '1 month', 'INV-2024-011', 'Security system upgrade', 'paid', 850),
+  (uuid_generate_v4(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE, 'INV-2024-012', 'Interior painting', 'pending', 1200);
+
+-- ... existing code ... 

@@ -75,7 +75,7 @@ export default function TenantImportOptions() {
                   {step.status === 'complete' ? (
                     <a href={step.href} className="group flex w-full items-center">
                       <span className="flex flex-col items-center md:flex-row md:items-center px-3 py-3 text-sm font-medium sm:px-6 sm:py-4">
-                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full bg-indigo-600 group-hover:bg-indigo-800">
+                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full bg-[#D9E8FF] group-hover:bg-[#D9E8FF]/80">
                           <CheckIconSolid aria-hidden="true" className="size-4 sm:size-6 text-white" />
                         </span>
                         <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-gray-900">{step.name}</span>
@@ -84,10 +84,10 @@ export default function TenantImportOptions() {
                   ) : step.status === 'current' ? (
                     <a href={step.href} aria-current="step" className="flex items-center">
                       <span className="flex flex-col items-center md:flex-row md:items-center px-3 py-3 text-sm font-medium sm:px-6 sm:py-4">
-                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full border-2 border-indigo-600">
-                          <span className="text-xs sm:text-sm text-indigo-600">{step.id}</span>
+                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full border-2 border-[#D9E8FF]">
+                          <span className="text-xs sm:text-sm text-gray-900">{step.id}</span>
                         </span>
-                        <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-indigo-600">{step.name}</span>
+                        <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-gray-900">{step.name}</span>
                       </span>
                     </a>
                   ) : (
@@ -146,7 +146,7 @@ export default function TenantImportOptions() {
                         key={option.id}
                         className={`relative flex cursor-pointer rounded-lg border ${
                           selectedOption === option.id
-                            ? 'border-indigo-600 ring-2 ring-indigo-600'
+                            ? 'border-[#D9E8FF] ring-2 ring-[#D9E8FF]'
                             : 'border-gray-300 hover:border-indigo-400'
                         } bg-white p-4 shadow-sm focus:outline-none`}
                         onClick={() => handleOptionSelect(option.id)}
@@ -154,7 +154,7 @@ export default function TenantImportOptions() {
                         <div className="flex w-full items-center justify-between">
                           <div className="flex items-center">
                             <div className="flex-shrink-0">
-                              <option.icon className="h-6 w-6 text-indigo-600" aria-hidden="true" />
+                              <option.icon className="h-6 w-6 text-gray-900" aria-hidden="true" />
                             </div>
                             <div className="ml-4 text-sm">
                               <p className="font-medium text-gray-900">{option.title}</p>
@@ -163,7 +163,7 @@ export default function TenantImportOptions() {
                           </div>
                           <div className={`h-5 w-5 rounded-full border ${
                             selectedOption === option.id
-                              ? 'border-indigo-600 bg-indigo-600'
+                              ? 'border-[#D9E8FF] bg-[#D9E8FF]'
                               : 'border-gray-300 bg-white'
                           } flex items-center justify-center`}>
                             {selectedOption === option.id && (
@@ -220,9 +220,9 @@ export default function TenantImportOptions() {
                 type="button"
                 onClick={handleContinue}
                 disabled={!selectedOption}
-                className={`rounded-md px-3 py-2 text-sm font-semibold text-white shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ${
+                className={`rounded-md px-3 py-2 text-sm font-semibold text-white shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF] ${
                   selectedOption
-                    ? 'bg-indigo-600 hover:bg-indigo-500'
+                    ? 'bg-[#D9E8FF] hover:bg-[#D9E8FF]/80'
                     : 'bg-indigo-400 cursor-not-allowed'
                 }`}
               >

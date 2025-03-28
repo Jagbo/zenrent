@@ -332,7 +332,7 @@ export default function TenantSpreadsheetImport() {
                   {step.status === 'complete' ? (
                     <a href={step.href} className="group flex w-full items-center">
                       <span className="flex flex-col items-center md:flex-row md:items-center px-3 py-3 text-sm font-medium sm:px-6 sm:py-4">
-                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full bg-indigo-600 group-hover:bg-indigo-800">
+                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full bg-[#D9E8FF] group-hover:bg-[#D9E8FF]/80">
                           <CheckIconSolid aria-hidden="true" className="size-4 sm:size-6 text-white" />
                         </span>
                         <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-gray-900">{step.name}</span>
@@ -341,10 +341,10 @@ export default function TenantSpreadsheetImport() {
                   ) : step.status === 'current' ? (
                     <a href={step.href} aria-current="step" className="flex items-center">
                       <span className="flex flex-col items-center md:flex-row md:items-center px-3 py-3 text-sm font-medium sm:px-6 sm:py-4">
-                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full border-2 border-indigo-600">
-                          <span className="text-xs sm:text-sm text-indigo-600">{step.id}</span>
+                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full border-2 border-[#D9E8FF]">
+                          <span className="text-xs sm:text-sm text-gray-900">{step.id}</span>
                         </span>
-                        <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-indigo-600">{step.name}</span>
+                        <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-gray-900">{step.name}</span>
                       </span>
                     </a>
                   ) : (
@@ -411,7 +411,7 @@ export default function TenantSpreadsheetImport() {
                     <button
                       type="button"
                       onClick={downloadTemplate}
-                      className="inline-flex items-center gap-x-2 rounded-md bg-white px-3.5 py-2.5 text-sm font-semibold text-indigo-600 shadow-sm ring-1 ring-inset ring-indigo-300 hover:bg-indigo-50"
+                      className="inline-flex items-center gap-x-2 rounded-md bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-[#D9E8FF]/50 hover:bg-[#D9E8FF]/5"
                     >
                       <DocumentArrowDownIcon className="-ml-0.5 size-5" aria-hidden="true" />
                       Download template
@@ -433,7 +433,7 @@ export default function TenantSpreadsheetImport() {
                         <div className="mt-4 flex text-sm leading-6 text-gray-600">
                           <label
                             htmlFor="file-upload"
-                            className="relative cursor-pointer rounded-md bg-white font-semibold text-indigo-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-indigo-600 focus-within:ring-offset-2 hover:text-indigo-500"
+                            className="relative cursor-pointer rounded-md bg-white font-semibold text-gray-900 focus-within:outline-none focus-within:ring-2 focus-within:ring-[#D9E8FF] focus-within:ring-offset-2 hover:text-gray-700"
                           >
                             <span>Upload a file</span>
                             <input 
@@ -471,8 +471,8 @@ export default function TenantSpreadsheetImport() {
                         
                         {processing && (
                           <div className="mt-4">
-                            <div className="flex items-center justify-center gap-x-2 text-sm text-indigo-600">
-                              <svg className="animate-spin size-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <div className="flex items-center justify-center gap-x-2 text-sm text-gray-900">
+                              <svg className="animate-spin size-5 text-gray-900" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                               </svg>
@@ -499,7 +499,7 @@ export default function TenantSpreadsheetImport() {
                         className={`rounded-md px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
                           !file || uploading
                             ? 'bg-indigo-400 cursor-not-allowed'
-                            : 'bg-indigo-600 hover:bg-indigo-500 focus-visible:outline-indigo-600'
+                            : 'bg-[#D9E8FF] hover:bg-[#D9E8FF]/80 focus-visible:outline-[#D9E8FF]'
                         }`}
                       >
                         {uploading ? 'Uploading...' : 'Upload File'}
@@ -535,13 +535,13 @@ export default function TenantSpreadsheetImport() {
                 <div>
                   <div className="flex items-start gap-3">
                     <div className="flex-shrink-0">
-                      <ShieldCheckIcon className="size-6 text-indigo-600" aria-hidden="true" />
+                      <ShieldCheckIcon className="size-6 text-gray-900" aria-hidden="true" />
                     </div>
                     <div>
                       <h3 className="text-sm font-medium text-gray-900">Data Protection Notice</h3>
                       <p className="mt-1 text-sm text-gray-600">
                         Your tenant data is securely stored and processed in accordance with our 
-                        <a href="#" className="text-indigo-600 hover:text-indigo-500"> Privacy Policy</a> and GDPR requirements. 
+                        <a href="#" className="text-gray-900 hover:text-gray-700"> Privacy Policy</a> and GDPR requirements. 
                         We use industry-standard encryption and security measures to protect this sensitive information.
                       </p>
                     </div>

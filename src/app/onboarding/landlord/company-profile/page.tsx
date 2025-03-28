@@ -206,7 +206,7 @@ export default function CompanyProfile() {
                           required
                           value={companyName}
                           onChange={(e) => setCompanyName(e.target.value)}
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[#D9E8FF] sm:text-sm/6"
                         />
                       </div>
                     </div>
@@ -224,7 +224,7 @@ export default function CompanyProfile() {
                           value={registrationNumber}
                           onChange={(e) => setRegistrationNumber(e.target.value)}
                           placeholder="8 digits"
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[#D9E8FF] sm:text-sm/6"
                         />
                       </div>
                       <p className="mt-1 text-xs text-gray-500">
@@ -244,7 +244,7 @@ export default function CompanyProfile() {
                           value={vatNumber}
                           onChange={(e) => setVatNumber(e.target.value)}
                           placeholder="GB123456789"
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[#D9E8FF] sm:text-sm/6"
                         />
                       </div>
                     </div>
@@ -260,7 +260,7 @@ export default function CompanyProfile() {
                           required
                           value={businessType}
                           onChange={(e) => setBusinessType(e.target.value)}
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[#D9E8FF] sm:text-sm/6"
                         >
                           <option value="">Select business type</option>
                           {businessTypes.map((type) => (
@@ -310,7 +310,7 @@ export default function CompanyProfile() {
                           type="text"
                           value={addressLine2}
                           onChange={(e) => setAddressLine2(e.target.value)}
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[#D9E8FF] sm:text-sm/6"
                         />
                       </div>
                     </div>
@@ -327,7 +327,7 @@ export default function CompanyProfile() {
                           required
                           value={townCity}
                           onChange={(e) => setTownCity(e.target.value)}
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[#D9E8FF] sm:text-sm/6"
                         />
                       </div>
                     </div>
@@ -344,7 +344,7 @@ export default function CompanyProfile() {
                           required
                           value={county}
                           onChange={(e) => setCounty(e.target.value)}
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[#D9E8FF] sm:text-sm/6"
                         />
                       </div>
                     </div>
@@ -361,7 +361,7 @@ export default function CompanyProfile() {
                           required
                           value={postcode}
                           onChange={(e) => setPostcode(e.target.value)}
-                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                          className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[#D9E8FF] sm:text-sm/6"
                         />
                       </div>
                     </div>
@@ -404,7 +404,7 @@ export default function CompanyProfile() {
                               required
                               value={director.name}
                               onChange={(e) => updateDirector(director.id, 'name', e.target.value)}
-                              className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                              className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[#D9E8FF] sm:text-sm/6"
                             />
                           </div>
                         </div>
@@ -420,7 +420,7 @@ export default function CompanyProfile() {
                               type="email"
                               value={director.email}
                               onChange={(e) => updateDirector(director.id, 'email', e.target.value)}
-                              className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                              className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[#D9E8FF] sm:text-sm/6"
                             />
                           </div>
                         </div>
@@ -436,7 +436,7 @@ export default function CompanyProfile() {
                               type="tel"
                               value={director.phone}
                               onChange={(e) => updateDirector(director.id, 'phone', e.target.value)}
-                              className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                              className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[#D9E8FF] sm:text-sm/6"
                             />
                           </div>
                         </div>
@@ -448,7 +448,7 @@ export default function CompanyProfile() {
                     <button
                       type="button"
                       onClick={addDirector}
-                      className="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-500"
+                      className="inline-flex items-center text-sm font-medium text-gray-900 hover:text-gray-700"
                     >
                       <PlusIcon className="size-5 mr-1" aria-hidden="true" />
                       Add another director
@@ -461,7 +461,7 @@ export default function CompanyProfile() {
               <button
                 type="button"
                 onClick={handleSaveAsDraft}
-                className="text-sm/6 font-semibold text-indigo-600 hover:text-indigo-500"
+                className="text-sm/6 font-semibold text-gray-900 hover:text-gray-700"
               >
                 Save as Draft
               </button>
@@ -475,7 +475,7 @@ export default function CompanyProfile() {
                 </button>
                 <button
                   type="submit"
-                  className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                  className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-[#D9E8FF]/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
                 >
                   Save and Continue
                 </button>

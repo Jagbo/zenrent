@@ -126,7 +126,7 @@ export default function EmailVerification() {
               <div>
                 <button
                   type="submit"
-                  className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                  className="flex w-full justify-center rounded-md bg-[#D9E8FF] px-3 py-1.5 text-sm/6 font-semibold text-gray-900 shadow-xs hover:bg-[#D9E8FF]/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
                 >
                   Verify
                 </button>
@@ -135,7 +135,7 @@ export default function EmailVerification() {
 
             <div className="mt-6 flex items-center justify-between">
               <div className="text-sm/6">
-                <a href="/sign-up" className="font-semibold text-indigo-600 hover:text-indigo-500">
+                <a href="/sign-up" className="font-semibold text-[#330015] hover:text-[#330015]/80">
                   Change email
                 </a>
               </div>
@@ -143,7 +143,7 @@ export default function EmailVerification() {
                 <button 
                   onClick={handleResendCode}
                   disabled={!canResend}
-                  className={`font-semibold ${canResend ? 'text-indigo-600 hover:text-indigo-500' : 'text-gray-400'}`}
+                  className={`font-semibold ${canResend ? 'text-[#330015] hover:text-[#330015]/80' : 'text-gray-400'}`}
                 >
                   Resend code {!canResend && <span className="text-gray-500">({timeLeft}s)</span>}
                 </button>
@@ -152,7 +152,7 @@ export default function EmailVerification() {
 
             <div className="mt-8 border-t border-gray-200 pt-6">
               <p className="text-sm text-gray-500 text-center">
-                Need help? <a href="#" className="font-semibold text-indigo-600 hover:text-indigo-500">Contact support</a>
+                Need help? <a href="#" className="font-semibold text-[#330015] hover:text-[#330015]/80">Contact support</a>
               </p>
             </div>
           </div>

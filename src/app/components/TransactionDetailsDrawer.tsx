@@ -132,7 +132,7 @@ export const TransactionDetailsDrawer: React.FC<TransactionDetailsDrawerProps> =
           </button>
           <button
             type="button"
-            className="flex-1 bg-indigo-600 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none"
+            className="flex-1 bg-[#D9E8FF] py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-[#D9E8FF]/80 focus:outline-none"
             onClick={() => console.log('Edit transaction:', transaction.id)}
           >
             Edit

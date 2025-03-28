@@ -32,6 +32,9 @@ interface TenantWithUI extends ITenant {
   leaseEnd?: string;
   attachments: TenantAttachment[];
   property_name?: string;
+  property_address?: string;
+  property_id?: string;
+  property_code?: string;
 }
 
 // Define property type for UI
@@ -64,21 +67,22 @@ export default function Residents() {
             attachments: [
               { name: 'lease_agreement.pdf', size: '1.2mb' },
               { name: 'tenant_application.pdf', size: '2.8mb' }
-            ]
+            ],
+            property_name: tenant.property_address || 'Unassigned'
           }));
           
           setTenants(tenantsWithUI);
           
-          // Create unique property list
+          // Create unique property list from property_address
           const propertySet = new Set<string>();
           const propertyList: PropertyListItem[] = [];
           
           tenantsWithUI.forEach(tenant => {
-            if (tenant.property_name && !propertySet.has(tenant.property_name)) {
-              propertySet.add(tenant.property_name);
+            if (tenant.property_address && !propertySet.has(tenant.property_address)) {
+              propertySet.add(tenant.property_address);
               propertyList.push({
-                id: tenant.property_name,
-                name: tenant.property_name
+                id: tenant.property_address,
+                name: tenant.property_address
               });
             }
           });
@@ -104,13 +108,13 @@ export default function Residents() {
   // Filter tenants by selected property
   const filteredTenants = selectedPropertyId === 'all'
     ? tenants
-    : tenants.filter(t => t.property_name === selectedPropertyId);
+    : tenants.filter(t => t.property_address === selectedPropertyId);
 
   // Group tenants by property
   const tenantsByProperty: Record<string, TenantWithUI[]> = {};
   
   filteredTenants.forEach(tenant => {
-    const propertyName = tenant.property_name || 'Unassigned';
+    const propertyName = tenant.property_address || 'Unassigned';
     if (!tenantsByProperty[propertyName]) {
       tenantsByProperty[propertyName] = [];
     }
@@ -162,7 +166,7 @@ export default function Residents() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </div>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No Residents</h3>
+            <h3 className="mt-2 text-sm font-cabinet-grotesk-bold text-gray-900">No Residents</h3>
             <p className="mt-1 text-sm text-gray-500">Get started by adding a new resident.</p>
             <div className="mt-6">
               <button
@@ -218,7 +222,7 @@ export default function Residents() {
                 {Object.entries(tenantsByProperty).map(([propertyName, propertyTenants]) => (
                   <div key={propertyName}>
                     <div className="px-4 py-3 bg-gray-50">
-                      <h3 className="text-sm font-medium text-gray-900">{propertyName}</h3>
+                      <h3 className="text-sm font-cabinet-grotesk-bold text-gray-900">{propertyName}</h3>
                     </div>
                     {propertyTenants.map((tenant) => (
                       <button
@@ -254,7 +258,7 @@ export default function Residents() {
                   <div className="px-4 py-6 sm:px-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="text-base/7 font-semibold text-gray-900">Tenant Information</h3>
+                        <h3 className="text-base/7 font-cabinet-grotesk-bold text-gray-900">Tenant Information</h3>
                         <p className="mt-1 max-w-2xl text-sm/6 text-gray-500">Personal details and lease information.</p>
                       </div>
                       <Link
@@ -313,7 +317,7 @@ export default function Residents() {
                                   </div>
                                 </div>
                                 <div className="ml-4 shrink-0">
-                                  <a href="#" className="font-medium text-indigo-600 hover:text-indigo-500">
+                                  <a href="#" className="font-medium text-gray-900 hover:text-gray-700">
                                     Download
                                   </a>
                                 </div>
@@ -333,7 +337,7 @@ export default function Residents() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
                     </div>
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">No Tenant Selected</h3>
+                    <h3 className="mt-2 text-sm font-cabinet-grotesk-bold text-gray-900">No Tenant Selected</h3>
                     <p className="mt-1 text-sm text-gray-500">Please select a tenant from the list on the left to view their details.</p>
                   </div>
                 </div>

@@ -27,22 +27,40 @@ export const getTenants = async (userId?: string): Promise<ITenant[]> => {
     // First get all properties for this user
     const { data: properties, error: propError } = await supabase
       .from('properties')
-      .select('id')
+      .select('id, property_code, address')
       .eq('user_id', effectiveUserId);
     
     if (propError) throw propError;
     if (!properties || properties.length === 0) return [];
     
-    // Then get all active leases for these properties
+    // Then get all active leases for these properties with property details
     const propertyIds = properties.map(p => p.id);
     const { data: leases, error: leaseError } = await supabase
       .from('leases')
-      .select('tenant_id')
+      .select(`
+        tenant_id,
+        property_id,
+        property_uuid
+      `)
       .in('property_uuid', propertyIds)
       .eq('status', 'active');
     
     if (leaseError) throw leaseError;
     if (!leases || leases.length === 0) return [];
+    
+    // Map properties to their codes for easy lookup
+    interface PropertyInfo {
+      property_code: string;
+      address: string;
+    }
+    
+    const propertyMap: Record<string, PropertyInfo> = properties.reduce((acc: Record<string, PropertyInfo>, property) => {
+      acc[property.id] = { 
+        property_code: property.property_code,
+        address: property.address
+      };
+      return acc;
+    }, {});
     
     // Finally get all tenant details
     const tenantIds = leases.map(l => l.tenant_id);
@@ -52,7 +70,19 @@ export const getTenants = async (userId?: string): Promise<ITenant[]> => {
       .in('id', tenantIds);
     
     if (tenantError) throw tenantError;
-    return tenants || [];
+    
+    // Add property details to each tenant
+    return (tenants || []).map(tenant => {
+      const lease = leases.find(l => l.tenant_id === tenant.id);
+      const property = lease && lease.property_uuid ? propertyMap[lease.property_uuid] : null;
+      
+      return {
+        ...tenant,
+        property_id: lease?.property_id,
+        property_code: property?.property_code,
+        property_address: property?.address
+      };
+    });
   } catch (error) {
     console.error('Error fetching tenants:', error);
     return [];

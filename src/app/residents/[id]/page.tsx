@@ -302,7 +302,7 @@ export default function ResidentDetails() {
                             <span className="ml-2 w-0 flex-1 truncate">{attachment.name}</span>
                           </div>
                           <div className="ml-4 flex-shrink-0">
-                            <a href="#" className="font-medium text-indigo-600 hover:text-indigo-500">
+                            <a href="#" className="font-medium text-gray-900 hover:text-gray-700">
                               Download
                             </a>
                           </div>
@@ -412,7 +412,7 @@ export default function ResidentDetails() {
                           <div className="mt-2">
                             <a
                               href={`tel:${tenant.phone}`}
-                              className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-600/20"
+                              className="inline-flex items-center rounded-md bg-[#D9E8FF]/5 px-2 py-1 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-[#D9E8FF]/20"
                             >
                               Call Tenant
                             </a>

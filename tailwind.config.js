@@ -11,6 +11,7 @@ module.exports = {
         sans: ['Inter', 'Arial', 'sans-serif'],
         inter: ['Inter', 'Arial', 'sans-serif'],
         title: ['Cabinet Grotesk', 'sans-serif'],
+        'cabinet-grotesk-bold': ['Cabinet Grotesk', 'sans-serif'],
       },
       colors: {
         border: "rgb(229 231 235)", // zinc-200
@@ -41,6 +42,15 @@ module.exports = {
         background: "#ffffff",
         foreground: "#0f172a",
         ring: "rgb(161 161 170)", // zinc-400
+        custom: {
+          'd9e8ff': {
+            DEFAULT: '#D9E8FF',
+            80: 'rgba(217, 232, 255, 0.8)',
+            50: 'rgba(217, 232, 255, 0.5)',
+            20: 'rgba(217, 232, 255, 0.2)',
+            10: 'rgba(217, 232, 255, 0.1)',
+          }
+        }
       },
       borderRadius: {
         lg: "0.5rem",

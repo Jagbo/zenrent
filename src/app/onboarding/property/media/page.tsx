@@ -230,7 +230,7 @@ export default function PropertyMedia() {
                     {formData.photos.length === 0 ? (
                       <div 
                         onClick={triggerFileInput}
-                        className="relative block w-full rounded-lg border-2 border-dashed border-gray-300 p-12 text-center hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 cursor-pointer"
+                        className="relative block w-full rounded-lg border-2 border-dashed border-gray-300 p-12 text-center hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-d9e8ff-80 focus:ring-offset-2 cursor-pointer"
                       >
                         <PhotoIcon className="mx-auto h-12 w-12 text-gray-400" />
                         <span className="mt-2 block text-sm font-semibold text-gray-900">Click to upload property photos</span>
@@ -242,7 +242,7 @@ export default function PropertyMedia() {
                           {formData.photos.map((photo) => (
                             <div 
                               key={photo.id} 
-                              className={`relative rounded-lg border ${photo.id === formData.mainPhotoId ? 'border-indigo-600 ring-2 ring-indigo-600' : 'border-gray-300'} overflow-hidden group`}
+                              className={`relative rounded-lg border ${photo.id === formData.mainPhotoId ? 'border-d9e8ff ring-2 ring-d9e8ff' : 'border-gray-300'} overflow-hidden group`}
                             >
                               <img 
                                 src={photo.preview} 
@@ -266,7 +266,7 @@ export default function PropertyMedia() {
                                 </button>
                               </div>
                               {photo.id === formData.mainPhotoId && (
-                                <div className="absolute top-0 left-0 bg-indigo-600 text-white text-xs px-2 py-1">
+                                <div className="absolute top-0 left-0 bg-d9e8ff text-white text-xs px-2 py-1">
                                   Main Photo
                                 </div>
                               )}
@@ -274,7 +274,7 @@ export default function PropertyMedia() {
                           ))}
                           <div 
                             onClick={triggerFileInput}
-                            className="relative flex items-center justify-center rounded-lg border-2 border-dashed border-gray-300 h-32 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 cursor-pointer"
+                            className="relative flex items-center justify-center rounded-lg border-2 border-dashed border-gray-300 h-32 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-d9e8ff-80 focus:ring-offset-2 cursor-pointer"
                           >
                             <div className="text-center">
                               <ArrowUpTrayIcon className="mx-auto h-8 w-8 text-gray-400" />
@@ -309,7 +309,7 @@ export default function PropertyMedia() {
                     {!formData.floorPlan ? (
                       <div 
                         onClick={triggerFloorPlanInput}
-                        className="relative block w-full rounded-lg border-2 border-dashed border-gray-300 p-12 text-center hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 cursor-pointer"
+                        className="relative block w-full rounded-lg border-2 border-dashed border-gray-300 p-12 text-center hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-d9e8ff-80 focus:ring-offset-2 cursor-pointer"
                       >
                         <DocumentIcon className="mx-auto h-12 w-12 text-gray-400" />
                         <span className="mt-2 block text-sm font-semibold text-gray-900">Click to upload floor plan</span>
@@ -366,7 +366,7 @@ export default function PropertyMedia() {
                           value={formData.videoLink}
                           onChange={handleVideoLinkChange}
                           placeholder="https://www.youtube.com/watch?v=..."
-                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-indigo-600 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-d9e8ff focus:ring-d9e8ff sm:text-sm sm:leading-6"
                         />
                       </div>
                     </div>
@@ -378,7 +378,7 @@ export default function PropertyMedia() {
               <button
                 type="button"
                 onClick={handleSaveAsDraft}
-                className="text-sm/6 font-semibold text-indigo-600 hover:text-indigo-500"
+                className="text-sm/6 font-semibold text-gray-900 hover:text-gray-700"
               >
                 Save as Draft
               </button>
@@ -391,7 +391,7 @@ export default function PropertyMedia() {
               </button>
               <button
                 type="submit"
-                className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                className="rounded-md bg-d9e8ff px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-d9e8ff-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff"
               >
                 Save and Continue
               </button>

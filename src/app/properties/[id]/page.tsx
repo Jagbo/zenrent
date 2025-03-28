@@ -18,6 +18,9 @@ import { EditPropertyDrawer } from '../../components/EditPropertyDrawer'
 import { AdvertisePropertyDrawer } from '../../components/AdvertisePropertyDrawer'
 import { IssueFormDrawer } from '../../components/IssueFormDrawer'
 import { getPropertyWithTenants, IPropertyWithTenants, ITenant } from '../../../lib/propertyService'
+import { getPropertyIssues, createIssue } from '../../../lib/issueService'
+import { supabase } from '../../../lib/supabase'
+import { ChevronDownIcon } from '@heroicons/react/24/solid'
 
 // Define the Property interface for UI
 interface PropertyForUI {
@@ -240,12 +243,6 @@ const sampleProperty: PropertyForUI = {
   }
 };
 
-// Sample issues - these are not in the database yet
-const sampleIssues: Issue[] = [
-  { id: 1, title: 'Leaking roof', priority: 'High', status: 'Open', reported: '2024-03-08' },
-  { id: 2, title: 'Broken heating', priority: 'Medium', status: 'In Progress', reported: '2024-03-07' },
-];
-
 export default function PropertyDetails() {
   const params = useParams();
   const propertyId = params.id as string;
@@ -258,7 +255,24 @@ export default function PropertyDetails() {
   const [isNewIssueDrawerOpen, setIsNewIssueDrawerOpen] = useState(false);
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [selectedProperty, setSelectedProperty] = useState<PropertyForEdit | null>(null);
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const [issuesLoading, setIssuesLoading] = useState(true);
+  const [issuesError, setIssuesError] = useState<string | null>(null);
+  const [selectedTab, setSelectedTab] = useState('images');
   
+  // Update tabs to use state
+  const tabs = [
+    { name: 'Images', value: 'images', current: selectedTab === 'images' },
+    { name: 'Floor Plan', value: 'floor-plan', current: selectedTab === 'floor-plan' },
+    { name: 'Financials', value: 'financials', current: selectedTab === 'financials' },
+    { name: 'Details', value: 'details', current: selectedTab === 'details' },
+    { name: 'Documents', value: 'documents', current: selectedTab === 'documents' },
+  ]
+
+  const handleTabChange = (value: string) => {
+    setSelectedTab(value)
+  }
+
   // Fetch property data when component mounts
   useEffect(() => {
     const fetchProperty = async () => {
@@ -366,6 +380,62 @@ export default function PropertyDetails() {
     }
   }, [propertyId]);
 
+  // Fetch issues for this property 
+  useEffect(() => {
+    const fetchIssues = async () => {
+      if (!propertyId) return;
+      
+      console.log('Property details: Starting to fetch issues for property:', propertyId);
+      setIssuesLoading(true);
+      setIssuesError(null);
+      
+      try {
+        // Let the getPropertyIssues function handle the conversion from UUID to property_code
+        const propertyIssues = await getPropertyIssues(propertyId);
+        console.log('Property details: Received issues data:', propertyIssues.length, 'issues');
+        
+        if (propertyIssues.length === 0) {
+          console.log('Property details: No issues returned for this property');
+        } else {
+          console.log('Property details: First issue sample:', propertyIssues[0]);
+        }
+        
+        // Convert to the expected Issue format
+        const formattedIssues = propertyIssues.map(issue => ({
+          id: issue.id,
+          title: issue.title,
+          status: issue.status,
+          priority: issue.priority,
+          property: issue.property_id.replace('prop_', '').split('_').map(
+            word => word.charAt(0).toUpperCase() + word.slice(1)
+          ).join(' '),
+          reported: new Date(issue.reported_date).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})
+        }));
+        
+        setIssues(formattedIssues);
+      } catch (err) {
+        console.error('Property details: Error fetching property issues:', err);
+        setIssuesError('Failed to load property issues');
+        
+        // In development mode, use sample data as fallback
+        if (process.env.NODE_ENV === 'development') {
+          // Sample issues data for development fallback
+          const sampleIssues = [
+            { id: 1, title: 'Leaking roof', priority: 'High', status: 'Open', reported: '2024-03-08' },
+            { id: 2, title: 'Broken heating', priority: 'Medium', status: 'In Progress', reported: '2024-03-07' },
+          ];
+          console.log('Property details: Using sample issues as fallback');
+          setIssues(sampleIssues);
+          setIssuesError(null);
+        }
+      } finally {
+        setIssuesLoading(false);
+      }
+    };
+    
+    fetchIssues();
+  }, [propertyId]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Form submitted:', selectedProperty);
@@ -390,9 +460,50 @@ export default function PropertyDetails() {
     setIsNewIssueDrawerOpen(true);
   };
 
-  const handleIssueSubmit = (formData: any) => {
-    console.log('New issue:', formData);
-    setIsNewIssueDrawerOpen(false);
+  const handleIssueSubmit = async (formData: any) => {
+    try {
+      console.log('Creating new issue for property:', propertyId);
+      
+      // Create issue in Supabase - the createIssue function will handle getting the property_code if needed
+      const issueData = {
+        title: formData.title,
+        description: formData.description || '',
+        property_id: propertyId, // The service will handle converting this if necessary
+        unit_id: formData.unitNumber || null,
+        status: 'Todo' as const,
+        priority: formData.priority as 'Low' | 'Medium' | 'High',
+        type: 'Bug' as const,
+        assigned_to: formData.assignedTo || null,
+        due_date: formData.dueDate || null,
+        is_emergency: formData.priority === 'High'
+      };
+      
+      const newIssueResult = await createIssue(issueData);
+      console.log('Issue created:', newIssueResult ? 'success' : 'failed');
+      
+      if (newIssueResult) {
+        // Refresh the issues list
+        const propertyIssues = await getPropertyIssues(propertyId);
+        
+        // Convert to the expected Issue format
+        const formattedIssues = propertyIssues.map(issue => ({
+          id: issue.id,
+          title: issue.title,
+          status: issue.status,
+          priority: issue.priority,
+          property: issue.property_id.replace('prop_', '').split('_').map(
+            word => word.charAt(0).toUpperCase() + word.slice(1)
+          ).join(' '),
+          reported: new Date(issue.reported_date).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})
+        }));
+        
+        setIssues(formattedIssues);
+      }
+    } catch (err) {
+      console.error('Error creating issue:', err);
+    } finally {
+      setIsNewIssueDrawerOpen(false);
+    }
   };
 
   if (loading) {
@@ -413,13 +524,6 @@ export default function PropertyDetails() {
         sidebar={<SidebarContent currentPath="/properties" />}
       >
         <div className="space-y-6">
-          <div className="flex items-center text-sm text-gray-500">
-            <Link href="/" className="hover:text-gray-700">Dashboard</Link>
-            <span className="mx-2">/</span>
-            <Link href="/properties" className="hover:text-gray-700">Properties</Link>
-            <span className="mx-2">/</span>
-            <span className="text-gray-900 font-medium">Not Found</span>
-          </div>
           <div className="text-center py-12">
             <h3 className="text-base font-semibold text-gray-900">Property not found</h3>
             <p className="mt-1 text-sm text-gray-500">The property you're looking for doesn't exist or has been removed.</p>
@@ -440,23 +544,11 @@ export default function PropertyDetails() {
     return null; // This should not happen, but TypeScript requires it
   }
 
-  // Use sample issues for now as they aren't in the database yet
-  const issues = sampleIssues;
-
   return (
     <SidebarLayout
       sidebar={<SidebarContent currentPath="/properties" />}
     >
       <div className="space-y-8">
-        {/* Breadcrumb */}
-        <div className="flex items-center text-sm text-gray-500">
-          <Link href="/" className="hover:text-gray-700">Dashboard</Link>
-          <span className="mx-2">/</span>
-          <Link href="/properties" className="hover:text-gray-700">Properties</Link>
-          <span className="mx-2">/</span>
-          <span className="text-gray-900 font-medium">{property.name}</span>
-        </div>
-
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
@@ -592,28 +684,55 @@ export default function PropertyDetails() {
             </div>
 
             {/* Tabs Section */}
-            <div className="space-y-6">
+            <div className="space-y-6 pb-6">
               {/* Tabs Navigation */}
               <div className="w-full">
-                <Tabs defaultValue="images" className="w-full">
-                  <TabsList className="w-full mb-4 flex flex-row flex-nowrap">
-                    <TabsTrigger value="images" className="flex-1 text-center w-full">
-                      Images
-                    </TabsTrigger>
-                    <TabsTrigger value="floor-plan" className="flex-1 text-center w-full">
-                      Floor Plan
-                    </TabsTrigger>
-                    <TabsTrigger value="financials" className="flex-1 text-center w-full">
-                      Financials
-                    </TabsTrigger>
-                    <TabsTrigger value="details" className="flex-1 text-center w-full">
-                      Details
-                    </TabsTrigger>
-                    <TabsTrigger value="documents" className="flex-1 text-center w-full">
-                      Documents
-                    </TabsTrigger>
-                  </TabsList>
+                <div>
+                  <div className="grid grid-cols-1 sm:hidden">
+                    <select
+                      value={selectedTab}
+                      onChange={(e) => handleTabChange(e.target.value)}
+                      aria-label="Select a tab"
+                      className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-2 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-[#D9E8FF]"
+                    >
+                      {tabs.map((tab) => (
+                        <option key={tab.name} value={tab.value}>{tab.name}</option>
+                      ))}
+                    </select>
+                    <ChevronDownIcon
+                      aria-hidden="true"
+                      className="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end fill-gray-500"
+                    />
+                  </div>
+                  <div className="hidden sm:block pb-6">
+                    <nav aria-label="Tabs" className="isolate flex divide-x divide-gray-200 rounded-lg shadow-sm">
+                      {tabs.map((tab, tabIdx) => (
+                        <button
+                          key={tab.name}
+                          onClick={() => handleTabChange(tab.value)}
+                          aria-current={tab.current ? 'page' : undefined}
+                          className={classNames(
+                            tab.current ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700',
+                            tabIdx === 0 ? 'rounded-l-lg' : '',
+                            tabIdx === tabs.length - 1 ? 'rounded-r-lg' : '',
+                            'group relative min-w-0 flex-1 overflow-hidden bg-white px-4 py-4 text-center text-sm font-medium hover:bg-gray-50 focus:z-10',
+                          )}
+                        >
+                          <span>{tab.name}</span>
+                          <span
+                            aria-hidden="true"
+                            className={classNames(
+                              tab.current ? 'bg-[#FF503E]' : 'bg-transparent',
+                              'absolute inset-x-0 bottom-0 h-0.5',
+                            )}
+                          />
+                        </button>
+                      ))}
+                    </nav>
+                  </div>
+                </div>
 
+                <Tabs value={selectedTab} onValueChange={handleTabChange} className="w-full">
                   {/* Tab Content */}
                   <div>
                     <TabsContent value="images" className="mt-0">
@@ -833,50 +952,61 @@ export default function PropertyDetails() {
           <div className="col-span-1 space-y-6">
             {/* Open Issues */}
             <div className="bg-white shadow-sm sm:rounded-lg border border-gray-200">
-              <div className="px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-200">
+              <div className="p-4 sm:px-6 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 gap-4">
                 <div>
                   <h3 className="text-lg font-medium text-gray-900">Open Issues</h3>
                   <p className="text-sm text-gray-500 mt-1">Current maintenance and repair issues.</p>
                 </div>
                 <button 
-                  className="mt-4 sm:mt-0 px-4 py-2 bg-gray-900 rounded-md text-sm font-medium text-white hover:bg-gray-800"
+                  className="w-full sm:w-auto px-4 py-2 bg-gray-900 rounded-md text-sm font-medium text-white hover:bg-gray-800 flex items-center justify-center"
                   onClick={openNewIssueDrawer}
                 >
+                  <PlusIcon className="h-4 w-4 mr-1.5" />
                   Add issue
                 </button>
               </div>
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issue</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {issues.map((issue) => (
-                      <tr 
-                        key={issue.id} 
-                        onClick={() => openIssueDrawer(issue)}
-                        className="cursor-pointer hover:bg-gray-50"
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{issue.title}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            issue.priority === 'High' ? 'bg-red-100 text-red-800' :
-                            issue.priority === 'Medium' ? 'bg-blue-100 text-blue-800' :
-                            'bg-green-100 text-green-800'
-                          }`}>
-                            {issue.priority}
-                          </span>
-                        </td>
+                {issuesLoading ? (
+                  <div className="flex justify-center items-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                  </div>
+                ) : issuesError ? (
+                  <div className="text-center py-8 text-red-500">{issuesError}</div>
+                ) : issues.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">No issues found for this property</div>
+                ) : (
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issue</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {issues.map((issue) => (
+                        <tr 
+                          key={issue.id} 
+                          onClick={() => openIssueDrawer(issue)}
+                          className="cursor-pointer hover:bg-gray-50"
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{issue.title}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              issue.priority === 'High' ? 'bg-red-100 text-red-800' :
+                              issue.priority === 'Medium' ? 'bg-blue-100 text-blue-800' :
+                              'bg-green-100 text-green-800'
+                            }`}>
+                              {issue.priority}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
               <div className="px-6 py-4 border-t border-gray-200">
-                <a href="/issues" className="text-sm text-indigo-600 hover:text-indigo-900">View all issues →</a>
+                <a href="/issues" className="text-sm text-gray-900 hover:text-indigo-900">View all issues →</a>
               </div>
             </div>
 
@@ -914,7 +1044,7 @@ export default function PropertyDetails() {
                         <div>
                           <Link
                             href={`/residents/${tenant.id}`}
-                            className="text-sm text-indigo-600 hover:text-indigo-900"
+                            className="text-sm text-gray-900 hover:text-indigo-900"
                           >
                             View
                           </Link>

@@ -1,0 +1,79 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# 
+# Rule: Seed Data Integration with Test User
+
+## Test User Details
+
+When developing features that require user authentication, always link seed data to the following test user:
+
+```
+USER_ID: 00000000-0000-0000-0000-000000000001
+EMAIL: j.agbodo@mail.com
+NAME: James Agbodo
+```
+
+## Property Ownership
+
+All properties must be linked to the test user through the `user_id` field:
+
+```sql
+-- Example property insertion 
+INSERT INTO properties (
+  id, 
+  property_code, 
+  address, 
+  user_id
+) VALUES (
+  'uuid-value', 
+  'prop_readable_code', 
+  'Property Address', 
+  '00000000-0000-0000-0000-000000000001'
+);
+```
+
+## Data Relationships
+
+- Issues must use `property_code` (not UUID) in the `property_id` field
+- All related entities (tenants, leases, payments) should link to properties owned by this user
+- For many-to-many relationships, ensure join tables maintain proper linkage to this user
+
+## Development Mode Handling
+
+When implementing new features:
+
+1. Create both real database seed data AND matching development-mode fallbacks
+2. Implement direct fallback data in development mode to bypass RLS policies:
+   ```typescript
+   if (process.env.NODE_ENV === 'development') {
+     console.log('Returning sample data for development');
+     return getSampleDataMatchingTestUser();
+   }
+   ```
+
+## Row-Level Security (RLS)
+
+When creating new tables:
+
+1. Implement RLS policies that allow the test user to access their data
+2. For property-related tables, use property ownership for access control:
+   ```sql
+   CREATE POLICY "Users can view their own [items]" ON [table_name]
+     FOR SELECT USING (
+       EXISTS (
+         SELECT 1 FROM properties p
+         WHERE p.property_code = [table_name].property_id
+         AND p.user_id = auth.uid()
+       )
+     );
+   ```
+
+
+   Do not change any from end layouts when intergrating in frontent to backend. Do changes Frontend unless I explicitly ask for a change
+
+Following this rule will ensure consistent data access across all application features and prevent issues with RLS policies blocking data access during development.
+o

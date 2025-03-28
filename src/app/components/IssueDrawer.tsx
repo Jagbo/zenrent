@@ -196,7 +196,7 @@ export const IssueDrawer: React.FC<IssueDrawerProps> = ({ isOpen, issue, onClose
               rows={3}
               name="comment"
               id="comment"
-              className="block w-full rounded-md border border-gray-300 shadow-sm p-2 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              className="block w-full rounded-md border border-gray-300 shadow-sm p-2 focus:border-indigo-500 focus:ring-[#D9E8FF]/80 sm:text-sm"
               placeholder="Add a comment..."
               value={comment}
               onChange={(e) => setComment(e.target.value)}
@@ -213,7 +213,7 @@ export const IssueDrawer: React.FC<IssueDrawerProps> = ({ isOpen, issue, onClose
           </button>
           <button
             type="button"
-            className="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700"
+            className="inline-flex items-center rounded-md border border-transparent bg-[#D9E8FF] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#D9E8FF]/80"
             onClick={handleAddComment}
             disabled={!comment.trim()}
           >

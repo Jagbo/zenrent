@@ -122,7 +122,7 @@ export function SidebarContent({ currentPath }: { currentPath: string }) {
               ) : properties.length === 0 ? (
                 <li className="px-2 py-1 text-sm text-gray-500">No properties found</li>
               ) : (
-                properties.map((property) => (
+                properties.map((property, index) => (
                   <li key={property.id}>
                     <a
                       href={property.path}
@@ -141,7 +141,7 @@ export function SidebarContent({ currentPath }: { currentPath: string }) {
                           'flex size-6 shrink-0 items-center justify-center rounded-lg border bg-white text-[0.625rem] font-medium',
                         )}
                       >
-                        {property.name.charAt(0)}
+                        {index + 1}
                       </span>
                       <span className="truncate">{property.name}</span>
                     </a>
@@ -155,7 +155,7 @@ export function SidebarContent({ currentPath }: { currentPath: string }) {
           <li className="mt-auto">
             <a
               href="/settings"
-              className="group -mx-2 flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold text-gray-700 hover:bg-gray-50 hover:text-indigo-600"
+              className="group -mx-2 flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-900"
             >
               <Cog6ToothIcon
                 aria-hidden="true"

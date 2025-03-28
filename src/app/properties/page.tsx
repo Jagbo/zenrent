@@ -405,7 +405,7 @@ export default function Properties() {
             id="search"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="block w-full rounded-md border-0 py-2.5 pl-10 pr-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-gray-900 sm:text-sm sm:leading-6"
+            className="block w-full rounded-md border-0 py-2.5 pl-10 pr-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-gray-900 sm:text-sm sm:leading-6 bg-white"
             placeholder="Search properties..."
           />
         </div>
@@ -446,7 +446,7 @@ export default function Properties() {
             <div className="mx-auto h-12 w-12 text-gray-400">
               <BuildingOffice2Icon className="h-full w-full" aria-hidden="true" />
             </div>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No Properties</h3>
+            <h3 className="mt-2 text-sm font-cabinet-grotesk-bold text-gray-900">No Properties</h3>
             <p className="mt-1 text-sm text-gray-500">
               {searchTerm ? "No properties match your search criteria." : "Get started by adding your first property."}
             </p>

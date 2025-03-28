@@ -175,7 +175,7 @@ export default function PaymentPage() {
             >
               <ArrowLeftIcon className="h-5 w-5" aria-hidden="true" />
             </button>
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900">Subscription Payment</h1>
+            <h1 className="text-2xl title-font text-gray-900">Subscription Payment</h1>
           </div>
 
           {paymentSuccess ? (
@@ -183,7 +183,7 @@ export default function PaymentPage() {
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
                 <CheckIcon className="h-6 w-6 text-green-600" aria-hidden="true" />
               </div>
-              <h2 className="mt-4 text-lg font-medium text-gray-900">Payment Successful</h2>
+              <h2 className="mt-4 text-lg title-font text-gray-900">Payment Successful</h2>
               <p className="mt-2 text-sm text-gray-500">
                 Thank you for your subscription! You will be redirected to your dashboard shortly.
               </p>
@@ -194,7 +194,7 @@ export default function PaymentPage() {
               <div className="lg:col-span-2">
                 <div className="bg-white border border-gray-300 shadow-sm rounded-lg divide-y divide-gray-200">
                   <div className="border-b border-gray-200 bg-gray-50 px-4 py-4 sm:px-6 rounded-t-lg">
-                    <h2 className="text-lg font-medium text-gray-900">Order Summary</h2>
+                    <h2 className="text-lg title-font text-gray-900">Order Summary</h2>
                   </div>
                   <div className="p-6">
                     {selectedPlan && (
@@ -263,7 +263,7 @@ export default function PaymentPage() {
               <div className="lg:col-span-3">
                 <div className="bg-white border border-gray-300 shadow-sm rounded-lg divide-y divide-gray-200">
                   <div className="border-b border-gray-200 bg-gray-50 px-4 py-4 sm:px-6 rounded-t-lg">
-                    <h2 className="text-lg font-medium text-gray-900">Payment Details</h2>
+                    <h2 className="text-lg title-font text-gray-900">Payment Details</h2>
                   </div>
                   <div className="p-6">
                     {error && (
@@ -286,7 +286,7 @@ export default function PaymentPage() {
                       <div className="space-y-6">
                         {/* Card Information */}
                         <div>
-                          <h3 className="text-sm font-medium text-gray-900 mb-4">Card Information</h3>
+                          <h3 className="text-sm title-font text-gray-900 mb-4">Card Information</h3>
                           <div className="grid grid-cols-1 gap-y-6 sm:grid-cols-2 sm:gap-x-4">
                             <div className="sm:col-span-2">
                               <label htmlFor="card-number" className="block text-sm font-medium text-gray-700">
@@ -300,7 +300,7 @@ export default function PaymentPage() {
                                   placeholder="1234 5678 9012 3456"
                                   value={cardNumber}
                                   onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-                                  className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm"
+                                  className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-d9e8ff-80 sm:text-sm"
                                   required
                                   maxLength={19}
                                 />
@@ -319,7 +319,7 @@ export default function PaymentPage() {
                                   placeholder="MM/YY"
                                   value={cardExpiry}
                                   onChange={(e) => setCardExpiry(formatExpiry(e.target.value))}
-                                  className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm"
+                                  className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-d9e8ff-80 sm:text-sm"
                                   required
                                   maxLength={5}
                                 />
@@ -338,7 +338,7 @@ export default function PaymentPage() {
                                   placeholder="123"
                                   value={cardCvc}
                                   onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, '').substring(0, 3))}
-                                  className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm"
+                                  className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-d9e8ff-80 sm:text-sm"
                                   required
                                   maxLength={3}
                                 />
@@ -356,7 +356,7 @@ export default function PaymentPage() {
                                   name="card-name"
                                   value={cardName}
                                   onChange={(e) => setCardName(e.target.value)}
-                                  className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm"
+                                  className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-d9e8ff-80 sm:text-sm"
                                   required
                                 />
                               </div>
@@ -366,7 +366,7 @@ export default function PaymentPage() {
 
                         {/* Billing Address */}
                         <div>
-                          <h3 className="text-sm font-medium text-gray-900 mb-4">Billing Address</h3>
+                          <h3 className="text-sm title-font text-gray-900 mb-4">Billing Address</h3>
                           <div className="grid grid-cols-1 gap-y-6 sm:grid-cols-2 sm:gap-x-4">
                             <div className="sm:col-span-2">
                               <label htmlFor="address-line1" className="block text-sm font-medium text-gray-700">
@@ -379,7 +379,7 @@ export default function PaymentPage() {
                                   name="address-line1"
                                   value={billingAddress.line1}
                                   onChange={(e) => setBillingAddress({...billingAddress, line1: e.target.value})}
-                                  className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm"
+                                  className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-d9e8ff-80 sm:text-sm"
                                   required
                                 />
                               </div>
@@ -396,7 +396,7 @@ export default function PaymentPage() {
                                   name="address-line2"
                                   value={billingAddress.line2}
                                   onChange={(e) => setBillingAddress({...billingAddress, line2: e.target.value})}
-                                  className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm"
+                                  className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-d9e8ff-80 sm:text-sm"
                                 />
                               </div>
                             </div>
@@ -412,7 +412,7 @@ export default function PaymentPage() {
                                   name="city"
                                   value={billingAddress.city}
                                   onChange={(e) => setBillingAddress({...billingAddress, city: e.target.value})}
-                                  className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm"
+                                  className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-d9e8ff-80 sm:text-sm"
                                   required
                                 />
                               </div>
@@ -429,7 +429,7 @@ export default function PaymentPage() {
                                   name="postcode"
                                   value={billingAddress.postcode}
                                   onChange={(e) => setBillingAddress({...billingAddress, postcode: e.target.value})}
-                                  className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm"
+                                  className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-d9e8ff-80 sm:text-sm"
                                   required
                                 />
                               </div>
@@ -445,7 +445,7 @@ export default function PaymentPage() {
                           className={`w-full rounded-md px-4 py-3 text-base font-medium text-white shadow-sm ${
                             loading 
                               ? 'bg-indigo-400 cursor-not-allowed' 
-                              : 'bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2'
+                              : 'bg-d9e8ff hover:bg-d9e8ff-80 focus:outline-none focus:ring-2 focus:ring-d9e8ff-80 focus:ring-offset-2'
                           }`}
                         >
                           {loading ? (

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { SidebarLayout } from '../components/sidebar-layout'
 import { Heading } from '../components/heading'
 import { Text } from '../components/text'
@@ -31,7 +31,8 @@ import {
   EllipsisVerticalIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  ArrowDownIcon
+  ArrowDownIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/solid'
 import { CheckIcon as CheckIcon20, HandThumbUpIcon, UserIcon } from '@heroicons/react/20/solid'
 import { TrendingUp, TrendingDown } from "lucide-react"
@@ -61,6 +62,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SidebarContent } from '../components/sidebar-content'
 import { IssueDrawer } from "../components/IssueDrawer"
 import { IssueFormDrawer } from '../components/IssueFormDrawer'
+import { getRecentIssues, createIssue } from '../../lib/issueService'
 
 // Icons for navigation items
 function DashboardIcon() {
@@ -319,9 +321,53 @@ type Issue = {
 
 export default function Dashboard() {
   // Add state for selected issue and drawer open state
-  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [isFormDrawerOpen, setIsFormDrawerOpen] = useState(false);
+  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [isFormDrawerOpen, setIsFormDrawerOpen] = useState(false)
+  const [issues, setIssues] = useState<Issue[]>([])
+  const [selectedTab, setSelectedTab] = useState('overview')
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Update tabs to use state
+  const tabs = [
+    { name: 'Overview', value: 'overview', current: selectedTab === 'overview' },
+    { name: 'Finance', value: 'finance', current: selectedTab === 'finance' },
+    { name: 'Issues', value: 'issues', current: selectedTab === 'issues' },
+  ]
+
+  const handleTabChange = (value: string) => {
+    setSelectedTab(value)
+  }
+
+  // Fetch issues from Supabase when component mounts
+  useEffect(() => {
+    const fetchIssues = async () => {
+      try {
+        console.log('Dashboard: Starting to fetch recent issues');
+        setIsLoading(true);
+        
+        const issues = await getRecentIssues(5);
+        console.log('Dashboard: Received issues data:', issues.length, 'issues');
+        
+        if (issues.length === 0) {
+          console.log('Dashboard: No issues returned from API');
+        } else {
+          console.log('Dashboard: First issue sample:', issues[0]);
+        }
+        
+        setIssues(issues);
+        setError(null);
+      } catch (err) {
+        console.error('Dashboard: Error fetching issues:', err);
+        setError('Failed to load issues.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchIssues();
+  }, []);
 
   // Function to handle opening the drawer
   const openDrawer = (issue: Issue) => {
@@ -330,65 +376,35 @@ export default function Dashboard() {
   };
 
   // Function to handle form submission
-  const handleIssueSubmit = (formData: any) => {
-    console.log('New issue data:', formData);
-    // Here you would typically send this data to your API
-    setIsFormDrawerOpen(false);
-  };
-
-  // Dashboard open issues data
-  const openIssues: Issue[] = [
-    {
-      id: "1254",
-      title: "Water leak in bathroom ceiling",
-      type: "Bug",
-      status: "Todo",
-      priority: "High",
-      property: "Sunset Apartments Room 204",
-      reported: "Mar 8, 2024",
-      assignedTo: "JS"
-    },
-    {
-      id: "1253", 
-      title: "Broken heating system",
-      type: "Bug",
-      status: "In Progress",
-      priority: "High",
-      property: "Oakwood Heights Room 103",
-      reported: "Mar 7, 2024",
-      assignedTo: "RW"
-    },
-    {
-      id: "1252",
-      title: "Mailbox key replacement",
-      type: "Feature",
-      status: "Todo",
-      priority: "Low",
-      property: "Sunset Apartments Room 112",
-      reported: "Mar 6, 2024",
-      assignedTo: ""
-    },
-    {
-      id: "1251",
-      title: "Noisy neighbors complaint",
-      type: "Bug",
-      status: "Todo",
-      priority: "Medium",
-      property: "Parkview Residences Room 305",
-      reported: "Mar 5, 2024",
-      assignedTo: ""
-    },
-    {
-      id: "1250",
-      title: "Parking spot dispute",
-      type: "Bug",
-      status: "Todo",
-      priority: "Medium",
-      property: "Oakwood Heights Room 210",
-      reported: "Mar 4, 2024",
-      assignedTo: ""
+  const handleIssueSubmit = async (formData: any) => {
+    try {
+      // Create issue in Supabase
+      const issueData = {
+        title: formData.title,
+        description: formData.description || '',
+        property_id: formData.propertyId,
+        unit_id: formData.unitNumber || null,
+        status: 'Todo' as const,
+        priority: formData.priority as 'Low' | 'Medium' | 'High',
+        type: 'Bug' as const,
+        assigned_to: formData.assignedTo || null,
+        due_date: formData.dueDate || null,
+        is_emergency: formData.priority === 'High'
+      };
+      
+      const newIssueResult = await createIssue(issueData);
+      
+      if (newIssueResult) {
+        // Refresh the issues list
+        const issues = await getRecentIssues(5);
+        setIssues(issues);
+      }
+    } catch (err) {
+      console.error('Error creating issue:', err);
+    } finally {
+      setIsFormDrawerOpen(false);
     }
-  ];
+  };
 
   return (
     <SidebarLayout
@@ -415,13 +431,13 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {/* Properties */}
           <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Properties</h3>
+            <h3 className="text-sm font-cabinet-grotesk-bold text-gray-500">Properties</h3>
             <p className="mt-2 text-4xl font-bold text-gray-900">12</p>
           </div>
           
           {/* Contracts expiring */}
           <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Contracts expiring</h3>
+            <h3 className="text-sm font-cabinet-grotesk-bold text-gray-500">Contracts expiring</h3>
             <p className="mt-2 text-4xl font-bold text-gray-900">8</p>
             <div className="mt-4 flex items-center text-sm text-amber-600">
               <ArrowUpIcon className="h-4 w-4 mr-1" />
@@ -431,13 +447,13 @@ export default function Dashboard() {
           
           {/* Occupancy */}
           <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Occupancy</h3>
+            <h3 className="text-sm font-cabinet-grotesk-bold text-gray-500">Occupancy</h3>
             <p className="mt-2 text-4xl font-bold text-gray-900">94%</p>
           </div>
 
           {/* Income */}
           <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Income</h3>
+            <h3 className="text-sm font-cabinet-grotesk-bold text-gray-500">Income</h3>
             <p className="mt-2 text-4xl font-bold text-gray-900">£24,350</p>
             <div className="mt-4 flex items-center text-sm text-green-600">
               <ArrowUpIcon className="h-4 w-4 mr-1" />
@@ -447,13 +463,52 @@ export default function Dashboard() {
         </div>
         
         {/* Tabs */}
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="w-full grid grid-cols-3">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="finance">Finance</TabsTrigger>
-            <TabsTrigger value="issues">Issues</TabsTrigger>
-          </TabsList>
-          
+        <div>
+          <div className="grid grid-cols-1 sm:hidden">
+            <select
+              value={selectedTab}
+              onChange={(e) => handleTabChange(e.target.value)}
+              aria-label="Select a tab"
+              className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-2 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-[#D9E8FF]"
+            >
+              {tabs.map((tab) => (
+                <option key={tab.name} value={tab.value}>{tab.name}</option>
+              ))}
+            </select>
+            <ChevronDownIcon
+              aria-hidden="true"
+              className="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end fill-gray-500"
+            />
+          </div>
+          <div className="hidden sm:block">
+            <nav aria-label="Tabs" className="isolate flex divide-x divide-gray-200 rounded-lg shadow-sm">
+              {tabs.map((tab, tabIdx) => (
+                <button
+                  key={tab.name}
+                  onClick={() => handleTabChange(tab.value)}
+                  aria-current={tab.current ? 'page' : undefined}
+                  className={classNames(
+                    tab.current ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700',
+                    tabIdx === 0 ? 'rounded-l-lg' : '',
+                    tabIdx === tabs.length - 1 ? 'rounded-r-lg' : '',
+                    'group relative min-w-0 flex-1 overflow-hidden bg-white px-4 py-4 text-center text-sm font-medium hover:bg-gray-50 focus:z-10',
+                  )}
+                >
+                  <span>{tab.name}</span>
+                  <span
+                    aria-hidden="true"
+                    className={classNames(
+                      tab.current ? 'bg-[#FF503E]' : 'bg-transparent',
+                      'absolute inset-x-0 bottom-0 h-0.5',
+                    )}
+                  />
+                </button>
+              ))}
+            </nav>
+          </div>
+        </div>
+
+        <Tabs value={selectedTab} onValueChange={handleTabChange} className="w-full">
           <TabsContent value="overview" className="pt-6">
             {/* Dashboard Content */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -831,7 +886,7 @@ export default function Dashboard() {
           <div className="col-span-1 md:col-span-2 bg-white rounded-lg border border-gray-200 shadow-sm">
             <div className="px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-200">
               <div>
-                <h3 className="text-lg font-medium text-gray-900">Open Issues</h3>
+                <h3 className="text-lg font-cabinet-grotesk-bold text-gray-900">Open Issues</h3>
                 <p className="text-sm text-gray-500 mt-1">Recent maintenance requests and issues that need attention.</p>
               </div>
               <button 
@@ -843,47 +898,57 @@ export default function Dashboard() {
             </div>
             
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issue</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {openIssues.map((issue) => (
-                    <tr 
-                      key={issue.id}
-                      onClick={() => openDrawer(issue)}
-                      className="cursor-pointer hover:bg-gray-50"
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{issue.title}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          issue.priority === "High" ? "bg-red-100 text-red-800" :
-                          issue.priority === "Medium" ? "bg-blue-100 text-blue-800" :
-                          "bg-green-100 text-green-800"
-                        }`}>
-                          {issue.priority}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{issue.property}</td>
+              {isLoading ? (
+                <div className="flex justify-center items-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                </div>
+              ) : error ? (
+                <div className="text-center py-8 text-red-500">{error}</div>
+              ) : issues.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">No issues found</div>
+              ) : (
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issue</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {issues.map((issue) => (
+                      <tr 
+                        key={issue.id}
+                        onClick={() => openDrawer(issue)}
+                        className="cursor-pointer hover:bg-gray-50"
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{issue.title}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            issue.priority === 'High' ? 'bg-red-100 text-red-800' :
+                            issue.priority === 'Medium' ? 'bg-blue-100 text-blue-800' :
+                            'bg-green-100 text-green-800'
+                          }`}>
+                            {issue.priority}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{issue.property}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
             
             <div className="px-6 py-4 border-t border-gray-200">
-              <a href="/issues" className="text-sm text-indigo-600 hover:text-indigo-900">View all issues →</a>
+              <Link href="/issues" className="text-sm text-gray-900 hover:text-indigo-900">View all issues →</Link>
             </div>
           </div>
           
           {/* Recent Updates - 1/3 width on desktop, full width on mobile */}
           <div className="col-span-1 bg-white rounded-lg border border-gray-200 shadow-sm">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">Recent Updates</h3>
+              <h3 className="text-lg font-cabinet-grotesk-bold text-gray-900">Recent Updates</h3>
               <p className="text-sm text-gray-500 mt-1">Latest activities across your properties.</p>
             </div>
             
@@ -933,7 +998,7 @@ export default function Dashboard() {
         {/* Upcoming Meetings */}
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">Upcoming Meetings</h3>
+            <h3 className="text-lg font-cabinet-grotesk-bold text-gray-900">Upcoming Meetings</h3>
             <p className="text-sm text-gray-500">Schedule and manage your property-related appointments.</p>
           </div>
           
@@ -1017,7 +1082,7 @@ export default function Dashboard() {
         isOpen={isFormDrawerOpen}
         onClose={() => setIsFormDrawerOpen(false)}
         onSubmit={handleIssueSubmit}
-        title="Create New Issue"
+        title="Report New Issue"
       />
     </SidebarLayout>
   )

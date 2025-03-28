@@ -29,7 +29,7 @@ const AuthContext = createContext<AuthContextType>({
 // Mock user for development
 const MOCK_USER: User = {
   id: '00000000-0000-0000-0000-000000000001',
-  email: 'j.agbodo@gmail.com',
+  email: 'j.agbodo@mail.com',
   user_metadata: {
     name: 'James Agbodo'
   }

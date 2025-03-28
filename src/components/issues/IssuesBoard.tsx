@@ -188,7 +188,7 @@ export function IssuesBoard({ issues: initialIssues, onUpdateIssues }: IssuesBoa
                             onClick={() => handleIssueClick(issue)}
                           >
                             <div className="flex justify-between items-start">
-                              <span className="text-xs font-medium text-gray-500">#{issue.id}</span>
+                              {/* <span className="text-xs font-medium text-gray-500">#{issue.id}</span> */}
                               <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(issue.priority)}`}>
                                 {issue.priority}
                               </span>
