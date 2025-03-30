@@ -442,10 +442,10 @@ export default function PaymentPage() {
                         <button
                           type="submit"
                           disabled={loading}
-                          className={`w-full rounded-md px-4 py-3 text-base font-medium text-white shadow-sm ${
+                          className={`w-full rounded-md px-4 py-3 text-base font-medium text-gray-900 ${
                             loading 
-                              ? 'bg-indigo-400 cursor-not-allowed' 
-                              : 'bg-d9e8ff hover:bg-d9e8ff-80 focus:outline-none focus:ring-2 focus:ring-d9e8ff-80 focus:ring-offset-2'
+                              ? 'bg-gray-200 cursor-not-allowed' 
+                              : 'bg-[#D9E8FF]'
                           }`}
                         >
                           {loading ? (

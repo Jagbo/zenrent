@@ -60,7 +60,7 @@ export default function AccountCreation() {
       sidebar={<SideboardOnboardingContent />}
       isOnboarding={true}
     >
-      <div className="divide-y divide-gray-900/10">
+      <div className="space-y-8">
         {/* Progress Bar */}
         <div className="py-0">
           <nav aria-label="Progress">
@@ -80,9 +80,9 @@ export default function AccountCreation() {
                     <a href={step.href} aria-current="step" className="flex items-center">
                       <span className="flex flex-col items-center md:flex-row md:items-center px-3 py-3 text-sm font-medium sm:px-6 sm:py-4">
                         <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full border-2 border-d9e8ff">
-                          <span className="text-xs sm:text-sm text-d9e8ff">{step.id}</span>
+                          <span className="text-xs sm:text-sm text-gray-900">{step.id}</span>
                         </span>
-                        <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-d9e8ff">{step.name}</span>
+                        <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-gray-900">{step.name}</span>
                       </span>
                     </a>
                   ) : (
@@ -224,10 +224,10 @@ export default function AccountCreation() {
                   <div className="mt-4 flex gap-6">
                     <div 
                       className={`flex flex-1 flex-col items-center gap-3 rounded-lg border p-4 cursor-pointer
-                        ${accountType === 'individual' ? 'border-d9e8ff bg-d9e8ff-10' : 'border-gray-300'}`}
+                        ${accountType === 'individual' ? 'border-[#FF503E] bg-[#FF503E]/10' : 'border-gray-300'}`}
                       onClick={() => setAccountType('individual')}
                     >
-                      <HomeIcon className="h-8 w-8 text-d9e8ff" />
+                      <HomeIcon className="h-8 w-8 text-[#FF503E]" />
                       <div className="flex flex-col items-center">
                         <span className="font-medium text-gray-900">Individual Landlord</span>
                         <span className="text-sm text-gray-500 text-center mt-1">For personal property owners</span>
@@ -239,17 +239,17 @@ export default function AccountCreation() {
                           type="radio"
                           checked={accountType === 'individual'}
                           onChange={() => setAccountType('individual')}
-                          className="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white not-checked:before:hidden checked:border-d9e8ff checked:bg-d9e8ff focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden"
+                          className="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white not-checked:before:hidden checked:border-[#FF503E] checked:bg-[#FF503E] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF503E] disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden"
                         />
                       </div>
                     </div>
                     
                     <div 
                       className={`flex flex-1 flex-col items-center gap-3 rounded-lg border p-4 cursor-pointer
-                        ${accountType === 'company' ? 'border-d9e8ff bg-d9e8ff-10' : 'border-gray-300'}`}
+                        ${accountType === 'company' ? 'border-[#FF503E] bg-[#FF503E]/10' : 'border-gray-300'}`}
                       onClick={() => setAccountType('company')}
                     >
-                      <BuildingOfficeIcon className="h-8 w-8 text-d9e8ff" />
+                      <BuildingOfficeIcon className="h-8 w-8 text-[#FF503E]" />
                       <div className="flex flex-col items-center">
                         <span className="font-medium text-gray-900">Company Landlord</span>
                         <span className="text-sm text-gray-500 text-center mt-1">For property management businesses</span>
@@ -261,7 +261,7 @@ export default function AccountCreation() {
                           type="radio"
                           checked={accountType === 'company'}
                           onChange={() => setAccountType('company')}
-                          className="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white not-checked:before:hidden checked:border-d9e8ff checked:bg-d9e8ff focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden"
+                          className="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white not-checked:before:hidden checked:border-[#FF503E] checked:bg-[#FF503E] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF503E] disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden"
                         />
                       </div>
                     </div>
@@ -287,7 +287,7 @@ export default function AccountCreation() {
                               checked={agreeTerms}
                               onChange={(e) => setAgreeTerms(e.target.checked)}
                               aria-describedby="terms-description"
-                              className="col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 bg-white checked:border-d9e8ff checked:bg-d9e8ff indeterminate:border-d9e8ff indeterminate:bg-d9e8ff focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 forced-colors:appearance-auto"
+                              className="col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 bg-white checked:border-[#FF503E] checked:bg-[#FF503E] indeterminate:border-[#FF503E] indeterminate:bg-[#FF503E] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF503E] disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 forced-colors:appearance-auto"
                             />
                             <svg
                               fill="none"
@@ -316,7 +316,7 @@ export default function AccountCreation() {
                             I agree to the Terms of Service *
                           </label>
                           <p id="terms-description" className="text-gray-500">
-                            By checking this box, you agree to our <a href="#" className="text-d9e8ff hover:text-d9e8ff-80">Terms of Service</a>.
+                            By checking this box, you agree to our <a href="#" className="text-[#FF503E] hover:text-[#FF503E]/80">Terms of Service</a>.
                           </p>
                         </div>
                       </div>
@@ -332,7 +332,7 @@ export default function AccountCreation() {
                               checked={agreePrivacy}
                               onChange={(e) => setAgreePrivacy(e.target.checked)}
                               aria-describedby="privacy-description"
-                              className="col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 bg-white checked:border-d9e8ff checked:bg-d9e8ff indeterminate:border-d9e8ff indeterminate:bg-d9e8ff focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 forced-colors:appearance-auto"
+                              className="col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 bg-white checked:border-[#FF503E] checked:bg-[#FF503E] indeterminate:border-[#FF503E] indeterminate:bg-[#FF503E] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF503E] disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 forced-colors:appearance-auto"
                             />
                             <svg
                               fill="none"
@@ -361,7 +361,7 @@ export default function AccountCreation() {
                             I agree to the Privacy Policy *
                           </label>
                           <p id="privacy-description" className="text-gray-500">
-                            By checking this box, you agree to our <a href="#" className="text-d9e8ff hover:text-d9e8ff-80">Privacy Policy</a>.
+                            By checking this box, you agree to our <a href="#" className="text-[#FF503E] hover:text-[#FF503E]/80">Privacy Policy</a>.
                           </p>
                         </div>
                       </div>

@@ -87,6 +87,7 @@ const colors = {
     '[--radio-checked-bg:var(--color-white)] [--radio-checked-border:var(--color-zinc-950)]/15 [--radio-checked-indicator:var(--color-zinc-900)]',
   dark: '[--radio-checked-bg:var(--color-zinc-900)] [--radio-checked-border:var(--color-zinc-950)]/90 [--radio-checked-indicator:var(--color-white)]',
   zinc: '[--radio-checked-indicator:var(--color-white)] [--radio-checked-bg:var(--color-zinc-600)] [--radio-checked-border:var(--color-zinc-700)]/90',
+  custom: '[--radio-checked-indicator:var(--color-white)] [--radio-checked-bg:#D9E8FF] [--radio-checked-border:#D9E8FF]/90',
   red: '[--radio-checked-indicator:var(--color-white)] [--radio-checked-bg:var(--color-red-600)] [--radio-checked-border:var(--color-red-700)]/90',
   orange:
     '[--radio-checked-indicator:var(--color-white)] [--radio-checked-bg:var(--color-orange-500)] [--radio-checked-border:var(--color-orange-600)]/90',
@@ -118,7 +119,7 @@ const colors = {
 type Color = keyof typeof colors
 
 export function Radio({
-  color = 'dark/zinc',
+  color = 'custom',
   className,
   ...props
 }: { color?: Color; className?: string } & Omit<Headless.RadioProps, 'as' | 'className' | 'children'>) {

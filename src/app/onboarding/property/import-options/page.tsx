@@ -75,7 +75,7 @@ export default function PropertyImportOptions() {
       sidebar={<SideboardOnboardingContent />}
       isOnboarding={true}
     >
-      <div className="divide-y divide-gray-900/10">
+      <div className="space-y-8">
         {/* Progress Bar */}
         <div className="py-0">
           <nav aria-label="Progress">
@@ -86,7 +86,7 @@ export default function PropertyImportOptions() {
                     <a href={step.href} className="group flex w-full items-center">
                       <span className="flex flex-col items-center md:flex-row md:items-center px-3 py-3 text-sm font-medium sm:px-6 sm:py-4">
                         <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full bg-d9e8ff group-hover:bg-d9e8ff-80">
-                          <CheckIconSolid aria-hidden="true" className="size-4 sm:size-6 text-white" />
+                          <CheckIconSolid aria-hidden="true" className="size-4 sm:size-6 text-gray-900" />
                         </span>
                         <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-gray-900">{step.name}</span>
                       </span>
@@ -156,12 +156,12 @@ export default function PropertyImportOptions() {
                         key={option.id}
                         className={`relative flex cursor-pointer rounded-lg border p-4 ${
                           selectedOption === option.id 
-                            ? 'border-d9e8ff bg-d9e8ff-5' 
+                            ? 'border-[#FF503E] bg-[#FF503E]/10' 
                             : 'border-gray-300 hover:border-gray-400'
                         }`}
                         onClick={() => handleOptionSelect(option.id)}
                       >
-                        <div className="mr-4 flex size-12 shrink-0 items-center justify-center rounded-full bg-d9e8ff-10">
+                        <div className="mr-4 flex size-12 shrink-0 items-center justify-center rounded-full bg-[#FF503E]/10">
                           <option.icon className="size-6 text-gray-900" aria-hidden="true" />
                         </div>
                         <div className="flex-1">
@@ -177,7 +177,7 @@ export default function PropertyImportOptions() {
                                 type="radio"
                                 checked={selectedOption === option.id}
                                 onChange={() => handleOptionSelect(option.id)}
-                                className="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white not-checked:before:hidden checked:border-d9e8ff checked:bg-d9e8ff focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden"
+                                className="relative size-4 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white not-checked:before:hidden checked:border-[#FF503E] checked:bg-[#FF503E] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF503E] disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden"
                               />
                             </div>
                           </div>
@@ -240,7 +240,7 @@ export default function PropertyImportOptions() {
               <button
                 type="button"
                 onClick={handleContinue}
-                className="rounded-md bg-d9e8ff px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-d9e8ff-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff"
+                className="rounded-md bg-d9e8ff px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs hover:bg-d9e8ff-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff"
               >
                 Continue with selected method
               </button>

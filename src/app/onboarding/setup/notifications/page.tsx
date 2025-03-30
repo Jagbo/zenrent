@@ -71,8 +71,34 @@ export default function NotificationPreferences() {
   
   // Handle save as draft
   const handleSaveAsDraft = () => {
-    // Save form data to localStorage or API
-    alert("Your notification preferences have been saved as draft");
+    // Save to localStorage
+    try {
+      const notificationPreferences = {
+        email: {
+          rentPayments: emailRentPayments,
+          rentArrears: emailRentArrears,
+          maintenance: emailMaintenance,
+          documents: emailDocuments,
+          compliance: emailCompliance,
+          tenancyExpiry: emailTenancyExpiry,
+          financialSummaries: emailFinancialSummaries,
+        },
+        sms: {
+          urgentMaintenance: smsUrgentMaintenance,
+          rentPayments: smsRentPayments,
+          tenantCommunication: smsTenantCommunication,
+        },
+        app: {
+          enabled: appNotifications,
+        }
+      };
+      localStorage.setItem('notificationPreferencesDraft', JSON.stringify(notificationPreferences));
+      // Navigate to next step
+      router.push('/onboarding/setup/completion');
+    } catch (error) {
+      console.error("Error saving notification preferences draft data:", error);
+      alert('Failed to save draft. Please try again.');
+    }
   };
 
   // Toggle switch component
@@ -81,8 +107,8 @@ export default function NotificationPreferences() {
       <button
         type="button"
         className={`${
-          enabled ? 'bg-d9e8ff' : 'bg-gray-200'
-        } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-d9e8ff focus:ring-offset-2`}
+          enabled ? 'bg-[#D9E8FF]' : 'bg-gray-200'
+        } relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#D9E8FF] focus:ring-offset-2`}
         role="switch"
         aria-checked={enabled}
         onClick={onChange}
@@ -102,7 +128,7 @@ export default function NotificationPreferences() {
       sidebar={<SideboardOnboardingContent />}
       isOnboarding={true}
     >
-      <div className="divide-y divide-gray-900/10">
+      <div className="space-y-8">
         {/* Progress Bar */}
         <div className="py-0">
           <nav aria-label="Progress">
@@ -112,8 +138,8 @@ export default function NotificationPreferences() {
                   {step.status === 'complete' ? (
                     <a href={step.href} className="group flex w-full items-center">
                       <span className="flex flex-col items-center md:flex-row md:items-center px-3 py-3 text-sm font-medium sm:px-6 sm:py-4">
-                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full bg-d9e8ff group-hover:bg-d9e8ff-80">
-                          <CheckIconSolid aria-hidden="true" className="size-4 sm:size-6 text-white" />
+                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full bg-[#D9E8FF] group-hover:bg-[#D9E8FF]">
+                          <CheckIconSolid aria-hidden="true" className="size-4 sm:size-6 text-gray-900" />
                         </span>
                         <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-gray-900">{step.name}</span>
                       </span>
@@ -121,7 +147,7 @@ export default function NotificationPreferences() {
                   ) : step.status === 'current' ? (
                     <a href={step.href} aria-current="step" className="flex items-center">
                       <span className="flex flex-col items-center md:flex-row md:items-center px-3 py-3 text-sm font-medium sm:px-6 sm:py-4">
-                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full border-2 border-d9e8ff">
+                        <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full border-2 border-[#D9E8FF]">
                           <span className="text-xs sm:text-sm text-gray-900">{step.id}</span>
                         </span>
                         <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-gray-900">{step.name}</span>
@@ -304,7 +330,7 @@ export default function NotificationPreferences() {
               </button>
               <button
                 type="submit"
-                className="rounded-md bg-d9e8ff px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-d9e8ff-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff"
+                className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-[#D9E8FF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
               >
                 Save Preferences
               </button>

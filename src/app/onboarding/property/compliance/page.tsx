@@ -69,9 +69,15 @@ export default function PropertyCompliance() {
   
   // Handle save as draft
   const handleSaveAsDraft = () => {
-    // In a real application, you would save the draft here
-    console.log('Form data saved as draft:', formData);
-    alert('Your compliance information has been saved as draft');
+    // Save to localStorage
+    try {
+      localStorage.setItem('propertyComplianceDraft', JSON.stringify(formData));
+      // Navigate to next step
+      router.push('/onboarding/tenant/import-options');
+    } catch (error) {
+      console.error("Error saving compliance draft data:", error);
+      alert('Failed to save draft. Please try again.');
+    }
   };
 
   return (

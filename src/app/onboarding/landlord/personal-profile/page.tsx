@@ -62,8 +62,29 @@ export default function PersonalProfile() {
   
   // Handle save as draft
   const handleSaveAsDraft = () => {
-    // Save form data to localStorage or API
-    alert("Your profile has been saved as draft");
+    // Save to localStorage
+    try {
+      const profileData = {
+        profilePhoto,
+        dateOfBirth,
+        addressLine1,
+        addressLine2,
+        townCity,
+        county,
+        postcode,
+        isCompany
+      };
+      localStorage.setItem('personalProfileDraft', JSON.stringify(profileData));
+      // Navigate to next step based on company status
+      if (isCompany) {
+        router.push('/onboarding/landlord/company-profile');
+      } else {
+        router.push('/onboarding/landlord/tax-information');
+      }
+    } catch (error) {
+      console.error("Error saving profile draft data:", error);
+      alert('Failed to save draft. Please try again.');
+    }
   };
 
   return (
@@ -71,7 +92,7 @@ export default function PersonalProfile() {
       sidebar={<SideboardOnboardingContent />}
       isOnboarding={true}
     >
-      <div className="divide-y divide-gray-900/10">
+      <div className="space-y-8">
         {/* Progress Bar */}
         <div className="py-0">
           <nav aria-label="Progress">
@@ -81,18 +102,18 @@ export default function PersonalProfile() {
                   {step.status === 'complete' ? (
                     <a href={step.href} className="group flex w-full items-center">
                       <span className="flex items-center px-6 py-4 text-sm font-medium">
-                        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#FF503E] group-hover:bg-[#e3402f]">
-                          <CheckIconSolid aria-hidden="true" className="size-6 text-white" />
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#D9E8FF] group-hover:bg-[#D9E8FF]/80">
+                          <CheckIconSolid aria-hidden="true" className="size-6 text-gray-900" />
                         </span>
                         <span className="ml-4 text-sm font-cabinet-grotesk font-bold text-gray-900">{step.name}</span>
                       </span>
                     </a>
                   ) : step.status === 'current' ? (
                     <a href={step.href} aria-current="step" className="flex items-center px-6 py-4 text-sm font-medium">
-                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-[#FF503E]">
-                        <span className="text-[#FF503E]">{step.id}</span>
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-[#D9E8FF]">
+                        <span className="text-gray-900">{step.id}</span>
                       </span>
-                      <span className="ml-4 text-sm font-cabinet-grotesk font-bold text-[#FF503E]">{step.name}</span>
+                      <span className="ml-4 text-sm font-cabinet-grotesk font-bold text-gray-900">{step.name}</span>
                     </a>
                   ) : (
                     <a href={step.href} className="group flex items-center">
@@ -304,29 +325,20 @@ export default function PersonalProfile() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center justify-between gap-x-6 border-t border-gray-900/10 px-4 py-4 sm:px-6">
+            <div className="flex items-center justify-end gap-x-6 border-t border-gray-900/10 px-4 py-4 sm:px-6">
               <button
                 type="button"
-                onClick={handleSaveAsDraft}
-                className="text-sm/6 font-semibold text-gray-900 hover:text-gray-700"
+                onClick={() => router.back()}
+                className="text-sm/6 font-semibold text-gray-900"
               >
-                Save as Draft
+                Back
               </button>
-              <div className="flex gap-x-4">
-                <button
-                  type="button"
-                  onClick={() => router.back()}
-                  className="text-sm/6 font-semibold text-gray-900"
-                >
-                  Back
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-md bg-custom-d9e8ff px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs hover:bg-custom-d9e8ff-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-custom-d9e8ff"
-                >
-                  Save and Continue
-                </button>
-              </div>
+              <button
+                type="submit"
+                className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs hover:bg-[#D9E8FF]/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
+              >
+                Save and Continue
+              </button>
             </div>
           </form>
         </div>

@@ -259,18 +259,20 @@ export default function TenancySetup() {
   
   // Handle save as draft
   const handleSaveAsDraft = () => {
-    // In a real application, you would save the draft here
-    const draftData = {
-      property: propertyData,
-      tenancy: formData,
-      tenants: tenants
-    };
-    console.log('Data saved as draft:', draftData);
-    
-    // Save to localStorage for demo purposes
-    localStorage.setItem('tenancyDataDraft', JSON.stringify(draftData));
-    
-    alert('Your tenancy setup has been saved as draft');
+    // Save to localStorage
+    try {
+      const draftData = {
+        property: propertyData,
+        tenancy: formData,
+        tenants: tenants
+      };
+      localStorage.setItem('tenancyDataDraft', JSON.stringify(draftData));
+      // Navigate to next step
+      router.push('/onboarding/tenant/confirmation');
+    } catch (error) {
+      console.error("Error saving tenancy draft data:", error);
+      alert('Failed to save draft. Please try again.');
+    }
   };
   
   return (
@@ -278,7 +280,7 @@ export default function TenancySetup() {
       sidebar={<SideboardOnboardingContent />}
       isOnboarding={true}
     >
-      <div className="divide-y divide-gray-900/10">
+      <div className="space-y-8">
         {/* Progress Bar */}
         <div className="py-0">
           <nav aria-label="Progress">
@@ -289,7 +291,7 @@ export default function TenancySetup() {
                     <a href={step.href} className="group flex w-full items-center">
                       <span className="flex flex-col items-center md:flex-row md:items-center px-3 py-3 text-sm font-medium sm:px-6 sm:py-4">
                         <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full bg-[#D9E8FF] group-hover:bg-[#D9E8FF]/80">
-                          <CheckIconSolid aria-hidden="true" className="size-4 sm:size-6 text-white" />
+                          <CheckIconSolid aria-hidden="true" className="size-4 sm:size-6 text-gray-900" />
                         </span>
                         <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-gray-900">{step.name}</span>
                       </span>
@@ -444,7 +446,7 @@ export default function TenancySetup() {
                           required
                           value={formData.startDate}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                         />
                       </div>
                     </div>
@@ -461,7 +463,7 @@ export default function TenancySetup() {
                             id="endDate"
                             value={formData.endDate}
                             onChange={handleInputChange}
-                            className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                            className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                           />
                         </div>
                       </div>
@@ -569,7 +571,7 @@ export default function TenancySetup() {
                               max="31"
                           value={formData.rentDueDay}
                           onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                          className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                               placeholder="1"
                             />
                       </div>
@@ -659,7 +661,7 @@ export default function TenancySetup() {
                               id="depositRegistrationDate"
                               value={formData.depositRegistrationDate}
                               onChange={handleInputChange}
-                              className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                              className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                             />
                           </div>
                         </div>
@@ -675,7 +677,7 @@ export default function TenancySetup() {
                               id="depositRegistrationRef"
                               value={formData.depositRegistrationRef}
                               onChange={handleInputChange}
-                              className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                              className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                               placeholder="Enter reference number"
                             />
                           </div>
@@ -720,7 +722,7 @@ export default function TenancySetup() {
                                   required
                                   value={tenant.firstName}
                                   onChange={(e) => handleTenantChange(index, 'firstName', e.target.value)}
-                                  className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                                  className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                                 />
                               </div>
                             </div>
@@ -736,7 +738,7 @@ export default function TenancySetup() {
                                   required
                                   value={tenant.lastName}
                                   onChange={(e) => handleTenantChange(index, 'lastName', e.target.value)}
-                                  className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                                  className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                                 />
                               </div>
                             </div>
@@ -752,7 +754,7 @@ export default function TenancySetup() {
                                   required
                                   value={tenant.email}
                                   onChange={(e) => handleTenantChange(index, 'email', e.target.value)}
-                                  className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                                  className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                                 />
                               </div>
                             </div>
@@ -767,7 +769,7 @@ export default function TenancySetup() {
                                   id={`phoneNumber-${index}`}
                                   value={tenant.phoneNumber}
                                   onChange={(e) => handleTenantChange(index, 'phoneNumber', e.target.value)}
-                                  className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                                  className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                                 />
                               </div>
                             </div>
@@ -841,7 +843,7 @@ export default function TenancySetup() {
                                       required
                                       value={tenant.startDate}
                                       onChange={(e) => handleTenantChange(index, 'startDate', e.target.value)}
-                                      className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                                      className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                                     />
                                   </div>
                                 </div>
@@ -857,7 +859,7 @@ export default function TenancySetup() {
                                         id={`endDate-${index}`}
                                         value={tenant.endDate}
                                         onChange={(e) => handleTenantChange(index, 'endDate', e.target.value)}
-                                        className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                                        className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                                       />
                                     </div>
                                   </div>
@@ -955,7 +957,7 @@ export default function TenancySetup() {
                                       max="31"
                                       value={tenant.rentDueDay}
                                       onChange={(e) => handleTenantChange(index, 'rentDueDay', e.target.value)}
-                                      className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                                      className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                                       placeholder="1"
                                     />
                                   </div>
@@ -1038,7 +1040,7 @@ export default function TenancySetup() {
                                       id={`depositRegistrationDate-${index}`}
                                       value={tenant.depositRegistrationDate}
                                       onChange={(e) => handleTenantChange(index, 'depositRegistrationDate', e.target.value)}
-                                      className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                                      className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                                     />
                                   </div>
                                 </div>
@@ -1053,7 +1055,7 @@ export default function TenancySetup() {
                                       id={`depositRegistrationRef-${index}`}
                                       value={tenant.depositRegistrationRef}
                                       onChange={(e) => handleTenantChange(index, 'depositRegistrationRef', e.target.value)}
-                                      className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                                      className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                                       placeholder="Enter reference number"
                                     />
                                   </div>
@@ -1093,7 +1095,7 @@ export default function TenancySetup() {
               </button>
               <button
                 type="submit"
-                className="rounded-md bg-[#D9E8FF] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#D9E8FF]/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
+                className="rounded-md bg-[#D9E8FF] px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-[#D9E8FF]/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
               >
                 Continue
               </button>

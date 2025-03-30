@@ -65,7 +65,7 @@ export default function TenantImportOptions() {
       sidebar={<SideboardOnboardingContent />}
       isOnboarding={true}
     >
-      <div className="divide-y divide-gray-900/10">
+      <div className="space-y-8">
         {/* Progress Bar */}
         <div className="py-0">
           <nav aria-label="Progress">
@@ -76,7 +76,7 @@ export default function TenantImportOptions() {
                     <a href={step.href} className="group flex w-full items-center">
                       <span className="flex flex-col items-center md:flex-row md:items-center px-3 py-3 text-sm font-medium sm:px-6 sm:py-4">
                         <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full bg-[#D9E8FF] group-hover:bg-[#D9E8FF]/80">
-                          <CheckIconSolid aria-hidden="true" className="size-4 sm:size-6 text-white" />
+                          <CheckIconSolid aria-hidden="true" className="size-4 sm:size-6 text-gray-900" />
                         </span>
                         <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-gray-900">{step.name}</span>
                       </span>
@@ -220,10 +220,10 @@ export default function TenantImportOptions() {
                 type="button"
                 onClick={handleContinue}
                 disabled={!selectedOption}
-                className={`rounded-md px-3 py-2 text-sm font-semibold text-white shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF] ${
+                className={`rounded-md px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF] ${
                   selectedOption
                     ? 'bg-[#D9E8FF] hover:bg-[#D9E8FF]/80'
-                    : 'bg-indigo-400 cursor-not-allowed'
+                    : 'bg-gray-300 cursor-not-allowed'
                 }`}
               >
                 Continue with Selected Method

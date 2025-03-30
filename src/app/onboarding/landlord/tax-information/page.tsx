@@ -115,8 +115,23 @@ export default function TaxInformation() {
   
   // Handle save as draft
   const handleSaveAsDraft = () => {
-    // Save form data to localStorage or API
-    alert("Your tax information has been saved as draft");
+    // Save to localStorage
+    try {
+      const taxData = {
+        taxStatus,
+        utr,
+        taxReference,
+        accountingPeriod,
+        mtdStatus,
+        taxReferenceLabel
+      };
+      localStorage.setItem('taxInformationDraft', JSON.stringify(taxData));
+      // Navigate to next step
+      router.push('/onboarding/property/import-options');
+    } catch (error) {
+      console.error("Error saving tax information draft data:", error);
+      alert('Failed to save draft. Please try again.');
+    }
   };
 
   return (
@@ -124,7 +139,7 @@ export default function TaxInformation() {
       sidebar={<SideboardOnboardingContent />}
       isOnboarding={true}
     >
-      <div className="divide-y divide-gray-900/10">
+      <div className="space-y-8">
         {/* Progress Bar */}
         <div className="py-0">
           <nav aria-label="Progress">
@@ -135,7 +150,7 @@ export default function TaxInformation() {
                     <a href={step.href} className="group flex w-full items-center">
                       <span className="flex flex-col items-center md:flex-row md:items-center px-3 py-3 text-sm font-medium sm:px-6 sm:py-4">
                         <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full bg-d9e8ff group-hover:bg-d9e8ff-80">
-                          <CheckIconSolid aria-hidden="true" className="size-4 sm:size-6 text-white" />
+                          <CheckIconSolid aria-hidden="true" className="size-4 sm:size-6 text-gray-900" />
                         </span>
                         <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-gray-900">{step.name}</span>
                       </span>
@@ -259,7 +274,7 @@ export default function TaxInformation() {
                               checked={isUKTaxResident}
                               onChange={(e) => setIsUKTaxResident(e.target.checked)}
                               aria-describedby="uk-tax-resident-description"
-                              className="col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 bg-white checked:border-d9e8ff checked:bg-d9e8ff indeterminate:border-d9e8ff indeterminate:bg-d9e8ff focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 forced-colors:appearance-auto"
+                              className="col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 bg-white checked:border-[#FF503E] checked:bg-[#FF503E] indeterminate:border-[#FF503E] indeterminate:bg-[#FF503E] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF503E] disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 forced-colors:appearance-auto"
                             />
                             <svg
                               fill="none"
@@ -463,7 +478,7 @@ export default function TaxInformation() {
                 </button>
                 <button
                   type="submit"
-                  className="rounded-md bg-d9e8ff px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-d9e8ff-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff"
+                  className="rounded-md bg-d9e8ff px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs hover:bg-d9e8ff-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff"
                 >
                   Save and Continue
                 </button>

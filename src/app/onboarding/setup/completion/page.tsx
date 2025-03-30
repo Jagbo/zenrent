@@ -175,7 +175,13 @@ export default function SetupCompletion() {
 
   // Render single plan card
   const PlanCard = ({ plan }: { plan: any }) => (
-    <div className={`flex flex-col border rounded-lg p-6 ${plan.recommended ? 'border-indigo-500 ring-1 ring-[#D9E8FF]/80' : 'border-gray-300'}`}>
+    <div className={`flex flex-col border rounded-lg p-6 ${
+      selectedPlan === plan.id 
+        ? 'border-[#D9E8FF] ring-2 ring-[#D9E8FF]' 
+        : plan.recommended 
+          ? 'border-indigo-500 ring-1 ring-[#D9E8FF]/80' 
+          : 'border-gray-300'
+    }`}>
       {plan.recommended && (
         <span className="inline-flex items-center rounded-full bg-[#D9E8FF]/10 px-3 py-1.5 text-xs font-medium text-indigo-800 mb-4">
           Recommended based on your properties
@@ -211,10 +217,10 @@ export default function SetupCompletion() {
       <button
         type="button"
         onClick={() => handlePlanSelect(plan.id)}
-        className={`mt-6 rounded-md px-4 py-3 text-sm font-semibold shadow-sm ${
+        className={`mt-6 rounded-md px-4 py-3 text-sm font-semibold ${
           selectedPlan === plan.id 
-            ? 'bg-[#D9E8FF] text-white hover:bg-[#D9E8FF]/80' 
-            : 'bg-white text-gray-900 ring-1 ring-inset ring-[#D9E8FF]/50 hover:bg-[#D9E8FF]/5'
+            ? 'bg-[#D9E8FF] text-gray-900' 
+            : 'bg-white text-gray-900 ring-1 ring-inset ring-[#D9E8FF]'
         }`}
       >
         {selectedPlan === plan.id ? 'Selected' : 'Select Plan'}
@@ -233,7 +239,7 @@ export default function SetupCompletion() {
       sidebar={<SideboardOnboardingContent />}
       isOnboarding={true}
     >
-      <div className="divide-y divide-gray-900/10">
+      <div className="space-y-8">
         {/* Progress Bar */}
         <div className="py-0">
           <nav aria-label="Progress">
@@ -244,7 +250,7 @@ export default function SetupCompletion() {
                     <a href={step.href} className="group flex w-full items-center">
                       <span className="flex flex-col items-center md:flex-row md:items-center px-3 py-3 text-sm font-medium sm:px-6 sm:py-4">
                         <span className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full bg-[#D9E8FF] group-hover:bg-[#D9E8FF]/80">
-                          <CheckIconSolid aria-hidden="true" className="size-4 sm:size-6 text-white" />
+                          <CheckIconSolid aria-hidden="true" className="size-4 sm:size-6 text-gray-900" />
                         </span>
                         <span className="mt-2 text-center md:mt-0 md:text-left md:ml-4 text-xs sm:text-sm font-medium text-gray-900">{step.name}</span>
                       </span>
@@ -423,58 +429,12 @@ export default function SetupCompletion() {
             </div>
           </div>
 
-          {/* Quick Links */}
-          <div className="mx-auto max-w-3xl bg-white border border-gray-300 ring-1 shadow-xs ring-gray-900/5 sm:rounded-xl mb-8">
-            <div className="px-4 py-5 sm:p-6">
-              <h3 className="text-base font-semibold leading-6 text-gray-900">Quick Links</h3>
-              <div className="mt-4">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {quickLinks.map((link) => (
-                    <div key={link.name} className="relative flex items-center space-x-3 rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm focus-within:ring-2 focus-within:ring-[#D9E8FF]/80 focus-within:ring-offset-2 hover:border-gray-400">
-                      <div className="flex-shrink-0">
-                        <link.icon className="h-5 w-5 text-gray-400" aria-hidden="true" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <a href={link.href} className="focus:outline-none">
-                          <span className="absolute inset-0" aria-hidden="true" />
-                          <p className="text-sm font-medium text-gray-900">{link.name}</p>
-                        </a>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Support Information */}
-          <div className="mx-auto max-w-3xl bg-white border border-gray-300 ring-1 shadow-xs ring-gray-900/5 sm:rounded-xl mb-8">
-            <div className="px-4 py-5 sm:p-6">
-              <h3 className="text-base font-semibold leading-6 text-gray-900">Support Information</h3>
-              <div className="mt-2 max-w-xl text-sm text-gray-500">
-                <p>If you need any assistance, our support team is here to help.</p>
-              </div>
-              <div className="mt-4">
-                <div className="flex items-center space-x-2">
-                  <PhoneIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
-                  <span className="text-sm text-gray-900">+44 (0) 20 1234 5678</span>
-                </div>
-                <div className="flex items-center space-x-2 mt-2">
-                  <QuestionMarkCircleIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
-                  <a href="/support" className="text-sm text-gray-900 hover:text-gray-700">
-                    Visit our Help Center
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Action Buttons */}
           <div className="mx-auto max-w-3xl flex flex-col sm:flex-row sm:space-x-4 space-y-4 sm:space-y-0">
             <button
               type="button"
               onClick={handleTakeTour}
-              className="flex-1 rounded-md bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-[#D9E8FF]/50 hover:bg-[#D9E8FF]/5"
+              className="flex-1 rounded-md bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-[#D9E8FF]"
             >
               <div className="flex items-center justify-center">
                 <AcademicCapIcon className="h-5 w-5 mr-2" aria-hidden="true" />
@@ -484,11 +444,11 @@ export default function SetupCompletion() {
             <button
               type="button"
               onClick={handleGoToPayment}
-              className="flex-1 rounded-md bg-[#D9E8FF] px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#D9E8FF]/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
+              className="flex-1 rounded-md bg-[#D9E8FF] px-3.5 py-2.5 text-sm font-semibold text-gray-900"
             >
               <div className="flex items-center justify-center">
                 Go to Payment
-                <CreditCardIcon className="h-5 w-5 ml-2" aria-hidden="true" />
+                <CreditCardIcon className="h-5 w-5 ml-2 text-gray-900" aria-hidden="true" />
               </div>
             </button>
           </div>

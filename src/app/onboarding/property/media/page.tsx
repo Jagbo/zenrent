@@ -120,9 +120,15 @@ export default function PropertyMedia() {
   
   // Handle save as draft
   const handleSaveAsDraft = () => {
-    // In a real application, you would save the draft here
-    console.log('Form data saved as draft:', formData);
-    alert('Your property media has been saved as draft');
+    // Save to localStorage
+    try {
+      localStorage.setItem('propertyMediaDraft', JSON.stringify(formData));
+      // Navigate to next step
+      router.push('/onboarding/property/compliance');
+    } catch (error) {
+      console.error("Error saving media draft data:", error);
+      alert('Failed to save draft. Please try again.');
+    }
   };
   
   // Trigger file input click

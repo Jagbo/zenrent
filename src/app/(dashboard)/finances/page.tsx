@@ -1,6 +1,5 @@
 import { Metadata } from 'next';
 import { FinancialOverview } from '@/components/finances/FinancialOverview';
-import { FinancialMetricsCard } from '@/components/finances/FinancialMetricsCard';
 import { ExpensesTable } from '@/components/finances/ExpensesTable';
 import { IncomeTable } from '@/components/finances/IncomeTable';
 import { InvoicesTable } from '@/components/finances/InvoicesTable';
@@ -17,13 +16,8 @@ export default async function FinancesPage() {
       <h1 className="text-2xl font-semibold tracking-tight">Finances</h1>
       
       {/* Financial Overview */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div>
         <FinancialOverview />
-      </div>
-
-      {/* Financial Metrics */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <FinancialMetricsCard />
       </div>
 
       {/* Income & Expenses */}

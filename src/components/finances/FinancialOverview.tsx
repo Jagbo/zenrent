@@ -103,30 +103,43 @@ export function FinancialOverview() {
   if (isLoading) {
     return (
       <>
-        <Card>
-          <CardHeader>
-            <CardTitle>Total Income</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">Loading...</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Total Expenses</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">Loading...</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Net Profit</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">Loading...</div>
-          </CardContent>
-        </Card>
+        <div className="mb-4">
+          <PropertySelector />
+        </div>
+        <div className="grid grid-cols-2 gap-4 md:gap-6 lg:grid-cols-4">
+          <Card className="w-full">
+            <CardHeader className="p-4">
+              <CardTitle className="text-sm md:text-base">Total Income</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className="text-lg md:text-2xl font-bold">Loading...</div>
+            </CardContent>
+          </Card>
+          <Card className="w-full">
+            <CardHeader className="p-4">
+              <CardTitle className="text-sm md:text-base">Total Expenses</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className="text-lg md:text-2xl font-bold">Loading...</div>
+            </CardContent>
+          </Card>
+          <Card className="w-full">
+            <CardHeader className="p-4">
+              <CardTitle className="text-sm md:text-base">Net Profit</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className="text-lg md:text-2xl font-bold">Loading...</div>
+            </CardContent>
+          </Card>
+          <Card className="w-full">
+            <CardHeader className="p-4">
+              <CardTitle className="text-sm md:text-base">ROI</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className="text-lg md:text-2xl font-bold">Loading...</div>
+            </CardContent>
+          </Card>
+        </div>
       </>
     );
   }
@@ -140,36 +153,48 @@ export function FinancialOverview() {
       <div className="mb-4">
         <PropertySelector />
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Total Income</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-green-600">
-            {formatCurrency(totalIncome)}
-          </div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Total Expenses</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-red-600">
-            {formatCurrency(totalExpenses)}
-          </div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Net Profit</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className={`text-2xl font-bold ${netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {formatCurrency(netProfit)}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-2 gap-4 md:gap-6 lg:grid-cols-4">
+        <Card className="w-full">
+          <CardHeader className="p-4">
+            <CardTitle className="text-sm md:text-base">Total Income</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-lg md:text-2xl font-bold text-green-600">
+              {formatCurrency(totalIncome)}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="w-full">
+          <CardHeader className="p-4">
+            <CardTitle className="text-sm md:text-base">Total Expenses</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-lg md:text-2xl font-bold text-red-600">
+              {formatCurrency(totalExpenses)}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="w-full">
+          <CardHeader className="p-4">
+            <CardTitle className="text-sm md:text-base">Net Profit</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className={`text-lg md:text-2xl font-bold ${netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {formatCurrency(netProfit)}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="w-full">
+          <CardHeader className="p-4">
+            <CardTitle className="text-sm md:text-base">ROI</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-lg md:text-2xl font-bold text-blue-600">
+              {data?.metrics?.roi ? `${data.metrics.roi.toFixed(1)}%` : 'N/A'}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </>
   );
 } 

@@ -112,8 +112,27 @@ export default function CompanyProfile() {
   
   // Handle save as draft
   const handleSaveAsDraft = () => {
-    // Save form data to localStorage or API
-    alert("Your company profile has been saved as draft");
+    // Save to localStorage
+    try {
+      const companyData = {
+        companyName,
+        registrationNumber,
+        vatNumber,
+        businessType,
+        addressLine1,
+        addressLine2,
+        townCity,
+        county,
+        postcode,
+        directors
+      };
+      localStorage.setItem('companyProfileDraft', JSON.stringify(companyData));
+      // Navigate to next step
+      router.push('/onboarding/landlord/tax-information');
+    } catch (error) {
+      console.error("Error saving company profile draft data:", error);
+      alert('Failed to save draft. Please try again.');
+    }
   };
 
   return (
@@ -475,7 +494,7 @@ export default function CompanyProfile() {
                 </button>
                 <button
                   type="submit"
-                  className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-[#D9E8FF]/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
+                  className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs hover:bg-[#D9E8FF]/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
                 >
                   Save and Continue
                 </button>

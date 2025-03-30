@@ -72,9 +72,15 @@ export default function PropertyFinancial() {
   
   // Handle save as draft
   const handleSaveAsDraft = () => {
-    // In a real application, you would save the draft here
-    console.log('Form data saved as draft:', formData);
-    alert('Your property financial details have been saved as draft');
+    // Save to localStorage
+    try {
+      localStorage.setItem('propertyFinancialDraft', JSON.stringify(formData));
+      // Navigate to next step
+      router.push('/onboarding/property/media');
+    } catch (error) {
+      console.error("Error saving financial draft data:", error);
+      alert('Failed to save draft. Please try again.');
+    }
   };
 
   return (
