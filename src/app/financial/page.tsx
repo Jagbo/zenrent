@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { SidebarLayout } from '../components/sidebar-layout'
 import { Heading } from '../components/heading'
 import { Text } from '../components/text'
@@ -121,14 +121,15 @@ const chartConfig = {
 //   { id: 3, name: "Energy Performance Certificate.pdf", type: "epc", uploadDate: "Nov 5, 2023", property: "Parkview Residences", fileSize: "1.5 MB" },
 // ]
 
-// Transaction type definition
+// Transaction type definition - Updated to match API response
 interface Transaction {
+  id: string; // Added ID
   date: string;
   type: string;
   category: string;
   description: string;
   property: string;
-  amount: string;
+  amount: number; // Changed to number
   status: string;
 }
 
@@ -164,6 +165,7 @@ interface FinancialData {
     description: string;
     amount: number;
   }[];
+  transactions: Transaction[]; // Added transactions array
   service_charges: {
     id: string;
     date: string;
@@ -197,7 +199,176 @@ interface FinancialData {
     noi: number;
     cap_rate: number;
   }[];
+  // Add properties field for all-properties response
+  properties?: {
+    property_id: string;
+    property_address: string;
+    property_code: string;
+    income: any[];
+    expenses: any[];
+    transactions: Transaction[];
+    service_charges: any[];
+    invoices: any[];
+    total_income: number;
+    total_expenses: number;
+    net_profit: number;
+    metrics: {
+      roi: number;
+      yield: number;
+      occupancy_rate: number;
+    };
+    property_performance?: {
+      id: string;
+      address: string;
+      total_units: number;
+      monthly_revenue: number;
+      monthly_expenses: number;
+      noi: number;
+      cap_rate: number;
+    }[];
+  }[];
 }
+
+// Add these new types
+interface PropertyFromAPI {
+  id: string;
+  property_code: string;
+  address: string;
+  type: string;
+  total_units: number;
+}
+
+interface ApiErrorResponse {
+  error: string;
+}
+
+type PropertyApiResponse = PropertyFromAPI[] | ApiErrorResponse;
+
+// Helper function to format currency
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('en-GB', { 
+    style: 'currency', 
+    currency: 'GBP' 
+  }).format(value);
+};
+
+// Helper function to format date
+const formatDate = (dateString: string) => {
+  try {
+    return new Date(dateString).toLocaleDateString('en-GB', {
+      day: 'numeric', 
+      month: 'short', 
+      year: 'numeric'
+    });
+  } catch (e) {
+    return dateString; // Return original string if date is invalid
+  }
+};
+
+// Update the getCombinedTransactions function to properly handle property addresses
+const getCombinedTransactions = (financialData: FinancialData | null): Transaction[] => {
+  if (!financialData) return [];
+  
+  // If it's a single property response, transactions are already at the top level
+  if (financialData.transactions) {
+    return financialData.transactions;
+  }
+  
+  // If it's an all-properties response, combine transactions from all properties
+  if (financialData.properties) {
+    console.log('Combining transactions from multiple properties:', financialData.properties.length);
+    
+    // Collect all transactions from each property
+    const allTransactions = financialData.properties.flatMap(property => {
+      console.log(`Property ${property.property_id}: ${property.transactions?.length || 0} transactions`);
+      
+      return (property.transactions || []).map((transaction: Transaction) => ({
+        ...transaction,
+        // Make sure property name is included - use property_address from the parent property object
+        property: transaction.property || property.property_address || 'Unknown'
+      }));
+    });
+    
+    // Log the combined transactions for debugging
+    console.log('Combined transactions:', allTransactions.length);
+    
+    // Sort by date, most recent first
+    return allTransactions.sort((a: Transaction, b: Transaction) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  }
+  
+  return [];
+};
+
+// Define a type for property performance records
+type PropertyPerformance = {
+  id: string;
+  address: string;
+  total_units: number;
+  monthly_revenue: number;
+  monthly_expenses: number;
+  noi: number;
+  cap_rate: number;
+};
+
+const getCombinedPropertyPerformance = (financialData: FinancialData | null): PropertyPerformance[] => {
+  if (!financialData) return [];
+  
+  // If it's a single property response, property_performance is at the top level
+  if (financialData.property_performance) {
+    return financialData.property_performance;
+  }
+  
+  // If it's an all-properties response, collect property_performance from all properties
+  if (financialData.properties) {
+    return financialData.properties
+      .filter(property => property.property_performance && property.property_performance.length > 0)
+      .flatMap(property => property.property_performance || []);
+  }
+  
+  return [];
+};
+
+// Helper function to get combined income and expenses from FinancialData
+const getCombinedIncomeAndExpenses = (financialData: FinancialData | null): { allIncome: any[], allExpenses: any[] } => {
+  if (!financialData) {
+    return { allIncome: [], allExpenses: [] };
+  }
+
+  // Single property response
+  if (financialData.income && financialData.expenses) {
+    return {
+      allIncome: financialData.income || [],
+      allExpenses: financialData.expenses || [],
+    };
+  }
+
+  // All properties response
+  if (financialData.properties) {
+    const allIncome = financialData.properties.flatMap(p => p.income || []);
+    const allExpenses = financialData.properties.flatMap(p => p.expenses || []);
+    return { allIncome, allExpenses };
+  }
+
+  return { allIncome: [], allExpenses: [] };
+};
+
+// Updated chartConfig specifically for Income Breakdown
+const incomeBreakdownChartConfig = {
+  rent: {
+    label: "Rental Income",
+    color: "#E9823F", // Use existing colors or define new ones
+  },
+  fees: {
+    label: "Fees & Deposits",
+    color: "#29A3BE",
+  },
+  other: {
+    label: "Other Income",
+    color: "#4264CB",
+  }
+};
 
 export default function Financial() {
   const [isReportDrawerOpen, setIsReportDrawerOpen] = useState(false);
@@ -207,130 +378,303 @@ export default function Financial() {
   const [financialData, setFinancialData] = useState<FinancialData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [properties, setProperties] = useState<PropertyFromAPI[]>([]);
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | 'all'>('all');
+  const [isPropertyDropdownOpen, setIsPropertyDropdownOpen] = useState(false);
 
+  // Add ref for clicking outside detection
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Handle clicking outside of dropdown
   useEffect(() => {
-    const fetchData = async () => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsPropertyDropdownOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Define fetchFinancialData with useCallback
+  const fetchFinancialData = useCallback(async () => {
+    try {
+      setLoading(true);
+
+      // Get the current date and date range
+      const now = new Date();
+      const startDate = new Date(now.getFullYear(), now.getMonth() - 6, 1).toISOString().split('T')[0];
+      const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+
+      console.log('Fetching financial data for all properties');
+      console.log('Using date range:', { startDate, endDate });
+
+      // Build the endpoint URL based on property selection
+      let financesEndpoint = `/api/finances?startDate=${startDate}&endDate=${endDate}`;
+      if (selectedPropertyId && selectedPropertyId !== 'all') {
+        financesEndpoint += `&propertyId=${selectedPropertyId}`;
+      }
+      console.log(`Fetching from endpoint: ${financesEndpoint}`);
+
+      const response = await fetch(financesEndpoint);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch financial data');
+      }
+
+      console.log('Financial data fetched:', data);
+      setFinancialData(data);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching financial data:', err);
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedPropertyId]);
+
+  // First, fetch all properties
+  useEffect(() => {
+    const fetchProperties = async () => {
       try {
         setLoading(true);
-        
-        // First fetch user's properties
+
+        // Fetch Properties from the main API
         const propertiesResponse = await fetch('/api/properties');
-        const propertiesData = await propertiesResponse.json();
-        
+        const propertiesData = await propertiesResponse.json() as PropertyApiResponse;
+
         if (!propertiesResponse.ok) {
-          throw new Error(propertiesData.error || 'Failed to fetch properties');
-        }
-        
-        if (!propertiesData || propertiesData.length === 0) {
-          throw new Error('No properties found. Please add a property first.');
-        }
-
-        console.log('Properties fetched:', propertiesData);
-
-        // Get the current date
-        const now = new Date();
-        // Use fixed date range for development to match our test data
-        const startDate = process.env.NODE_ENV === 'development' 
-          ? '2024-10-01' 
-          : new Date(now.getFullYear(), now.getMonth() - 6, 1).toISOString().split('T')[0];
-        
-        const endDate = process.env.NODE_ENV === 'development'
-          ? '2025-03-31'
-          : new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
-
-        // Use the first property as default
-        const defaultPropertyId = propertiesData[0].id;
-        console.log('Using property ID:', defaultPropertyId);
-        console.log('Using date range:', { startDate, endDate });
-
-        // Fetch financial data
-        const response = await fetch(`/api/finances?propertyId=${defaultPropertyId}&startDate=${startDate}&endDate=${endDate}`);
-        let data = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to fetch financial data');
+          const errorMessage = (propertiesData && typeof propertiesData === 'object' && 'error' in propertiesData)
+                            ? propertiesData.error
+                            : `HTTP error! status: ${propertiesResponse.status}`;
+          console.error('Properties API HTTP error:', errorMessage);
+          throw new Error(errorMessage);
         }
 
-        console.log('Financial data fetched:', data);
-        
-        // If we're in development mode and the result has no income/expenses, return sample data
-        if (process.env.NODE_ENV === 'development' && 
-            (!data.income || data.income.length === 0)) {
-          console.log('Using fallback sample data for development');
-          
-          // Sample income data
-          const sampleIncome = [
-            { id: '1', date: '2024-10-28', income_type: 'Rent', category: 'Monthly Rent', description: 'Monthly rental income', amount: 2000 },
-            { id: '2', date: '2024-11-28', income_type: 'Rent', category: 'Monthly Rent', description: 'Monthly rental income', amount: 2000 },
-            { id: '3', date: '2024-12-28', income_type: 'Rent', category: 'Monthly Rent', description: 'Monthly rental income', amount: 2000 },
-            { id: '4', date: '2025-01-28', income_type: 'Rent', category: 'Monthly Rent', description: 'Monthly rental income', amount: 2000 },
-            { id: '5', date: '2025-02-28', income_type: 'Rent', category: 'Monthly Rent', description: 'Monthly rental income', amount: 2000 },
-            { id: '6', date: '2025-03-28', income_type: 'Rent', category: 'Monthly Rent', description: 'Monthly rental income', amount: 2000 },
-          ];
-          
-          // Sample expense data
-          const sampleExpenses = [
-            { id: '1', date: '2024-10-28', expense_type: 'Maintenance', category: 'Repairs', description: 'Regular maintenance', amount: 300 },
-            { id: '2', date: '2024-11-28', expense_type: 'Utilities', category: 'Electricity', description: 'Monthly electricity bill', amount: 150 },
-            { id: '3', date: '2024-12-28', expense_type: 'Maintenance', category: 'Repairs', description: 'Regular maintenance', amount: 300 },
-            { id: '4', date: '2025-01-28', expense_type: 'Utilities', category: 'Electricity', description: 'Monthly electricity bill', amount: 150 },
-            { id: '5', date: '2025-02-28', expense_type: 'Maintenance', category: 'Repairs', description: 'Regular maintenance', amount: 300 },
-            { id: '6', date: '2025-03-28', expense_type: 'Utilities', category: 'Electricity', description: 'Monthly electricity bill', amount: 150 },
-          ];
-          
-          const totalIncome = sampleIncome.reduce((sum, item) => sum + item.amount, 0);
-          const totalExpenses = sampleExpenses.reduce((sum, item) => sum + item.amount, 0);
-          
-          data = {
-            ...data,
-            income: sampleIncome,
-            expenses: sampleExpenses,
-            total_income: totalIncome,
-            total_expenses: totalExpenses,
-            net_profit: totalIncome - totalExpenses,
-            metrics: {
-              roi: 15.5,
-              yield: 7.2,
-              occupancy_rate: 95
-            }
-          };
+        if (!Array.isArray(propertiesData)) {
+          const errorMessage = 'Invalid property data format received';
+          console.error(errorMessage, propertiesData);
+          throw new Error(errorMessage);
         }
+
+        console.log('Properties fetched successfully:', propertiesData);
+        setProperties(propertiesData);
         
-        setFinancialData(data);
+        // After setting properties, fetch initial financial data
+        await fetchFinancialData();
       } catch (err) {
-        console.error('Error details:', err);
-        setError(err instanceof Error ? err.message : 'An error occurred');
+        console.error('Error fetching properties:', err);
+        setError(err instanceof Error ? err.message : 'An unexpected error occurred');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-  }, []);
+    fetchProperties();
+  }, [fetchFinancialData]);
+
+  // Handle property selection
+  const handlePropertySelect = (propertyId: string | 'all') => {
+    console.log('Selected property:', propertyId);
+    setSelectedPropertyId(propertyId);
+    setIsPropertyDropdownOpen(false);
+  };
+
+  // Then, update financial data when selectedPropertyId changes
+  useEffect(() => {
+    if (!properties.length) return;
+    
+    if (selectedPropertyId !== 'all') {
+      // Find the property in the cached data
+      const selectedProperty = properties.find(p => p.id === selectedPropertyId);
+      if (!selectedProperty) {
+        console.error(`Selected property ${selectedPropertyId} not found`);
+        return;
+      }
+    }
+    
+    // Fetch financial data with the selected property
+    console.log('Fetching financial data for property:', selectedPropertyId);
+    fetchFinancialData();
+  }, [selectedPropertyId, properties, fetchFinancialData]);
 
   // Transform API data for charts
-  const transformedRevenueData = financialData ? [
-    // Transform the last 6 months of data
-    ...Array.from({ length: 6 }, (_, i) => {
-      const date = new Date();
-      date.setMonth(date.getMonth() - i);
-      const monthName = date.toLocaleString('default', { month: 'long' });
-      
-      const monthIncome = financialData.income
-        .filter(inc => new Date(inc.date).getMonth() === date.getMonth())
-        .reduce((sum, inc) => sum + inc.amount, 0);
-      
-      const monthExpenses = financialData.expenses
-        .filter(exp => new Date(exp.date).getMonth() === date.getMonth())
-        .reduce((sum, exp) => sum + exp.amount, 0);
+  const { allIncome, allExpenses } = getCombinedIncomeAndExpenses(financialData);
 
-      return {
-        month: monthName,
-        income: monthIncome,
-        expenses: monthExpenses
-      };
-    }).reverse()
-  ] : revenueData; // Fall back to sample data if API data isn't loaded
+  const transformedRevenueData = useMemo(() => {
+    if (!financialData) return [];
+
+    const monthlyData: { [key: string]: { income: number; expenses: number } } = {};
+    const monthOrder: string[] = [];
+
+    // 1. Generate the last 6 month keys (YYYY-MM) and initialize data structure
+    const endDate = new Date(); // Current date
+    for (let i = 5; i >= 0; i--) { // Loop from 5 down to 0 to get months in chronological order
+        const targetDate = new Date(endDate);
+        targetDate.setDate(1); // Start from the first day of the month
+        targetDate.setMonth(endDate.getMonth() - i);
+        
+        const year = targetDate.getFullYear();
+        const month = (targetDate.getMonth() + 1).toString().padStart(2, '0'); // Ensure two digits (01, 02, ...)
+        const monthKey = `${year}-${month}`; // Format: "2024-06"
+        
+        monthOrder.push(monthKey);
+        monthlyData[monthKey] = { income: 0, expenses: 0 };
+    }
+    
+    // 2. Aggregate income into monthlyData
+    allIncome.forEach(inc => {
+        try {
+            const incDate = new Date(inc.date);
+            // Check if date is valid
+            if (isNaN(incDate.getTime())) {
+              console.warn("Skipping invalid income date:", inc.date);
+              return;
+            }
+            const year = incDate.getFullYear();
+            const month = (incDate.getMonth() + 1).toString().padStart(2, '0');
+            const monthKey = `${year}-${month}`;
+            if (monthlyData.hasOwnProperty(monthKey)) {
+                monthlyData[monthKey].income += (inc.amount || 0);
+            }
+        } catch (e) {
+            console.error("Error processing income item:", inc, e);
+        }
+    });
+
+    // 3. Aggregate expenses into monthlyData
+    allExpenses.forEach(exp => {
+        try {
+            const expDate = new Date(exp.date);
+             // Check if date is valid
+             if (isNaN(expDate.getTime())) {
+              console.warn("Skipping invalid expense date:", exp.date);
+              return;
+            }
+            const year = expDate.getFullYear();
+            const month = (expDate.getMonth() + 1).toString().padStart(2, '0');
+            const monthKey = `${year}-${month}`;
+            if (monthlyData.hasOwnProperty(monthKey)) {
+                monthlyData[monthKey].expenses += (exp.amount || 0);
+            }
+        } catch (e) {
+            console.error("Error processing expense item:", exp, e);
+        }
+    });
+
+    // 4. Format the result based on monthOrder
+    const result = monthOrder.map(monthKey => {
+        return {
+            month: monthKey, // Use "YYYY-MM" as the key
+            income: monthlyData[monthKey].income,
+            expenses: monthlyData[monthKey].expenses,
+        };
+    });
+
+    console.log('Transformed Revenue Data for Chart:', result);
+    return result;
+  }, [financialData, allIncome, allExpenses]);
+
+  // Calculate the date range description dynamically
+  const chartDateRangeDescription = useMemo(() => {
+    if (transformedRevenueData.length === 0) {
+      return "Calculating date range..."; 
+    }
+    
+    try {
+        // Parse the first and last "YYYY-MM" keys
+        const [firstYear, firstMonthNum] = transformedRevenueData[0].month.split('-');
+        const firstDate = new Date(parseInt(firstYear), parseInt(firstMonthNum) - 1, 1);
+
+        const [lastYearNum, lastMonthNum] = transformedRevenueData[transformedRevenueData.length - 1].month.split('-');
+        const lastDate = new Date(parseInt(lastYearNum), parseInt(lastMonthNum) - 1, 1);
+
+        const firstMonthName = firstDate.toLocaleString('default', { month: 'long' });
+        const firstYearNum = firstDate.getFullYear(); // Use parsed year
+        const lastMonthName = lastDate.toLocaleString('default', { month: 'long' });
+        const lastYear = lastDate.getFullYear(); // Use parsed year
+
+        if (firstYearNum === lastYear) {
+          return `${firstMonthName} - ${lastMonthName} ${lastYear}`; // e.g., "January - June 2024"
+        } else {
+          // Handles cases like "December 2023 - May 2024"
+          return `${firstMonthName} ${firstYearNum} - ${lastMonthName} ${lastYear}`; 
+        }
+    } catch (e) {
+        console.error("Error formatting chart date range:", e);
+        // Fallback if parsing fails
+        return `${transformedRevenueData[0].month} - ${transformedRevenueData[transformedRevenueData.length - 1].month}`;
+    }
+  }, [transformedRevenueData]);
+
+  // New useMemo for Income Breakdown data
+  const transformedIncomeBreakdownData = useMemo(() => {
+    if (!financialData || !allIncome) return [];
+
+    const monthlyIncomeBreakdown: { [key: string]: { rent: number; fees: number; other: number } } = {};
+    const monthOrder: string[] = [];
+
+    // 1. Generate the last 6 month keys (YYYY-MM) and initialize data structure
+    const endDate = new Date(); 
+    for (let i = 5; i >= 0; i--) { 
+        const targetDate = new Date(endDate);
+        targetDate.setDate(1); 
+        targetDate.setMonth(endDate.getMonth() - i);
+        
+        const year = targetDate.getFullYear();
+        const month = (targetDate.getMonth() + 1).toString().padStart(2, '0');
+        const monthKey = `${year}-${month}`; 
+        
+        monthOrder.push(monthKey);
+        monthlyIncomeBreakdown[monthKey] = { rent: 0, fees: 0, other: 0 };
+    }
+    
+    // 2. Aggregate income into monthlyIncomeBreakdown by category
+    allIncome.forEach(inc => {
+        try {
+            const incDate = new Date(inc.date);
+            if (isNaN(incDate.getTime())) {
+              console.warn("Skipping invalid income date for breakdown:", inc.date);
+              return;
+            }
+            const year = incDate.getFullYear();
+            const month = (incDate.getMonth() + 1).toString().padStart(2, '0');
+            const monthKey = `${year}-${month}`;
+            
+            if (monthlyIncomeBreakdown.hasOwnProperty(monthKey)) {
+                const category = (inc.category || '').toLowerCase(); // Use category field
+                const amount = inc.amount || 0;
+
+                if (category.includes('rent')) {
+                  monthlyIncomeBreakdown[monthKey].rent += amount;
+                } else if (category.includes('fee') || category.includes('deposit')) {
+                  monthlyIncomeBreakdown[monthKey].fees += amount;
+                } else {
+                  monthlyIncomeBreakdown[monthKey].other += amount;
+                }
+            }
+        } catch (e) {
+            console.error("Error processing income item for breakdown:", inc, e);
+        }
+    });
+
+    // 3. Format the result based on monthOrder
+    const result = monthOrder.map(monthKey => {
+        return {
+            month: monthKey, // Use "YYYY-MM" as the key
+            rent: monthlyIncomeBreakdown[monthKey].rent,
+            fees: monthlyIncomeBreakdown[monthKey].fees,
+            other: monthlyIncomeBreakdown[monthKey].other,
+        };
+    });
+
+    console.log('Transformed Income Breakdown Data:', result);
+    return result;
+  }, [financialData, allIncome]);
 
   // Function to handle tab change
   const handleTabChange = (value: string) => {
@@ -342,9 +686,9 @@ export default function Financial() {
   };
 
   const handleViewTransaction = (transaction: Transaction) => {
-    setSelectedTransaction(transaction)
-    setIsDrawerOpen(true)
-  }
+    setSelectedTransaction(transaction);
+    setIsDrawerOpen(true);
+  };
 
   const handleReportSubmit = (reportConfig: any) => {
     // Here you would typically generate the report based on the config
@@ -357,32 +701,86 @@ export default function Financial() {
       sidebar={<SidebarContent currentPath="/financial" />}
     >
       <div className="space-y-6">
-        {loading ? (
+        {/* Page Header */}
+        <div className="md:flex md:items-center md:justify-between">
+          <div className="min-w-0 flex-1">
+            <Heading level={1} className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">Financial Overview</Heading>
+            <div className="mt-1 flex flex-col sm:flex-row sm:flex-wrap sm:space-x-6">
+              <p className="text-sm text-gray-500">Track your financial performance across all your properties.</p>
+            </div>
+          </div>
+          {/* Property Selector */}
+          <div className="mt-4 flex md:mt-0 md:ml-4">
+            <div className="w-full md:w-auto relative" ref={dropdownRef}>
+              <button
+                type="button"
+                className="inline-flex items-center gap-x-2 rounded-md bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                onClick={() => setIsPropertyDropdownOpen(!isPropertyDropdownOpen)}
+              >
+                <BuildingOfficeIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                {selectedPropertyId === 'all' 
+                  ? 'All Properties' 
+                  : properties.find(p => p.id === selectedPropertyId)?.address || 'Select Property'}
+                <ChevronDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+              </button>
+
+              {/* Dropdown Menu */}
+              {isPropertyDropdownOpen && (
+                <div className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                  <div className="py-1">
+                    <button
+                      onClick={() => handlePropertySelect('all')}
+                      className={`${
+                        selectedPropertyId === 'all'
+                          ? 'bg-gray-100 text-gray-900'
+                          : 'text-gray-700'
+                      } block w-full px-4 py-2 text-left text-sm hover:bg-gray-50`}
+                    >
+                      All Properties
+                    </button>
+                    {properties.map((property) => (
+                      <button
+                        key={property.id}
+                        onClick={() => handlePropertySelect(property.id)}
+                        className={`${
+                          selectedPropertyId === property.id
+                            ? 'bg-gray-100 text-gray-900'
+                            : 'text-gray-700'
+                        } block w-full px-4 py-2 text-left text-sm hover:bg-gray-50`}
+                      >
+                        {property.address}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsReportDrawerOpen(true)}
+              className="ml-3 inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              Generate Report
+            </button>
+          </div>
+        </div>
+        
+        {/* Loading and Error States */}
+        {loading && (
           <div className="flex items-center justify-center h-64">
             <div className="text-gray-500">Loading financial data...</div>
           </div>
-        ) : error ? (
+        )}
+        
+        {error && (
           <div className="bg-red-50 p-4 rounded-md">
             <div className="text-red-700">{error}</div>
           </div>
-        ) : (
+        )}
+        
+        {/* Only show content when data is loaded */}
+        {!loading && !error && financialData && (
           <>
-            {/* Page Header */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-              <div>
-                <Heading level={1} className="text-2xl font-bold">Financial Overview</Heading>
-                <Text className="text-gray-500 mt-1">Monitor your property portfolio's financial performance.</Text>
-              </div>
-              <div className="mt-4 md:mt-0 flex space-x-3">
-                <button 
-                  className="px-4 py-2 bg-[#D9E8FF] rounded-md text-sm font-medium text-black hover:bg-[#C8D7EE]"
-                  onClick={() => setIsReportDrawerOpen(true)}
-                >
-                  Generate Report
-                </button>
-              </div>
-            </div>
-            
             {/* Report Generation Drawer */}
             <ReportGenerationDrawer
               isOpen={isReportDrawerOpen}
@@ -395,7 +793,9 @@ export default function Financial() {
               {/* Total Revenue */}
               <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
                 <h3 className="text-sm font-cabinet-grotesk-bold text-gray-500">Total Revenue (YTD)</h3>
-                <p className="mt-2 text-3xl font-bold text-gray-900">£{financialData?.total_income.toLocaleString()}</p>
+                <p className="mt-2 text-3xl font-bold text-gray-900">
+                  {financialData?.total_income ? `£${financialData.total_income.toLocaleString()}` : 'N/A'}
+                </p>
                 <div className="mt-4 flex items-center text-sm text-green-600">
                   <ArrowUpIcon className="h-4 w-4 mr-1" />
                   <span>8.2% from last year</span>
@@ -405,7 +805,9 @@ export default function Financial() {
               {/* Total Expenses */}
               <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
                 <h3 className="text-sm font-cabinet-grotesk-bold text-gray-500">Total Expenses (YTD)</h3>
-                <p className="mt-2 text-3xl font-bold text-gray-900">£{financialData?.total_expenses.toLocaleString()}</p>
+                <p className="mt-2 text-3xl font-bold text-gray-900">
+                  {financialData?.total_expenses ? `£${financialData.total_expenses.toLocaleString()}` : 'N/A'}
+                </p>
                 <div className="mt-4 flex items-center text-sm text-red-600">
                   <ArrowUpIcon className="h-4 w-4 mr-1" />
                   <span>5.4% from last year</span>
@@ -415,7 +817,9 @@ export default function Financial() {
               {/* Net Operating Income */}
               <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
                 <h3 className="text-sm font-cabinet-grotesk-bold text-gray-500">Net Operating Income</h3>
-                <p className="mt-2 text-3xl font-bold text-gray-900">£{financialData?.net_profit.toLocaleString()}</p>
+                <p className="mt-2 text-3xl font-bold text-gray-900">
+                  {financialData?.net_profit ? `£${financialData.net_profit.toLocaleString()}` : 'N/A'}
+                </p>
                 <div className="mt-4 flex items-center text-sm text-green-600">
                   <ArrowUpIcon className="h-4 w-4 mr-1" />
                   <span>10.3% from last year</span>
@@ -425,7 +829,9 @@ export default function Financial() {
               {/* Cash on Cash Return */}
               <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
                 <h3 className="text-sm font-cabinet-grotesk-bold text-gray-500">Cash on Cash Return</h3>
-                <p className="mt-2 text-3xl font-bold text-gray-900">{financialData?.metrics.roi.toFixed(1)}%</p>
+                <p className="mt-2 text-3xl font-bold text-gray-900">
+                  {financialData?.metrics?.roi ? `${financialData.metrics.roi.toFixed(1)}%` : 'N/A'}
+                </p>
                 <div className="mt-4 flex items-center text-sm text-green-600">
                   <ArrowUpIcon className="h-4 w-4 mr-1" />
                   <span>0.6% from last year</span>
@@ -485,7 +891,7 @@ export default function Financial() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Revenue vs Expenses</CardTitle>
-                    <CardDescription>January - June 2024</CardDescription>
+                    <CardDescription>{chartDateRangeDescription}</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <ChartContainer config={chartConfig}>
@@ -496,11 +902,26 @@ export default function Financial() {
                           tickLine={false}
                           tickMargin={10}
                           axisLine={false}
-                          tickFormatter={(value) => value.slice(0, 3)}
+                          tickFormatter={(value) => {
+                              try {
+                                  const [year, monthNum] = value.split('-');
+                                  const date = new Date(parseInt(year), parseInt(monthNum) - 1, 1);
+                                  return date.toLocaleString('default', { month: 'short' });
+                              } catch (e) { return value; }
+                          }}
                         />
                         <ChartTooltip
                           cursor={false}
-                          content={<ChartTooltipContent indicator="dashed" />}
+                          content={<ChartTooltipContent 
+                            indicator="dashed" 
+                            labelFormatter={(label) => {
+                                try {
+                                    const [year, monthNum] = label.split('-');
+                                    const date = new Date(parseInt(year), parseInt(monthNum) - 1, 1);
+                                    return date.toLocaleString('default', { month: 'short', year: 'numeric' });
+                                } catch (e) { return label; }
+                            }}
+                          />}
                         />
                         <Bar dataKey="income" fill="#E9823F" radius={4} />
                         <Bar dataKey="expenses" fill="#E95D3F" radius={4} />
@@ -675,7 +1096,7 @@ export default function Financial() {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {financialData?.property_performance.map((property) => (
+                        {getCombinedPropertyPerformance(financialData).map((property) => (
                           <tr key={property.id}>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{property.address}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{property.total_units}</td>
@@ -693,6 +1114,13 @@ export default function Financial() {
                             </td>
                           </tr>
                         ))}
+                        {getCombinedPropertyPerformance(financialData).length === 0 && (
+                          <tr>
+                            <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
+                              No property performance data available
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -703,53 +1131,47 @@ export default function Financial() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Income Breakdown</CardTitle>
-                    <CardDescription>Monthly income by category</CardDescription>
+                    <CardDescription>{chartDateRangeDescription}</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <ChartContainer config={{
-                      rent: {
-                        label: "Rental Income",
-                        color: "#E9823F"
-                      },
-                      fees: {
-                        label: "Fees & Deposits",
-                        color: "#29A3BE"
-                      },
-                      other: {
-                        label: "Other Income",
-                        color: "#4264CB"
-                      }
-                    }}>
-                      <BarChart accessibilityLayer data={[
-                        { month: "January", rent: 110000, fees: 6000, other: 4000 },
-                        { month: "February", rent: 115000, fees: 5500, other: 4500 },
-                        { month: "March", rent: 118000, fees: 6200, other: 3800 },
-                        { month: "April", rent: 120000, fees: 5800, other: 4200 },
-                        { month: "May", rent: 128000, fees: 7000, other: 5000 },
-                        { month: "June", rent: 133000, fees: 7500, other: 5300 }
-                      ]}>
+                    <ChartContainer config={incomeBreakdownChartConfig}>
+                      <BarChart accessibilityLayer data={transformedIncomeBreakdownData}>
                         <CartesianGrid vertical={false} />
                         <XAxis
                           dataKey="month"
                           tickLine={false}
                           tickMargin={10}
                           axisLine={false}
-                          tickFormatter={(value) => value.slice(0, 3)}
+                          tickFormatter={(value) => {
+                              try {
+                                  const [year, monthNum] = value.split('-');
+                                  const date = new Date(parseInt(year), parseInt(monthNum) - 1, 1);
+                                  return date.toLocaleString('default', { month: 'short' });
+                              } catch (e) { return value; }
+                          }}
                         />
                         <ChartTooltip
                           cursor={false}
-                          content={<ChartTooltipContent indicator="dashed" />}
+                          content={<ChartTooltipContent 
+                            indicator="dashed" 
+                            labelFormatter={(label) => {
+                                try {
+                                    const [year, monthNum] = label.split('-');
+                                    const date = new Date(parseInt(year), parseInt(monthNum) - 1, 1);
+                                    return date.toLocaleString('default', { month: 'short', year: 'numeric' });
+                                } catch (e) { return label; }
+                            }}
+                          />}
                         />
-                        <Bar dataKey="rent" name="rent" fill="#E9823F" radius={4} />
-                        <Bar dataKey="fees" name="fees" fill="#29A3BE" radius={4} />
-                        <Bar dataKey="other" name="other" fill="#4264CB" radius={4} />
+                        <Bar dataKey="rent" fill={incomeBreakdownChartConfig.rent.color} radius={4} stackId="a" />
+                        <Bar dataKey="fees" fill={incomeBreakdownChartConfig.fees.color} radius={4} stackId="a" />
+                        <Bar dataKey="other" fill={incomeBreakdownChartConfig.other.color} radius={4} stackId="a" />
                       </BarChart>
                     </ChartContainer>
                   </CardContent>
                   <CardFooter className="flex-col items-start gap-2 text-sm">
-                    <div className="flex gap-2 font-medium leading-none text-green-600">
-                      <TrendingUp className="h-4 w-4" />
-                      <span>Rental income increased by 4.2% in the last 6 months</span>
+                    <div className="leading-none text-muted-foreground">
+                      Showing income breakdown for the last 6 months.
                     </div>
                   </CardFooter>
                 </Card>
@@ -827,18 +1249,7 @@ export default function Financial() {
                       <h3 className="text-lg font-cabinet-grotesk-bold text-gray-900">Recent Transactions</h3>
                       <p className="text-sm text-gray-500">Recent financial activities across all properties.</p>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="relative">
-                        <input
-                          type="text"
-                          placeholder="Search transactions..."
-                          className="w-64 px-4 py-2 border border-gray-300 rounded-md text-sm"
-                        />
-                      </div>
-                      <button className="p-2 text-gray-500 hover:text-gray-700">
-                        <ArrowDownIcon className="h-5 w-5" />
-                      </button>
-                    </div>
+                    {/* Search/Filter controls can be added here later */}
                   </div>
                   
                   <div className="overflow-x-auto">
@@ -856,131 +1267,38 @@ export default function Financial() {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        <tr>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 8, 2024</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Income</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Rent</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Monthly Rent - Room 204</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Sunset Apartments</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">+£1,850.00</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Completed</span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <a href="#" className="text-blue-600 hover:text-blue-900" onClick={(e) => {
-                              e.preventDefault()
-                              handleViewTransaction({
-                                date: "Mar 8, 2024",
-                                type: "Income",
-                                category: "Rent",
-                                description: "Monthly Rent - Room 204",
-                                property: "Sunset Apartments",
-                                amount: "+£1,850.00",
-                                status: "Completed"
-                              })
-                            }}>View</a>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 7, 2024</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Expense</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Maintenance</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Emergency Plumbing Repair</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Oakwood Heights</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">-£850.00</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Completed</span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <a href="#" className="text-blue-600 hover:text-blue-900" onClick={(e) => {
-                              e.preventDefault()
-                              handleViewTransaction({
-                                date: "Mar 7, 2024",
-                                type: "Expense",
-                                category: "Maintenance",
-                                description: "Emergency Plumbing Repair",
-                                property: "Oakwood Heights",
-                                amount: "-£850.00",
-                                status: "Completed"
-                              })
-                            }}>View</a>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 5, 2024</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Income</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Fees</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Late Fee - Room 112</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Sunset Apartments</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">+£75.00</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Completed</span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <a href="#" className="text-blue-600 hover:text-blue-900" onClick={(e) => {
-                              e.preventDefault()
-                              handleViewTransaction({
-                                date: "Mar 5, 2024",
-                                type: "Income",
-                                category: "Fees",
-                                description: "Late Fee - Room 112",
-                                property: "Sunset Apartments",
-                                amount: "+£75.00",
-                                status: "Completed"
-                              })
-                            }}>View</a>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 3, 2024</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Expense</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Property Care</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Landscaping Services</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Royal Gardens</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">-£450.00</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Pending</span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <a href="#" className="text-blue-600 hover:text-blue-900" onClick={(e) => {
-                              e.preventDefault()
-                              handleViewTransaction({
-                                date: "Mar 3, 2024",
-                                type: "Expense",
-                                category: "Property Care",
-                                description: "Landscaping Services",
-                                property: "Royal Gardens",
-                                amount: "-£450.00",
-                                status: "Pending"
-                              })
-                            }}>View</a>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 1, 2024</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Income</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Rent</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Monthly Rent - Room 305</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Parkview Residences</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">+£2,100.00</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Completed</span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <a href="#" className="text-blue-600 hover:text-blue-900" onClick={(e) => {
-                              e.preventDefault()
-                              handleViewTransaction({
-                                date: "Mar 1, 2024",
-                                type: "Income",
-                                category: "Rent",
-                                description: "Monthly Rent - Room 305",
-                                property: "Parkview Residences",
-                                amount: "+£2,100.00",
-                                status: "Completed"
-                              })
-                            }}>View</a>
-                          </td>
-                        </tr>
+                        {getCombinedTransactions(financialData).slice(0, 10).map((transaction) => (
+                          <tr key={transaction.id}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(transaction.date)}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{transaction.type}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{transaction.category}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{transaction.description}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{transaction.property}</td>
+                            <td className={`px-6 py-4 whitespace-nowrap text-sm ${transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {formatCurrency(transaction.amount)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                transaction.status === 'Completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {transaction.status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              <a href="#" className="text-blue-600 hover:text-blue-900" onClick={(e) => {
+                                e.preventDefault()
+                                handleViewTransaction(transaction)
+                              }}>View</a>
+                            </td>
+                          </tr>
+                        ))}
+                        {getCombinedTransactions(financialData).length === 0 && (
+                          <tr>
+                            <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-500">
+                              No transaction data available
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -1166,7 +1484,7 @@ export default function Financial() {
         )}
       </div>
 
-      {/* Transaction Details Drawer */}
+      {/* Transaction Details Drawer - Update to use formatted data */}
       {isDrawerOpen && selectedTransaction && (
         <div className="fixed inset-0 overflow-hidden z-50">
           <div className="absolute inset-0 overflow-hidden">
@@ -1191,7 +1509,7 @@ export default function Financial() {
                       <dl className="divide-y divide-gray-200">
                         <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
                           <dt className="text-sm font-medium text-gray-500">Date</dt>
-                          <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">{selectedTransaction.date}</dd>
+                          <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">{formatDate(selectedTransaction.date)}</dd>
                         </div>
                         <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
                           <dt className="text-sm font-medium text-gray-500">Type</dt>
@@ -1211,8 +1529,8 @@ export default function Financial() {
                         </div>
                         <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
                           <dt className="text-sm font-medium text-gray-500">Amount</dt>
-                          <dd className={`mt-1 text-sm sm:col-span-2 sm:mt-0 ${selectedTransaction.amount.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
-                            {selectedTransaction.amount}
+                          <dd className={`mt-1 text-sm sm:col-span-2 sm:mt-0 ${selectedTransaction.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {formatCurrency(selectedTransaction.amount)}
                           </dd>
                         </div>
                         <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">

@@ -8,6 +8,7 @@ import { CheckIcon } from '@heroicons/react/24/outline';
 import { CheckIcon as CheckIconSolid, RocketLaunchIcon, ArrowRightIcon, CreditCardIcon } from '@heroicons/react/24/solid';
 import { QuestionMarkCircleIcon, PhoneIcon, AcademicCapIcon, HomeIcon, BuildingOfficeIcon, BuildingStorefrontIcon } from '@heroicons/react/24/outline';
 import { SelectDropdown } from '../../../../components/ui/select-dropdown';
+import { createClient } from '@supabase/supabase-js';
 
 const steps = [
   { id: '01', name: 'Account', href: '/sign-up/account-creation', status: 'complete' },
@@ -68,6 +69,11 @@ const pricingPlans = [
   }
 ];
 
+// Create Supabase client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
 export default function SetupCompletion() {
   const router = useRouter();
   const [properties, setProperties] = useState<any[]>([]);
@@ -76,50 +82,163 @@ export default function SetupCompletion() {
   const [recommendedPlan, setRecommendedPlan] = useState('');
   const [showPlanSelector, setShowPlanSelector] = useState(false);
   const [billingCycle, setBillingCycle] = useState('monthly');
+  const [isLoading, setIsLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [onboardingComplete, setOnboardingComplete] = useState(false);
   
-  // Load properties from localStorage and determine recommended plan
+  // Load user, properties and onboarding status
   useEffect(() => {
-    try {
-      // Get properties from localStorage
-      const savedProperties = JSON.parse(localStorage.getItem('savedProperties') || '[]');
-      setProperties(savedProperties);
+    async function fetchUserAndData() {
+      setIsLoading(true);
       
-      // Check if any property is HMO
-      const hasHmoProperty = savedProperties.some((property: any) => 
-        property.isHmo === true || property.propertyType === 'hmo'
-      );
-      setHasHmo(hasHmoProperty);
-
-      // Determine recommended plan based on property count and HMO status
-      let recommendedPlanId = '';
-      if (savedProperties.length === 0) {
-        // No properties added, show plan selector
-        setShowPlanSelector(true);
-        recommendedPlanId = 'essential';
-      } else if (savedProperties.length <= 2) {
-        // 1-2 properties
-        recommendedPlanId = hasHmoProperty ? 'standard' : 'essential';
-      } else if (savedProperties.length <= 10) {
-        // 2-10 properties
-        recommendedPlanId = 'standard';
-      } else {
-        // 10+ properties
-        recommendedPlanId = 'professional';
+      try {
+        // In development, use test user ID
+        let currentUserId;
+        
+        if (process.env.NODE_ENV === 'development') {
+          currentUserId = localStorage.getItem('devUserId') || '00000000-0000-0000-0000-000000000001';
+          setUserId(currentUserId);
+          localStorage.setItem('devUserId', currentUserId);
+        } else {
+          // In production, fetch actual user
+          const { data: { user }, error: userError } = await supabase.auth.getUser();
+          
+          if (userError) {
+            throw userError;
+          }
+          
+          if (user) {
+            currentUserId = user.id;
+            setUserId(user.id);
+          } else {
+            // If no user is found, redirect to login
+            router.push('/login');
+            return;
+          }
+        }
+        
+        if (currentUserId) {
+          // Fetch user properties from Supabase
+          const { data: propertiesData, error: propertiesError } = await supabase
+            .from('properties')
+            .select('*')
+            .eq('user_id', currentUserId);
+          
+          if (propertiesError) {
+            console.error('Error fetching properties:', propertiesError);
+          } else if (propertiesData) {
+            // Store properties
+            setProperties(propertiesData);
+            
+            // Check if any property is HMO
+            const hasHmoProperty = propertiesData.some((property: any) => 
+              property.is_hmo === true || property.property_type === 'hmo'
+            );
+            setHasHmo(hasHmoProperty);
+            
+            // Determine recommended plan based on property count and HMO status
+            let recommendedPlanId = '';
+            if (propertiesData.length === 0) {
+              // No properties added, show plan selector
+              setShowPlanSelector(true);
+              recommendedPlanId = 'essential';
+            } else if (propertiesData.length <= 2) {
+              // 1-2 properties
+              recommendedPlanId = hasHmoProperty ? 'standard' : 'essential';
+            } else if (propertiesData.length <= 10) {
+              // 2-10 properties
+              recommendedPlanId = 'standard';
+            } else {
+              // 10+ properties
+              recommendedPlanId = 'professional';
+            }
+            
+            setRecommendedPlan(recommendedPlanId);
+            setSelectedPlan(recommendedPlanId);
+            
+            // Update recommended flag in plans
+            pricingPlans.forEach(plan => {
+              plan.recommended = plan.id === recommendedPlanId;
+            });
+          }
+          
+          // Fetch user onboarding status
+          const { data: profileData, error: profileError } = await supabase
+            .from('user_profiles')
+            .select('onboarding_completed')
+            .eq('user_id', currentUserId)
+            .single();
+          
+          if (profileError && profileError.code !== 'PGRST116') { // Ignore "not found" errors
+            console.error('Error fetching user profile:', profileError);
+          } else if (profileData) {
+            setOnboardingComplete(!!profileData.onboarding_completed);
+          }
+          
+          // Update onboarding status in Supabase
+          await supabase
+            .from('user_profiles')
+            .upsert({
+              user_id: currentUserId,
+              onboarding_completed: true,
+              updated_at: new Date().toISOString()
+            });
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setError('Failed to load your profile information.');
+      } finally {
+        setIsLoading(false);
       }
       
-      setRecommendedPlan(recommendedPlanId);
-      setSelectedPlan(recommendedPlanId);
-      
-      // Update recommended flag in plans
-      pricingPlans.forEach(plan => {
-        plan.recommended = plan.id === recommendedPlanId;
-      });
-      
-    } catch (error) {
-      console.error("Error loading properties:", error);
-      setShowPlanSelector(true);
+      // Also try to get properties from localStorage as fallback
+      try {
+        // Get properties from localStorage
+        const savedProperties = JSON.parse(localStorage.getItem('savedProperties') || '[]');
+        
+        // Only use localStorage data if we didn't get properties from Supabase
+        if (properties.length === 0 && savedProperties.length > 0) {
+          setProperties(savedProperties);
+          
+          // Check if any property is HMO
+          const hasHmoProperty = savedProperties.some((property: any) => 
+            property.isHmo === true || property.propertyType === 'hmo'
+          );
+          setHasHmo(hasHmoProperty);
+
+          // Determine recommended plan based on property count and HMO status
+          let recommendedPlanId = '';
+          if (savedProperties.length === 0) {
+            // No properties added, show plan selector
+            setShowPlanSelector(true);
+            recommendedPlanId = 'essential';
+          } else if (savedProperties.length <= 2) {
+            // 1-2 properties
+            recommendedPlanId = hasHmoProperty ? 'standard' : 'essential';
+          } else if (savedProperties.length <= 10) {
+            // 2-10 properties
+            recommendedPlanId = 'standard';
+          } else {
+            // 10+ properties
+            recommendedPlanId = 'professional';
+          }
+          
+          setRecommendedPlan(recommendedPlanId);
+          setSelectedPlan(recommendedPlanId);
+          
+          // Update recommended flag in plans
+          pricingPlans.forEach(plan => {
+            plan.recommended = plan.id === recommendedPlanId;
+          });
+        }
+      } catch (error) {
+        console.error("Error loading properties from localStorage:", error);
+      }
     }
-  }, []);
+    
+    fetchUserAndData();
+  }, [router]);
   
   // Calculate annual price with 20% discount
   const getAnnualPrice = (monthlyPrice: string) => {
@@ -168,6 +287,24 @@ export default function SetupCompletion() {
     // Save selected plan to localStorage
     localStorage.setItem('selectedPlanId', selectedPlan);
     localStorage.setItem('billingCycle', billingCycle);
+    
+    // Update plan selection in Supabase if we have a user ID
+    if (userId) {
+      // Non-blocking Supabase update
+      supabase
+        .from('user_profiles')
+        .upsert({
+          user_id: userId,
+          selected_plan: selectedPlan,
+          billing_cycle: billingCycle,
+          updated_at: new Date().toISOString()
+        })
+        .then(({ error }) => {
+          if (error) {
+            console.error('Error saving plan selection:', error);
+          }
+        });
+    }
     
     // Navigate to payment page
     router.push('/billing/payment');
@@ -233,6 +370,20 @@ export default function SetupCompletion() {
     setBillingCycle(cycle);
     localStorage.setItem('billingCycle', cycle);
   };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <SidebarLayout 
+        sidebar={<SideboardOnboardingContent />}
+        isOnboarding={true}
+      >
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#D9E8FF]"></div>
+        </div>
+      </SidebarLayout>
+    );
+  }
 
   return (
     <SidebarLayout 
@@ -454,6 +605,13 @@ export default function SetupCompletion() {
           </div>
         </div>
       </div>
+      
+      {/* Add error message if any */}
+      {error && (
+        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+          <p className="text-sm text-red-600">{error}</p>
+        </div>
+      )}
     </SidebarLayout>
   );
 } 

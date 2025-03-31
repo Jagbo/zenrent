@@ -36,7 +36,7 @@ import {
 } from '@heroicons/react/24/solid'
 import { CheckIcon as CheckIcon20, HandThumbUpIcon, UserIcon } from '@heroicons/react/20/solid'
 import { TrendingUp, TrendingDown } from "lucide-react"
-import { 
+import {
   Area, 
   AreaChart, 
   Bar, 
@@ -52,10 +52,7 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardFooter,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -63,6 +60,7 @@ import { SidebarContent } from '../components/sidebar-content'
 import { IssueDrawer } from "../components/IssueDrawer"
 import { IssueFormDrawer } from '../components/IssueFormDrawer'
 import { getRecentIssues, createIssue } from '../../lib/issueService'
+import { getDashboardStats } from '../../lib/dashboardService'
 
 // Icons for navigation items
 function DashboardIcon() {
@@ -320,14 +318,19 @@ type Issue = {
 }
 
 export default function Dashboard() {
-  // Add state for selected issue and drawer open state
-  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [isFormDrawerOpen, setIsFormDrawerOpen] = useState(false)
   const [issues, setIssues] = useState<Issue[]>([])
+  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
   const [selectedTab, setSelectedTab] = useState('overview')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [dashboardStats, setDashboardStats] = useState({
+    totalProperties: 0,
+    expiringContracts: 0,
+    occupancyRate: 0,
+    currentMonthIncome: 0,
+  })
 
   // Update tabs to use state
   const tabs = [
@@ -369,6 +372,34 @@ export default function Dashboard() {
     fetchIssues();
   }, []);
 
+  // Fetch dashboard stats from Supabase
+  useEffect(() => {
+    const fetchDashboardStats = async () => {
+      try {
+        console.log('Dashboard: Starting to fetch dashboard stats');
+        
+        // Log environment and process variables to help debug
+        console.log('NODE_ENV:', process.env.NODE_ENV);
+        console.log('TEST_USER_ID:', '00000000-0000-0000-0000-000000000001');
+        
+        const stats = await getDashboardStats();
+        console.log('Dashboard: Received stats data:', stats);
+        
+        // Check if we got meaningful data
+        const hasData = Object.values(stats).some(val => val > 0);
+        if (!hasData) {
+          console.warn('Dashboard: All stats are zero. Check Supabase connection and data.');
+        }
+        
+        setDashboardStats(stats);
+      } catch (err) {
+        console.error('Dashboard: Error fetching dashboard stats:', err);
+      }
+    };
+
+    fetchDashboardStats();
+  }, []);
+
   // Function to handle opening the drawer
   const openDrawer = (issue: Issue) => {
     setSelectedIssue(issue);
@@ -406,6 +437,16 @@ export default function Dashboard() {
     }
   };
 
+  // Format currency with pound sign
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-GB', {
+      style: 'currency',
+      currency: 'GBP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
   return (
     <SidebarLayout
       sidebar={<SidebarContent currentPath="/dashboard" />}
@@ -432,32 +473,32 @@ export default function Dashboard() {
           {/* Properties */}
           <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
             <h3 className="text-sm font-cabinet-grotesk-bold text-gray-500">Properties</h3>
-            <p className="mt-2 text-4xl font-bold text-gray-900">12</p>
+            <p className="mt-2 text-4xl font-bold text-gray-900">{dashboardStats.totalProperties}</p>
           </div>
           
           {/* Contracts expiring */}
           <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
             <h3 className="text-sm font-cabinet-grotesk-bold text-gray-500">Contracts expiring</h3>
-            <p className="mt-2 text-4xl font-bold text-gray-900">8</p>
+            <p className="mt-2 text-4xl font-bold text-gray-900">{dashboardStats.expiringContracts}</p>
             <div className="mt-4 flex items-center text-sm text-amber-600">
               <ArrowUpIcon className="h-4 w-4 mr-1" />
-              <span>Next 30 days</span>
+              <span>Next 6 months</span>
             </div>
           </div>
           
           {/* Occupancy */}
           <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
             <h3 className="text-sm font-cabinet-grotesk-bold text-gray-500">Occupancy</h3>
-            <p className="mt-2 text-4xl font-bold text-gray-900">94%</p>
+            <p className="mt-2 text-4xl font-bold text-gray-900">{dashboardStats.occupancyRate}%</p>
           </div>
 
           {/* Income */}
           <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
             <h3 className="text-sm font-cabinet-grotesk-bold text-gray-500">Income</h3>
-            <p className="mt-2 text-4xl font-bold text-gray-900">£24,350</p>
+            <p className="mt-2 text-4xl font-bold text-gray-900">{formatCurrency(dashboardStats.currentMonthIncome)}</p>
             <div className="mt-4 flex items-center text-sm text-green-600">
               <ArrowUpIcon className="h-4 w-4 mr-1" />
-              <span>+5% from last month</span>
+              <span>Current month</span>
             </div>
           </div>
         </div>
@@ -515,8 +556,8 @@ export default function Dashboard() {
               {/* Open Issues */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Open Issues</CardTitle>
-                  <CardDescription>Total: 24</CardDescription>
+                  <h3 className="text-lg font-semibold">Open Issues</h3>
+                  <p className="text-sm text-muted-foreground">Total: 24</p>
                 </CardHeader>
                 <CardContent>
                   <ChartContainer config={chartConfigs.issues}>
@@ -544,19 +585,19 @@ export default function Dashboard() {
                     </AreaChart>
                   </ChartContainer>
                 </CardContent>
-                <CardFooter className="flex-col items-start gap-2 text-sm">
+                <div className="flex-col items-start gap-2 text-sm p-6 pt-0">
                   <div className="flex gap-2 font-medium leading-none text-green-600">
                     <ArrowUpIcon className="h-4 w-4" />
                     <span>12% from last week</span>
                   </div>
-                </CardFooter>
+                </div>
               </Card>
               
               {/* Profit Margin */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Profit Margin</CardTitle>
-                  <CardDescription>Current: 72%</CardDescription>
+                  <h3 className="text-lg font-semibold">Profit Margin</h3>
+                  <p className="text-sm text-muted-foreground">Current: 72%</p>
                 </CardHeader>
                 <CardContent>
                   <ChartContainer config={chartConfigs.profitMargin}>
@@ -582,19 +623,19 @@ export default function Dashboard() {
                     </BarChart>
                   </ChartContainer>
                 </CardContent>
-                <CardFooter className="flex-col items-start gap-2 text-sm">
+                <div className="flex-col items-start gap-2 text-sm p-6 pt-0">
                   <div className="flex gap-2 font-medium leading-none text-green-600">
                     <TrendingUp className="h-4 w-4" />
                     <span>2% from last month</span>
                   </div>
-                </CardFooter>
+                </div>
               </Card>
               
               {/* Occupancy Rate */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Occupancy Rate</CardTitle>
-                  <CardDescription>Current: 94%</CardDescription>
+                  <h3 className="text-lg font-semibold">Occupancy Rate</h3>
+                  <p className="text-sm text-muted-foreground">Current: 94%</p>
                 </CardHeader>
                 <CardContent>
                   <ChartContainer config={chartConfigs.occupancy}>
@@ -621,12 +662,12 @@ export default function Dashboard() {
                     </LineChart>
                   </ChartContainer>
                 </CardContent>
-                <CardFooter className="flex-col items-start gap-2 text-sm">
+                <div className="flex-col items-start gap-2 text-sm p-6 pt-0">
                   <div className="flex gap-2 font-medium leading-none text-green-600">
                     <TrendingUp className="h-4 w-4" />
                     <span>1% from last quarter</span>
                   </div>
-                </CardFooter>
+                </div>
               </Card>
             </div>
           </TabsContent>
@@ -636,8 +677,8 @@ export default function Dashboard() {
               {/* Total Income */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Total Income</CardTitle>
-                  <CardDescription>January - June 2023</CardDescription>
+                  <h3 className="text-lg font-semibold">Total Income</h3>
+                  <p className="text-sm text-muted-foreground">January - June 2023</p>
                 </CardHeader>
                 <CardContent>
                   <ChartContainer config={chartConfigs.income}>
@@ -659,7 +700,7 @@ export default function Dashboard() {
                     </BarChart>
                   </ChartContainer>
                 </CardContent>
-                <CardFooter className="flex-col items-start gap-2 text-sm">
+                <div className="flex-col items-start gap-2 text-sm p-6 pt-0">
                   <div className="flex gap-2 font-medium leading-none text-green-600">
                     <TrendingUp className="h-4 w-4" />
                     <span>4% from last month</span>
@@ -667,14 +708,14 @@ export default function Dashboard() {
                   <div className="leading-none text-muted-foreground">
                     Total current income: £145,800
                   </div>
-                </CardFooter>
+                </div>
               </Card>
               
               {/* Total Expenditure */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Total Expenditure</CardTitle>
-                  <CardDescription>January - June 2023</CardDescription>
+                  <h3 className="text-lg font-semibold">Total Expenditure</h3>
+                  <p className="text-sm text-muted-foreground">January - June 2023</p>
                 </CardHeader>
                 <CardContent>
                   <ChartContainer config={chartConfigs.expenses}>
@@ -696,7 +737,7 @@ export default function Dashboard() {
                     </BarChart>
                   </ChartContainer>
                 </CardContent>
-                <CardFooter className="flex-col items-start gap-2 text-sm">
+                <div className="flex-col items-start gap-2 text-sm p-6 pt-0">
                   <div className="flex gap-2 font-medium leading-none text-red-600">
                     <TrendingUp className="h-4 w-4" />
                     <span>3% from last month</span>
@@ -704,14 +745,14 @@ export default function Dashboard() {
                   <div className="leading-none text-muted-foreground">
                     Total current expenses: £41,300
                   </div>
-                </CardFooter>
+                </div>
               </Card>
               
               {/* Rent Arrears */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Rent Arrears</CardTitle>
-                  <CardDescription>January - June 2023</CardDescription>
+                  <h3 className="text-lg font-semibold">Rent Arrears</h3>
+                  <p className="text-sm text-muted-foreground">January - June 2023</p>
                 </CardHeader>
                 <CardContent>
                   <ChartContainer config={chartConfigs.arrears}>
@@ -738,7 +779,7 @@ export default function Dashboard() {
                     </LineChart>
                   </ChartContainer>
                 </CardContent>
-                <CardFooter className="flex-col items-start gap-2 text-sm">
+                <div className="flex-col items-start gap-2 text-sm p-6 pt-0">
                   <div className="flex gap-2 font-medium leading-none text-red-600">
                     <TrendingUp className="h-4 w-4" />
                     <span>5% from last month</span>
@@ -746,7 +787,7 @@ export default function Dashboard() {
                   <div className="leading-none text-muted-foreground">
                     Current arrears: £12,400
                   </div>
-                </CardFooter>
+                </div>
               </Card>
             </div>
           </TabsContent>
@@ -756,8 +797,8 @@ export default function Dashboard() {
               {/* Active Issues */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Active Issues</CardTitle>
-                  <CardDescription>January - June 2023</CardDescription>
+                  <h3 className="text-lg font-semibold">Active Issues</h3>
+                  <p className="text-sm text-muted-foreground">January - June 2023</p>
                 </CardHeader>
                 <CardContent>
                   <ChartContainer config={chartConfigs.active}>
@@ -784,7 +825,7 @@ export default function Dashboard() {
                     </LineChart>
                   </ChartContainer>
                 </CardContent>
-                <CardFooter className="flex-col items-start gap-2 text-sm">
+                <div className="flex-col items-start gap-2 text-sm p-6 pt-0">
                   <div className="flex gap-2 font-medium leading-none text-red-600">
                     <TrendingUp className="h-4 w-4" />
                     <span>3% from last week</span>
@@ -792,14 +833,14 @@ export default function Dashboard() {
                   <div className="leading-none text-muted-foreground">
                     Current active issues: 35
                   </div>
-                </CardFooter>
+                </div>
               </Card>
               
               {/* Urgent Issues */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Urgent Issues</CardTitle>
-                  <CardDescription>January - June 2023</CardDescription>
+                  <h3 className="text-lg font-semibold">Urgent Issues</h3>
+                  <p className="text-sm text-muted-foreground">January - June 2023</p>
                 </CardHeader>
                 <CardContent>
                   <ChartContainer config={chartConfigs.urgent}>
@@ -825,21 +866,21 @@ export default function Dashboard() {
                     </BarChart>
                   </ChartContainer>
                 </CardContent>
-                <CardFooter className="flex-col items-start gap-2 text-sm">
+                <div className="flex-col items-start gap-2 text-sm p-6 pt-0">
                   <div className="flex gap-2 font-medium leading-none text-gray-600">
                     <span>No change from last week</span>
                   </div>
                   <div className="leading-none text-muted-foreground">
                     Current urgent issues: 12
                   </div>
-                </CardFooter>
+                </div>
               </Card>
               
               {/* Backlog Issues */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Backlog Issues</CardTitle>
-                  <CardDescription>January - June 2023</CardDescription>
+                  <h3 className="text-lg font-semibold">Backlog Issues</h3>
+                  <p className="text-sm text-muted-foreground">January - June 2023</p>
                 </CardHeader>
                 <CardContent>
                   <ChartContainer config={chartConfigs.backlog}>
@@ -866,7 +907,7 @@ export default function Dashboard() {
                     </LineChart>
                   </ChartContainer>
                 </CardContent>
-                <CardFooter className="flex-col items-start gap-2 text-sm">
+                <div className="flex-col items-start gap-2 text-sm p-6 pt-0">
                   <div className="flex gap-2 font-medium leading-none text-red-600">
                     <TrendingUp className="h-4 w-4" />
                     <span>6% from last month</span>
@@ -874,7 +915,7 @@ export default function Dashboard() {
                   <div className="leading-none text-muted-foreground">
                     Current backlog issues: 18
                   </div>
-                </CardFooter>
+                </div>
               </Card>
             </div>
           </TabsContent>

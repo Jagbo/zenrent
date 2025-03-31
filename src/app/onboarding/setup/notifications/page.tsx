@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { SidebarLayout } from '../../../components/sidebar-layout';
 import { SideboardOnboardingContent } from '../../../components/sideboard-onboarding-content';
@@ -8,6 +8,12 @@ import { CheckIcon } from '@heroicons/react/24/outline';
 import { CheckIcon as CheckIconSolid } from '@heroicons/react/24/solid';
 import { BellIcon, EnvelopeIcon, DevicePhoneMobileIcon } from '@heroicons/react/24/outline';
 import { SelectDropdown } from '../../../../components/ui/select-dropdown';
+import { createClient } from '@supabase/supabase-js';
+
+// Create Supabase client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const steps = [
   { id: '01', name: 'Account', href: '/sign-up/account-creation', status: 'complete' },
@@ -19,6 +25,12 @@ const steps = [
 
 export default function NotificationPreferences() {
   const router = useRouter();
+  
+  // State for user ID and loading/error states
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Email notification states
   const [emailRentPayments, setEmailRentPayments] = useState(true);
@@ -37,12 +49,102 @@ export default function NotificationPreferences() {
   // Mobile app notification states
   const [appNotifications, setAppNotifications] = useState(true);
   
-  // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  // Fetch user and notification preferences
+  useEffect(() => {
+    async function fetchUserAndPreferences() {
+      setIsLoading(true);
+      
+      try {
+        // In development, use test user ID
+        if (process.env.NODE_ENV === 'development') {
+          const devUserId = localStorage.getItem('devUserId') || '00000000-0000-0000-0000-000000000001';
+          setUserId(devUserId);
+          localStorage.setItem('devUserId', devUserId);
+          
+          // Fetch notification preferences for test user
+          const { data, error } = await supabase.rpc(
+            'get_user_notification_preferences',
+            { p_user_id: devUserId }
+          );
+          
+          if (error) {
+            console.error('Error fetching preferences:', error);
+          } else if (data) {
+            // Set state from fetched preferences
+            updatePreferencesState(data);
+          }
+          
+          setIsLoading(false);
+          return;
+        }
+        
+        // In production, fetch actual user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError) {
+          throw userError;
+        }
+        
+        if (user) {
+          setUserId(user.id);
+          
+          // Fetch notification preferences
+          const { data, error } = await supabase.rpc(
+            'get_user_notification_preferences', 
+            { p_user_id: user.id }
+          );
+          
+          if (error) {
+            console.error('Error fetching preferences:', error);
+          } else if (data) {
+            // Set state from fetched preferences
+            updatePreferencesState(data);
+          }
+        } else {
+          // If no user is found, redirect to login
+          router.push('/login');
+          return;
+        }
+      } catch (error) {
+        console.error('Error fetching user:', error);
+        setError('Failed to fetch user information. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
     
-    // Save notification preferences
-    const notificationPreferences = {
+    fetchUserAndPreferences();
+  }, [router]);
+  
+  // Helper function to update all state values from fetched preferences
+  const updatePreferencesState = (preferences: any) => {
+    // Email preferences
+    if (preferences.email) {
+      setEmailRentPayments(preferences.email.rentPayments ?? true);
+      setEmailRentArrears(preferences.email.rentArrears ?? true);
+      setEmailMaintenance(preferences.email.maintenance ?? true);
+      setEmailDocuments(preferences.email.documents ?? true);
+      setEmailCompliance(preferences.email.compliance ?? true);
+      setEmailTenancyExpiry(preferences.email.tenancyExpiry ?? true);
+      setEmailFinancialSummaries(preferences.email.financialSummaries ?? true);
+    }
+    
+    // SMS preferences
+    if (preferences.sms) {
+      setSmsUrgentMaintenance(preferences.sms.urgentMaintenance ?? false);
+      setSmsRentPayments(preferences.sms.rentPayments ?? false);
+      setSmsTenantCommunication(preferences.sms.tenantCommunication ?? false);
+    }
+    
+    // App preferences
+    if (preferences.app) {
+      setAppNotifications(preferences.app.enabled ?? true);
+    }
+  };
+  
+  // Helper function to build preferences object from state
+  const buildPreferencesObject = () => {
+    return {
       email: {
         rentPayments: emailRentPayments,
         rentArrears: emailRentArrears,
@@ -61,43 +163,97 @@ export default function NotificationPreferences() {
         enabled: appNotifications,
       }
     };
+  };
+  
+  // Handle form submission
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     
-    // In a real app, you would save this to your backend
-    console.log('Notification preferences:', notificationPreferences);
+    if (!userId) {
+      setError('User not authenticated. Please log in and try again.');
+      return;
+    }
     
-    // Navigate to the completion page
-    router.push('/onboarding/setup/completion');
+    setIsSubmitting(true);
+    setError(null);
+    
+    try {
+      // Build notification preferences object
+      const notificationPreferences = buildPreferencesObject();
+      
+      // Update preferences in Supabase
+      const { data, error: updateError } = await supabase.rpc(
+        'update_user_notification_preferences',
+        {
+          p_user_id: userId,
+          p_preferences: notificationPreferences
+        }
+      );
+      
+      if (updateError) {
+        throw updateError;
+      }
+      
+      // Update onboarding progress
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .upsert({
+          user_id: userId,
+          setup_completed: true,
+          onboarding_completed: true,
+          updated_at: new Date().toISOString()
+        });
+      
+      if (profileError) {
+        // Log but don't fail the submission
+        console.error('Error updating setup completion status:', profileError);
+      }
+      
+      // Navigate to the completion page
+      router.push('/onboarding/setup/completion');
+    } catch (error) {
+      console.error('Error saving notification preferences:', error);
+      setError('Failed to save notification preferences. Please try again.');
+      setIsSubmitting(false);
+    }
   };
   
   // Handle save as draft
-  const handleSaveAsDraft = () => {
-    // Save to localStorage
+  const handleSaveAsDraft = async () => {
+    if (!userId) {
+      setError('User not authenticated. Please log in and try again.');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setError(null);
+    
     try {
-      const notificationPreferences = {
-        email: {
-          rentPayments: emailRentPayments,
-          rentArrears: emailRentArrears,
-          maintenance: emailMaintenance,
-          documents: emailDocuments,
-          compliance: emailCompliance,
-          tenancyExpiry: emailTenancyExpiry,
-          financialSummaries: emailFinancialSummaries,
-        },
-        sms: {
-          urgentMaintenance: smsUrgentMaintenance,
-          rentPayments: smsRentPayments,
-          tenantCommunication: smsTenantCommunication,
-        },
-        app: {
-          enabled: appNotifications,
-        }
-      };
+      // Build notification preferences object
+      const notificationPreferences = buildPreferencesObject();
+      
+      // Save to localStorage as backup
       localStorage.setItem('notificationPreferencesDraft', JSON.stringify(notificationPreferences));
+      
+      // Update preferences in Supabase
+      const { data, error: updateError } = await supabase.rpc(
+        'update_user_notification_preferences',
+        {
+          p_user_id: userId,
+          p_preferences: notificationPreferences
+        }
+      );
+      
+      if (updateError) {
+        throw updateError;
+      }
+      
       // Navigate to next step
       router.push('/onboarding/setup/completion');
     } catch (error) {
-      console.error("Error saving notification preferences draft data:", error);
-      alert('Failed to save draft. Please try again.');
+      console.error("Error saving notification preferences draft:", error);
+      setError('Failed to save draft. Please try again.');
+      setIsSubmitting(false);
     }
   };
 
@@ -122,6 +278,20 @@ export default function NotificationPreferences() {
       </button>
     );
   };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <SidebarLayout 
+        sidebar={<SideboardOnboardingContent />}
+        isOnboarding={true}
+      >
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#D9E8FF]"></div>
+        </div>
+      </SidebarLayout>
+    );
+  }
 
   return (
     <SidebarLayout 
@@ -191,6 +361,13 @@ export default function NotificationPreferences() {
             <p className="mt-1 text-sm/6 text-gray-600">
               Customize how and when you receive alerts about important property management events.
             </p>
+            
+            {/* Display error if any */}
+            {error && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            )}
           </div>
 
           <form className="bg-white border border-gray-300 ring-1 shadow-xs ring-gray-900/5 sm:rounded-xl md:col-span-2" onSubmit={handleSubmit}>
@@ -251,7 +428,7 @@ export default function NotificationPreferences() {
                     
                     <div className="flex items-center justify-between">
                       <label htmlFor="email-financial-summaries" className="text-sm font-medium text-gray-900">
-                        Financial summaries
+                        Financial reports and summaries
                       </label>
                       <ToggleSwitch enabled={emailFinancialSummaries} onChange={() => setEmailFinancialSummaries(!emailFinancialSummaries)} />
                     </div>
@@ -265,13 +442,13 @@ export default function NotificationPreferences() {
                     SMS Notifications
                   </h2>
                   <p className="mt-1 text-sm/6 text-gray-600 mb-4">
-                    Select which notifications you'd like to receive via SMS.
+                    Select which notifications you'd like to receive via SMS. These are typically reserved for high-priority or urgent matters.
                   </p>
                   
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <label htmlFor="sms-urgent-maintenance" className="text-sm font-medium text-gray-900">
-                        Urgent maintenance alerts
+                        Urgent maintenance issues
                       </label>
                       <ToggleSwitch enabled={smsUrgentMaintenance} onChange={() => setSmsUrgentMaintenance(!smsUrgentMaintenance)} />
                     </div>
@@ -285,7 +462,7 @@ export default function NotificationPreferences() {
                     
                     <div className="flex items-center justify-between">
                       <label htmlFor="sms-tenant-communication" className="text-sm font-medium text-gray-900">
-                        Tenant communication
+                        Tenant communication alerts
                       </label>
                       <ToggleSwitch enabled={smsTenantCommunication} onChange={() => setSmsTenantCommunication(!smsTenantCommunication)} />
                     </div>
@@ -299,40 +476,36 @@ export default function NotificationPreferences() {
                     Mobile App Notifications
                   </h2>
                   <p className="mt-1 text-sm/6 text-gray-600 mb-4">
-                    Enable or disable mobile app notifications.
+                    Enable push notifications on the mobile app.
                   </p>
                   
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <label htmlFor="app-notifications" className="text-sm font-medium text-gray-900">
-                        All notification types with granular control
+                        Enable push notifications
                       </label>
                       <ToggleSwitch enabled={appNotifications} onChange={() => setAppNotifications(!appNotifications)} />
                     </div>
-                    
-                    {appNotifications && (
-                      <p className="text-sm text-gray-500 italic">
-                        You can customize individual notification types in the mobile app settings.
-                      </p>
-                    )}
                   </div>
                 </div>
               </div>
             </div>
             
-            <div className="flex items-center justify-end gap-x-6 border-t border-gray-900/10 px-4 py-4 sm:px-8">
+            <div className="flex items-center justify-between gap-x-6 border-t border-gray-900/10 px-4 py-4 sm:px-6">
               <button
                 type="button"
-                className="text-sm font-semibold leading-6 text-gray-900"
                 onClick={handleSaveAsDraft}
+                disabled={isSubmitting}
+                className="text-sm font-semibold leading-6 text-gray-900 disabled:opacity-50"
               >
-                Save as Draft
+                {isSubmitting ? 'Saving...' : 'Save as draft'}
               </button>
               <button
                 type="submit"
-                className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-[#D9E8FF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
+                disabled={isSubmitting}
+                className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-[#D9E8FF]/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF] disabled:opacity-50"
               >
-                Save Preferences
+                {isSubmitting ? 'Submitting...' : 'Continue'}
               </button>
             </div>
           </form>

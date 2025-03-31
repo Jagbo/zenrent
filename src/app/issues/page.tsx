@@ -47,7 +47,7 @@ import { IssueDrawer } from "../components/IssueDrawer"
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 import { IssueFormDrawer } from '../components/IssueFormDrawer'
 import { getAllIssues, createIssue } from '../../lib/issueService'
-import { classNames } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 
 // Define Issue type
 type Issue = {
@@ -498,7 +498,7 @@ export default function Issues() {
                   key={tab.name}
                   onClick={() => handleTabChange(tab.value)}
                   aria-current={tab.current ? 'page' : undefined}
-                  className={classNames(
+                  className={cn(
                     tab.current ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700',
                     tabIdx === 0 ? 'rounded-l-lg' : '',
                     tabIdx === tabs.length - 1 ? 'rounded-r-lg' : '',
@@ -508,7 +508,7 @@ export default function Issues() {
                   <span>{tab.name}</span>
                   <span
                     aria-hidden="true"
-                    className={classNames(
+                    className={cn(
                       tab.current ? 'bg-[#FF503E]' : 'bg-transparent',
                       'absolute inset-x-0 bottom-0 h-0.5',
                     )}

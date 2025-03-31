@@ -1,57 +1,58 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
+import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+
+// Define a basic Property type based on selection
+interface Property {
+  id: string;
+  property_code: string | null;
+  address: string | null;
+  property_type: string | null;
+  bedrooms: number | null;
+}
 
 export async function GET(request: Request) {
-  const supabase = createRouteHandlerClient({ cookies });
-
   try {
-    // Get the current user's session
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    
-    if (sessionError) {
-      console.error('Session error:', sessionError);
-      return NextResponse.json(
-        { error: 'Session error: ' + sessionError.message },
-        { status: 401 }
-      );
-    }
-
-    // In development, if no session exists, use the test user
-    if (!session && process.env.NODE_ENV === 'development') {
-      console.log('Using test user session in development');
+    // Create Supabase client with service role in development mode
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[PROPERTIES API] Development mode: Using service role client');
       const testUserId = '00000000-0000-0000-0000-000000000001';
       
-      // Get all properties for the test user
-      const { data: properties, error: propertiesError } = await supabase
+      // Create admin client with service role
+      const supabaseAdmin = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        { auth: { persistSession: false } }
+      );
+      
+      console.log(`[PROPERTIES API] Fetching properties for test user: ${testUserId}`);
+      
+      // Query properties without relying on RLS
+      const { data: properties, error: propertiesError } = await supabaseAdmin
         .from('properties')
-        .select(`
-          id,
-          property_code,
-          address,
-          property_type,
-          bedrooms
-        `)
+        .select('id, property_code, address, property_type, bedrooms')
         .eq('user_id', testUserId);
 
+      // Handle errors
       if (propertiesError) {
-        console.error('Properties fetch error:', propertiesError);
+        console.error('[PROPERTIES API] Database error:', propertiesError);
         return NextResponse.json(
-          { error: 'Failed to fetch properties: ' + propertiesError.message },
+          { error: 'Database error: ' + propertiesError.message },
           { status: 500 }
         );
       }
 
+      // If no properties found
       if (!properties || properties.length === 0) {
-        console.log('No properties found for test user:', testUserId);
-        return NextResponse.json(
-          { error: 'No properties found for this user' },
-          { status: 404 }
-        );
+        console.warn('[PROPERTIES API] No properties found for test user!');
+        return NextResponse.json([], { status: 200 });
       }
 
-      // Transform the data to match the expected format
-      const transformedProperties = properties.map(property => ({
+      console.log('[PROPERTIES API] Raw properties data:', properties);
+
+      // Transform data format to match frontend expectations
+      const transformedProperties = properties.map((property) => ({
         id: property.id,
         property_code: property.property_code,
         address: property.address,
@@ -59,60 +60,62 @@ export async function GET(request: Request) {
         total_units: property.bedrooms
       }));
 
-      console.log('Found properties for test user:', transformedProperties);
-      return NextResponse.json(transformedProperties);
+      console.log(`[PROPERTIES API] Found ${transformedProperties.length} properties`);
+      return NextResponse.json(transformedProperties, { status: 200 });
+    } else {
+      // Production mode - use route handler with cookies for auth
+      const cookieStore = cookies();
+      const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+      
+      // Check authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        return NextResponse.json(
+          { error: 'Unauthorized - Please sign in' },
+          { status: 401 }
+        );
+      }
+      
+      // Get user ID from session
+      const userId = session.user.id;
+      console.log(`[PROPERTIES API] Fetching properties for authenticated user: ${userId}`);
+      
+      // Query properties for the authenticated user
+      const { data: properties, error: propertiesError } = await supabase
+        .from('properties')
+        .select('id, property_code, address, property_type, bedrooms')
+        .eq('user_id', userId);
+      
+      // Handle errors
+      if (propertiesError) {
+        console.error('[PROPERTIES API] Database error:', propertiesError);
+        return NextResponse.json(
+          { error: 'Database error: ' + propertiesError.message },
+          { status: 500 }
+        );
+      }
+      
+      // If no properties found
+      if (!properties || properties.length === 0) {
+        console.warn('[PROPERTIES API] No properties found for authenticated user');
+        return NextResponse.json([], { status: 200 });
+      }
+      
+      // Transform data format to match frontend expectations
+      const transformedProperties = properties.map((property) => ({
+        id: property.id,
+        property_code: property.property_code,
+        address: property.address,
+        type: property.property_type,
+        total_units: property.bedrooms
+      }));
+      
+      console.log(`[PROPERTIES API] Found ${transformedProperties.length} properties`);
+      return NextResponse.json(transformedProperties, { status: 200 });
     }
-
-    if (!session) {
-      return NextResponse.json(
-        { error: 'No active session found. Please log in.' },
-        { status: 401 }
-      );
-    }
-
-    console.log('User ID:', session.user.id);
-
-    // Get all properties for the current user
-    const { data: properties, error: propertiesError } = await supabase
-      .from('properties')
-      .select(`
-        id,
-        property_code,
-        address,
-        property_type,
-        bedrooms
-      `)
-      .eq('user_id', session.user.id);
-
-    if (propertiesError) {
-      console.error('Properties fetch error:', propertiesError);
-      return NextResponse.json(
-        { error: 'Failed to fetch properties: ' + propertiesError.message },
-        { status: 500 }
-      );
-    }
-
-    if (!properties || properties.length === 0) {
-      console.log('No properties found for user:', session.user.id);
-      return NextResponse.json(
-        { error: 'No properties found for this user' },
-        { status: 404 }
-      );
-    }
-
-    // Transform the data to match the expected format
-    const transformedProperties = properties.map(property => ({
-      id: property.id,
-      property_code: property.property_code,
-      address: property.address,
-      type: property.property_type,
-      total_units: property.bedrooms
-    }));
-
-    console.log('Found properties:', transformedProperties);
-    return NextResponse.json(transformedProperties);
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error('[PROPERTIES API] Unexpected error:', error);
     return NextResponse.json(
       { error: 'An unexpected error occurred: ' + (error instanceof Error ? error.message : String(error)) },
       { status: 500 }

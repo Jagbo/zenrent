@@ -1,0 +1,10 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Your rule content
+
+- We are using Supabase on the local environment
+- We can update Supabase via CLI

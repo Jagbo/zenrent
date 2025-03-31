@@ -6,6 +6,12 @@ import { SidebarLayout } from '../../../components/sidebar-layout';
 import { SideboardOnboardingContent } from '../../../components/sideboard-onboarding-content';
 import { CheckIcon as CheckIconSolid } from '@heroicons/react/24/solid';
 import { PlusIcon } from '@heroicons/react/24/outline';
+import { createClient } from '@supabase/supabase-js';
+
+// Create a Supabase client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const steps = [
   { id: '01', name: 'Account', href: '/sign-up/account-creation', status: 'complete' },
@@ -17,6 +23,12 @@ const steps = [
 
 export default function TenancySetup() {
   const router = useRouter();
+  
+  // State for loading and errors
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [propertyId, setPropertyId] = useState<string | null>(null);
   
   // Property data from localStorage
   const [propertyData, setPropertyData] = useState({
@@ -81,66 +93,103 @@ export default function TenancySetup() {
     depositRegistrationRef: '',
   });
   
-  // Load property data from localStorage on component mount
+  // Fetch the current user and property when component mounts
   useEffect(() => {
-    try {
-      const savedProperty = localStorage.getItem('propertyData');
-      console.log('Raw saved property data:', savedProperty);
-      
-      // Also check saved properties
-      const savedPropertiesString = localStorage.getItem('savedProperties');
-      console.log('Saved properties:', savedPropertiesString);
-      
-      if (savedProperty) {
-        const parsedData = JSON.parse(savedProperty);
-        console.log('Parsed property data:', parsedData);
-        console.log('Property type:', parsedData.propertyType);
-        console.log('Is HMO flag:', parsedData.isHmo);
-        
-        setPropertyData({
-          address: parsedData.address || '',
-          propertyType: parsedData.propertyType || '',
-          bedrooms: parsedData.bedrooms || '',
-          isHmo: parsedData.isHmo || parsedData.propertyType === 'hmo' // Also check property type as a fallback
-        });
-        
-        // If HMO, create tenant entries for each bedroom
-        if ((parsedData.isHmo || parsedData.propertyType === 'hmo') && parsedData.bedrooms) {
-          console.log('Setting up HMO tenants for', parsedData.bedrooms, 'bedrooms');
-          const bedroomCount = parseInt(parsedData.bedrooms);
-          if (!isNaN(bedroomCount) && bedroomCount > 0) {
-            setTenants(Array.from({ length: bedroomCount }, (_, i) => ({
-              firstName: '',
-              lastName: '',
-              phoneNumber: '',
-              email: '',
-              roomNumber: (i + 1).toString(),
-              // Tenancy Type
-              agreementType: '',
-              tenancyTerm: '',
-              // Tenancy Dates
-              startDate: '',
-              endDate: '',
-              hasBreakClause: false,
-              breakClauseDetails: '',
-              // Rent Schedule
-              rentAmount: '',
-              rentFrequency: 'monthly',
-              rentDueDay: '',
-              paymentMethod: '',
-              // Deposit Information
-              depositAmount: '',
-              depositScheme: '',
-              depositRegistrationDate: '',
-              depositRegistrationRef: ''
-            })));
+    const fetchUserAndProperty = async () => {
+      try {
+        // In development mode, set a fixed userId for testing
+        if (process.env.NODE_ENV === 'development') {
+          const devUserId = localStorage.getItem('devUserId') || '00000000-0000-0000-0000-000000000000';
+          setUserId(devUserId);
+          localStorage.setItem('devUserId', devUserId);
+        } else {
+          // In production, get the actual user
+          const { data: { user }, error: userError } = await supabase.auth.getUser();
+          
+          if (userError) {
+            throw userError;
+          }
+          
+          if (user) {
+            setUserId(user.id);
+          } else {
+            // If no user is found, redirect to login
+            router.push('/login');
+            return;
           }
         }
+        
+        // Load property data from localStorage
+        try {
+          const savedProperty = localStorage.getItem('propertyData');
+          console.log('Raw saved property data:', savedProperty);
+          
+          // Also check saved properties
+          const savedPropertiesString = localStorage.getItem('savedProperties');
+          console.log('Saved properties:', savedPropertiesString);
+          
+          if (savedProperty) {
+            const parsedData = JSON.parse(savedProperty);
+            console.log('Parsed property data:', parsedData);
+            console.log('Property type:', parsedData.propertyType);
+            console.log('Is HMO flag:', parsedData.isHmo);
+            
+            setPropertyData({
+              address: parsedData.address || '',
+              propertyType: parsedData.propertyType || '',
+              bedrooms: parsedData.bedrooms || '',
+              isHmo: parsedData.isHmo || parsedData.propertyType === 'hmo' // Also check property type as a fallback
+            });
+            
+            // If HMO, create tenant entries for each bedroom
+            if ((parsedData.isHmo || parsedData.propertyType === 'hmo') && parsedData.bedrooms) {
+              console.log('Setting up HMO tenants for', parsedData.bedrooms, 'bedrooms');
+              const bedroomCount = parseInt(parsedData.bedrooms);
+              if (!isNaN(bedroomCount) && bedroomCount > 0) {
+                setTenants(Array.from({ length: bedroomCount }, (_, i) => ({
+                  firstName: '',
+                  lastName: '',
+                  phoneNumber: '',
+                  email: '',
+                  roomNumber: (i + 1).toString(),
+                  // Tenancy Type
+                  agreementType: '',
+                  tenancyTerm: '',
+                  // Tenancy Dates
+                  startDate: '',
+                  endDate: '',
+                  hasBreakClause: false,
+                  breakClauseDetails: '',
+                  // Rent Schedule
+                  rentAmount: '',
+                  rentFrequency: 'monthly',
+                  rentDueDay: '',
+                  paymentMethod: '',
+                  // Deposit Information
+                  depositAmount: '',
+                  depositScheme: '',
+                  depositRegistrationDate: '',
+                  depositRegistrationRef: ''
+                })));
+              }
+            }
+            
+            // If we have property UUID in the data, save it
+            if (parsedData.id) {
+              setPropertyId(parsedData.id);
+            }
+          }
+        } catch (error) {
+          console.error("Error loading property data:", error);
+        }
+      } catch (error) {
+        console.error('Error fetching user:', error);
+        setError('Failed to authenticate user. Please try again.');
       }
-    } catch (error) {
-      console.error("Error loading property data:", error);
-    }
-  }, []);
+    };
+    
+    fetchUserAndProperty();
+  }, [router]);
   
   // Handle input changes for tenancy form
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -204,74 +253,211 @@ export default function TenancySetup() {
   };
   
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
     
-    // For HMO properties, all fields are at the tenant level
-    if (propertyData.isHmo) {
-      // Validate all tenant/room specific information for HMO
-      const hasMissingTenantInfo = tenants.some(tenant => {
-        const basicFieldsMissing = !tenant.firstName || !tenant.lastName || !tenant.email;
-        const tenancyTypeFieldsMissing = !tenant.agreementType || !tenant.tenancyTerm;
-        const tenancyDatesMissing = !tenant.startDate;
-        const rentFieldsMissing = !tenant.rentAmount || !tenant.rentDueDay || !tenant.rentFrequency;
+    try {
+      // Make sure we have a user ID
+      if (!userId) {
+        throw new Error('User not authenticated. Please log in and try again.');
+      }
+      
+      // Make sure we have a property to link to
+      if (!propertyId) {
+        throw new Error('Property information is missing. Please start from the property step.');
+      }
+      
+      // For HMO properties, all fields are at the tenant level
+      if (propertyData.isHmo) {
+        // Validate all tenant/room specific information for HMO
+        const hasMissingTenantInfo = tenants.some(tenant => {
+          const basicFieldsMissing = !tenant.firstName || !tenant.lastName || !tenant.email;
+          const tenancyTypeFieldsMissing = !tenant.agreementType || !tenant.tenancyTerm;
+          const tenancyDatesMissing = !tenant.startDate;
+          const rentFieldsMissing = !tenant.rentAmount || !tenant.rentDueDay || !tenant.rentFrequency;
+          
+          return basicFieldsMissing || tenancyTypeFieldsMissing || tenancyDatesMissing || rentFieldsMissing;
+        });
         
-        return basicFieldsMissing || tenancyTypeFieldsMissing || tenancyDatesMissing || rentFieldsMissing;
-      });
-      
-      if (hasMissingTenantInfo) {
-        alert('Please fill in all required tenant and room information for each room');
-        return;
+        if (hasMissingTenantInfo) {
+          throw new Error('Please fill in all required tenant and room information for each room');
+        }
+      } else {
+        // For non-HMO properties, validate property level fields
+        if (!formData.agreementType || !formData.tenancyTerm || !formData.startDate || 
+            !formData.rentAmount || !formData.rentFrequency || !formData.rentDueDay) {
+          throw new Error('Please fill in all required fields');
+        }
+        
+        // Validate tenant basic information for non-HMO
+        const hasMissingTenantInfo = tenants.some(tenant => {
+          return !tenant.firstName || !tenant.lastName || !tenant.email;
+        });
+        
+        if (hasMissingTenantInfo) {
+          throw new Error('Please fill in all tenant information');
+        }
       }
-    } else {
-      // For non-HMO properties, validate property level fields
-      if (!formData.agreementType || !formData.tenancyTerm || !formData.startDate || 
-          !formData.rentAmount || !formData.rentFrequency || !formData.rentDueDay) {
-      alert('Please fill in all required fields');
-      return;
-    }
-    
-      // Validate tenant basic information for non-HMO
-      const hasMissingTenantInfo = tenants.some(tenant => {
-        return !tenant.firstName || !tenant.lastName || !tenant.email;
-      });
       
-      if (hasMissingTenantInfo) {
-        alert('Please fill in all tenant information');
-        return;
+      // Save to Supabase
+      const tenancySuccess = [];
+      
+      // Process each tenant
+      for (const tenant of tenants) {
+        // 1. Create the tenant record
+        const { data: tenantData, error: tenantError } = await supabase
+          .from('tenants')
+          .insert({
+            user_id: userId,
+            name: `${tenant.firstName} ${tenant.lastName}`,
+            email: tenant.email,
+            phone: tenant.phoneNumber,
+            status: 'active',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select('id')
+          .single();
+          
+        if (tenantError) {
+          throw new Error(`Failed to create tenant: ${tenantError.message}`);
+        }
+        
+        const tenantId = tenantData.id;
+        
+        // 2. Create the lease record
+        if (propertyData.isHmo) {
+          // For HMO: Each tenant has their own lease details
+          const { error: leaseError } = await supabase
+            .from('leases')
+            .insert({
+              tenant_id: tenantId,
+              property_uuid: propertyId,
+              start_date: tenant.startDate,
+              end_date: tenant.endDate || null,
+              rent_amount: parseFloat(tenant.rentAmount) || 0,
+              rent_frequency: tenant.rentFrequency,
+              rent_due_day: parseInt(tenant.rentDueDay) || 1,
+              payment_method: tenant.paymentMethod || null,
+              deposit_amount: parseFloat(tenant.depositAmount) || null,
+              deposit_protection_scheme: tenant.depositScheme || null,
+              deposit_protection_id: tenant.depositRegistrationRef || null,
+              deposit_protected_on: tenant.depositRegistrationDate || null,
+              status: 'active',
+              has_break_clause: tenant.hasBreakClause,
+              break_clause_notice_period: tenant.breakClauseDetails ? 2 : null, // Default to 2 months if there's any break clause
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
+            
+          if (leaseError) {
+            throw new Error(`Failed to create lease for HMO tenant: ${leaseError.message}`);
+          }
+        } else {
+          // For non-HMO: One lease but many tenants
+          const { error: leaseError } = await supabase
+            .from('leases')
+            .insert({
+              tenant_id: tenantId,
+              property_uuid: propertyId,
+              start_date: formData.startDate,
+              end_date: formData.endDate || null,
+              rent_amount: parseFloat(formData.rentAmount) || 0,
+              rent_frequency: formData.rentFrequency,
+              rent_due_day: parseInt(formData.rentDueDay) || 1,
+              payment_method: formData.paymentMethod || null,
+              deposit_amount: parseFloat(formData.depositAmount) || null,
+              deposit_protection_scheme: formData.depositScheme || null,
+              deposit_protection_id: formData.depositRegistrationRef || null,
+              deposit_protected_on: formData.depositRegistrationDate || null,
+              status: 'active',
+              has_break_clause: formData.hasBreakClause,
+              break_clause_notice_period: formData.breakClauseDetails ? 2 : null, // Default to 2 months if there's any break clause
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
+            
+          if (leaseError) {
+            throw new Error(`Failed to create lease for tenant: ${leaseError.message}`);
+          }
+        }
+        
+        tenancySuccess.push(tenantId);
       }
+      
+      // Save tenancy completion to user profile
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .upsert({
+          user_id: userId,
+          tenancy_setup_completed: true,
+          updated_at: new Date().toISOString()
+        });
+        
+      if (profileError) {
+        console.error('Error updating user profile:', profileError);
+        // Continue anyway as this is not critical
+      }
+      
+      // Save to localStorage for reference
+      const completeData = {
+        property: propertyData,
+        tenancy: propertyData.isHmo ? null : formData,
+        tenants: tenants
+      };
+      localStorage.setItem('tenancyData', JSON.stringify(completeData));
+      
+      // Navigate to the next step
+      router.push('/onboarding/tenant/confirmation');
+    } catch (error) {
+      console.error('Error saving tenancy data:', error);
+      setError(error instanceof Error ? error.message : 'An unknown error occurred');
+      setIsSubmitting(false);
     }
-    
-    // Save data (in a real app, this would go to an API)
-    const completeData = {
-      property: propertyData,
-      tenancy: formData,
-      tenants: tenants
-    };
-    console.log('Complete data submitted:', completeData);
-    
-    // Save to localStorage for demo purposes
-    localStorage.setItem('tenancyData', JSON.stringify(completeData));
-    
-    // Navigate to the next step
-    router.push('/onboarding/tenant/confirmation');
   };
   
   // Handle save as draft
-  const handleSaveAsDraft = () => {
-    // Save to localStorage
+  const handleSaveAsDraft = async () => {
+    // Save to localStorage and Supabase
     try {
+      setIsSubmitting(true);
+      setError(null);
+      
+      // Make sure we have a user ID
+      if (!userId) {
+        throw new Error('User not authenticated. Please log in and try again.');
+      }
+      
       const draftData = {
         property: propertyData,
         tenancy: formData,
         tenants: tenants
       };
+      
       localStorage.setItem('tenancyDataDraft', JSON.stringify(draftData));
+      
+      // Save draft status to Supabase
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .upsert({
+          user_id: userId,
+          tenancy_setup_draft: true,
+          tenancy_setup_draft_data: draftData,
+          updated_at: new Date().toISOString()
+        });
+        
+      if (profileError) {
+        throw new Error(`Failed to save draft: ${profileError.message}`);
+      }
+      
       // Navigate to next step
       router.push('/onboarding/tenant/confirmation');
     } catch (error) {
       console.error("Error saving tenancy draft data:", error);
-      alert('Failed to save draft. Please try again.');
+      setError(error instanceof Error ? error.message : 'Failed to save draft. Please try again.');
+      setIsSubmitting(false);
     }
   };
   
@@ -343,6 +529,13 @@ export default function TenancySetup() {
             <p className="mt-1 text-sm/6 text-gray-600">
               Configure the tenancy details for your property.
             </p>
+            
+            {/* Display error if any */}
+            {error && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            )}
           </div>
 
           <form onSubmit={handleSubmit} className="bg-white border border-gray-300 ring-1 shadow-xs ring-gray-900/5 sm:rounded-xl md:col-span-2">
@@ -493,163 +686,164 @@ export default function TenancySetup() {
                                 <div className="mt-1">
                           <textarea
                             id="breakClauseDetails"
+                            name="breakClauseDetails"
                             rows={3}
                             value={formData.breakClauseDetails}
                             onChange={handleInputChange}
                             className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                                    placeholder="e.g. After 6 months with 2 months notice"
+                            placeholder="e.g. After 6 months with 2 months notice"
                           />
-                        </div>
-                      </div>
-                    )}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
-                  </div>
-                </div>
-                
-                    {/* Rent Schedule - Only for non-HMO */}
-                <div className="border-b border-gray-900/10 pb-6">
-                  <h2 className="text-base/7 title-font text-gray-900">Rent Schedule</h2>
-                  <p className="mt-1 text-sm/6 text-gray-600">
-                        Specify the rent amount and payment schedule.
-                  </p>
-                  
-                  <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-6">
-                    <div className="sm:col-span-3">
-                      <label htmlFor="rentAmount" className="block text-sm font-medium leading-6 text-gray-900">
+                      </div>
+                    </div>
+                    
+                    {/* Rent Schedule */}
+                    <div className="border-b border-gray-900/10 pb-6">
+                      <h2 className="text-base/7 title-font text-gray-900">Rent Schedule</h2>
+                      <p className="mt-1 text-sm/6 text-gray-600">
+                        Specify the rent amount, frequency and payment details.
+                      </p>
+                      
+                      <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-6">
+                        <div className="sm:col-span-3">
+                          <label htmlFor="rentAmount" className="block text-sm font-medium leading-6 text-gray-900">
                             Rent amount <span className="text-red-500">*</span>
-                      </label>
+                          </label>
                           <div className="mt-2 relative rounded-md shadow-sm">
-                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                          <span className="text-gray-500 sm:text-sm">£</span>
+                            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                              <span className="text-gray-500 sm:text-sm">£</span>
+                            </div>
+                            <input
+                              type="text"
+                              name="rentAmount"
+                              id="rentAmount"
+                              required
+                              value={formData.rentAmount}
+                              onChange={handleInputChange}
+                              className="block w-full rounded-md border border-gray-300 py-1.5 pl-7 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                              placeholder="0.00"
+                            />
+                          </div>
                         </div>
-                        <input
-                          type="text"
-                          name="rentAmount"
-                          id="rentAmount"
-                              required
-                          value={formData.rentAmount}
-                          onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 pl-7 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                          placeholder="0.00"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="sm:col-span-3">
-                      <label htmlFor="rentFrequency" className="block text-sm font-medium leading-6 text-gray-900">
+                        
+                        <div className="sm:col-span-3">
+                          <label htmlFor="rentFrequency" className="block text-sm font-medium leading-6 text-gray-900">
                             Frequency <span className="text-red-500">*</span>
-                      </label>
-                      <div className="mt-2">
-                        <select
-                          id="rentFrequency"
-                          name="rentFrequency"
+                          </label>
+                          <div className="mt-2">
+                            <select
+                              id="rentFrequency"
+                              name="rentFrequency"
                               required
-                          value={formData.rentFrequency}
-                          onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                        >
-                          <option value="weekly">Weekly</option>
-                          <option value="monthly">Monthly</option>
-                          <option value="quarterly">Quarterly</option>
-                          <option value="annually">Annually</option>
-                        </select>
-                      </div>
-                    </div>
-                    
-                    <div className="sm:col-span-3">
-                      <label htmlFor="rentDueDay" className="block text-sm font-medium leading-6 text-gray-900">
+                              value={formData.rentFrequency}
+                              onChange={handleInputChange}
+                              className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                            >
+                              <option value="weekly">Weekly</option>
+                              <option value="monthly">Monthly</option>
+                              <option value="quarterly">Quarterly</option>
+                              <option value="annually">Annually</option>
+                            </select>
+                          </div>
+                        </div>
+                        
+                        <div className="sm:col-span-3">
+                          <label htmlFor="rentDueDay" className="block text-sm font-medium leading-6 text-gray-900">
                             Due on day <span className="text-red-500">*</span>
-                      </label>
-                      <div className="mt-2">
+                          </label>
+                          <div className="mt-2">
                             <input
                               type="number"
                               name="rentDueDay"
-                          id="rentDueDay"
-                          required
+                              id="rentDueDay"
+                              required
                               min="1"
                               max="31"
-                          value={formData.rentDueDay}
-                          onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                              value={formData.rentDueDay}
+                              onChange={handleInputChange}
+                              className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                               placeholder="1"
                             />
-                      </div>
-                    </div>
-                    
-                    <div className="sm:col-span-3">
-                      <label htmlFor="paymentMethod" className="block text-sm font-medium leading-6 text-gray-900">
-                        Payment method
-                      </label>
-                      <div className="mt-2">
-                        <select
-                          id="paymentMethod"
-                          name="paymentMethod"
-                          value={formData.paymentMethod}
-                          onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                        >
-                          <option value="">Select payment method</option>
-                          <option value="bank-transfer">Bank Transfer</option>
-                          <option value="standing-order">Standing Order</option>
-                          <option value="direct-debit">Direct Debit</option>
-                          <option value="cash">Cash</option>
-                              <option value="check">Check</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                    {/* Deposit Information - Only for non-HMO */}
-                <div className="border-b border-gray-900/10 pb-6">
-                  <h2 className="text-base/7 title-font text-gray-900">Deposit Information</h2>
-                  <p className="mt-1 text-sm/6 text-gray-600">
-                        Record the deposit details and protection scheme.
-                  </p>
-                  
-                  <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-6">
-                    <div className="sm:col-span-3">
-                      <label htmlFor="depositAmount" className="block text-sm font-medium leading-6 text-gray-900">
-                        Deposit amount
-                      </label>
-                          <div className="mt-2 relative rounded-md shadow-sm">
-                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                          <span className="text-gray-500 sm:text-sm">£</span>
+                          </div>
                         </div>
-                        <input
-                          type="text"
-                          name="depositAmount"
-                          id="depositAmount"
-                          value={formData.depositAmount}
-                          onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 pl-7 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                          placeholder="0.00"
-                        />
+                        
+                        <div className="sm:col-span-3">
+                          <label htmlFor="paymentMethod" className="block text-sm font-medium leading-6 text-gray-900">
+                            Payment method
+                          </label>
+                          <div className="mt-2">
+                            <select
+                              id="paymentMethod"
+                              name="paymentMethod"
+                              value={formData.paymentMethod}
+                              onChange={handleInputChange}
+                              className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                            >
+                              <option value="">Select payment method</option>
+                              <option value="bank-transfer">Bank Transfer</option>
+                              <option value="standing-order">Standing Order</option>
+                              <option value="direct-debit">Direct Debit</option>
+                              <option value="cash">Cash</option>
+                              <option value="check">Check</option>
+                            </select>
+                          </div>
+                        </div>
                       </div>
                     </div>
                     
-                    <div className="sm:col-span-3">
-                      <label htmlFor="depositScheme" className="block text-sm font-medium leading-6 text-gray-900">
+                    {/* Deposit Information */}
+                    <div className="border-b border-gray-900/10 pb-6">
+                      <h2 className="text-base/7 title-font text-gray-900">Deposit Information</h2>
+                      <p className="mt-1 text-sm/6 text-gray-600">
+                        Provide details about the security deposit if applicable.
+                      </p>
+                      
+                      <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-6">
+                        <div className="sm:col-span-3">
+                          <label htmlFor="depositAmount" className="block text-sm font-medium leading-6 text-gray-900">
+                            Deposit amount
+                          </label>
+                          <div className="mt-2 relative rounded-md shadow-sm">
+                            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                              <span className="text-gray-500 sm:text-sm">£</span>
+                            </div>
+                            <input
+                              type="text"
+                              name="depositAmount"
+                              id="depositAmount"
+                              value={formData.depositAmount}
+                              onChange={handleInputChange}
+                              className="block w-full rounded-md border border-gray-300 py-1.5 pl-7 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                              placeholder="0.00"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="sm:col-span-3">
+                          <label htmlFor="depositScheme" className="block text-sm font-medium leading-6 text-gray-900">
                             Deposit scheme
-                      </label>
-                      <div className="mt-2">
-                        <select
-                          id="depositScheme"
-                          name="depositScheme"
-                          value={formData.depositScheme}
-                          onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                        >
+                          </label>
+                          <div className="mt-2">
+                            <select
+                              id="depositScheme"
+                              name="depositScheme"
+                              value={formData.depositScheme}
+                              onChange={handleInputChange}
+                              className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                            >
                               <option value="">Select deposit scheme</option>
                               <option value="deposit-protection-service">Deposit Protection Service (DPS)</option>
                               <option value="my-deposits">My Deposits</option>
                               <option value="tenancy-deposit-scheme">Tenancy Deposit Scheme (TDS)</option>
                               <option value="other">Other</option>
-                        </select>
-                      </div>
-                    </div>
-                    
+                            </select>
+                          </div>
+                        </div>
+                        
                         <div className="sm:col-span-3">
                           <label htmlFor="depositRegistrationDate" className="block text-sm font-medium leading-6 text-gray-900">
                             Registration date
@@ -687,384 +881,137 @@ export default function TenancySetup() {
                   </>
                 )}
                 
-                {/* Tenant Information Section */}
-                <div className="border-b border-gray-900/10 pb-6">
-                  <h2 className="text-base/7 title-font text-gray-900">
-                    {propertyData.isHmo ? 'Room Tenants' : 'Tenants'}
-                  </h2>
+                {/* Tenants */}
+                <div>
+                  <h2 className="text-base/7 title-font text-gray-900">Tenant Information</h2>
                   <p className="mt-1 text-sm/6 text-gray-600">
-                    {propertyData.isHmo 
-                      ? 'Enter tenant details for each room in the HMO property.' 
-                      : 'Enter tenant details for the property.'}
+                    Enter details for each tenant occupying the property.
                   </p>
                   
                   {tenants.map((tenant, index) => (
-                    <div key={index} className="mt-6 p-4 border border-gray-200 rounded-md">
-                      <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-sm font-medium text-gray-900">
-                          {propertyData.isHmo ? `Room ${tenant.roomNumber}` : `Tenant ${index + 1}`}
-                        </h3>
-                      </div>
+                    <div key={index} className="mt-6 border border-gray-200 rounded-md p-4">
+                      <h3 className="text-sm/6 title-font text-gray-900 mb-4">
+                        {propertyData.isHmo ? `Room ${tenant.roomNumber} Tenant` : `Tenant ${index + 1}`}
+                      </h3>
                       
-                      <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-6">
-                        {/* Personal Information */}
-                        <div className="sm:col-span-6 border-b border-gray-200 pb-4 mb-2">
-                          <h4 className="text-sm font-medium text-gray-900 mb-3">Personal Information</h4>
-                          <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-6">
-                            <div className="sm:col-span-3">
-                              <label htmlFor={`firstName-${index}`} className="block text-sm font-medium leading-6 text-gray-900">
-                                First name <span className="text-red-500">*</span>
-                              </label>
-                              <div className="mt-2">
-                                <input
-                                  type="text"
-                                  id={`firstName-${index}`}
-                                  required
-                                  value={tenant.firstName}
-                                  onChange={(e) => handleTenantChange(index, 'firstName', e.target.value)}
-                                  className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                                />
-                              </div>
-                            </div>
-                            
-                            <div className="sm:col-span-3">
-                              <label htmlFor={`lastName-${index}`} className="block text-sm font-medium leading-6 text-gray-900">
-                                Last name <span className="text-red-500">*</span>
-                              </label>
-                              <div className="mt-2">
-                                <input
-                                  type="text"
-                                  id={`lastName-${index}`}
-                                  required
-                                  value={tenant.lastName}
-                                  onChange={(e) => handleTenantChange(index, 'lastName', e.target.value)}
-                                  className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                                />
-                              </div>
-                            </div>
-                            
-                            <div className="sm:col-span-3">
-                              <label htmlFor={`email-${index}`} className="block text-sm font-medium leading-6 text-gray-900">
-                                Email address <span className="text-red-500">*</span>
-                              </label>
-                              <div className="mt-2">
-                                <input
-                                  type="email"
-                                  id={`email-${index}`}
-                                  required
-                                  value={tenant.email}
-                                  onChange={(e) => handleTenantChange(index, 'email', e.target.value)}
-                                  className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                                />
-                              </div>
-                            </div>
-                            
-                            <div className="sm:col-span-3">
-                              <label htmlFor={`phoneNumber-${index}`} className="block text-sm font-medium leading-6 text-gray-900">
-                                Phone number
-                              </label>
-                              <div className="mt-2">
-                                <input
-                                  type="tel"
-                                  id={`phoneNumber-${index}`}
-                                  value={tenant.phoneNumber}
-                                  onChange={(e) => handleTenantChange(index, 'phoneNumber', e.target.value)}
-                                  className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                                />
-                              </div>
-                            </div>
+                      {/* Tenant Basic Information */}
+                      <div className="mt-2 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-6">
+                        <div className="sm:col-span-3">
+                          <label htmlFor={`firstName-${index}`} className="block text-sm font-medium leading-6 text-gray-900">
+                            First name <span className="text-red-500">*</span>
+                          </label>
+                          <div className="mt-2">
+                            <input
+                              type="text"
+                              id={`firstName-${index}`}
+                              required
+                              value={tenant.firstName}
+                              onChange={(e) => handleTenantChange(index, 'firstName', e.target.value)}
+                              className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                            />
                           </div>
                         </div>
                         
-                        {/* Room specific sections for HMO properties */}
-                        {propertyData.isHmo && (
-                          <>
-                            {/* Tenancy Type for HMO room */}
-                            <div className="sm:col-span-6 border-b border-gray-200 pt-2 pb-4 mb-2">
-                              <h4 className="text-sm font-medium leading-6 text-gray-900 mb-3">Room Tenancy Type</h4>
-                              
-                              <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-6">
-                                <div className="sm:col-span-3">
-                                  <label htmlFor={`agreementType-${index}`} className="block text-sm font-medium leading-6 text-gray-900">
-                                    Agreement type <span className="text-red-500">*</span>
-                                  </label>
-                                  <div className="mt-2">
-                                    <select
-                                      id={`agreementType-${index}`}
-                                      required
-                                      value={tenant.agreementType}
-                                      onChange={(e) => handleTenantChange(index, 'agreementType', e.target.value)}
-                                      className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                                    >
-                                      <option value="">Select agreement type</option>
-                                      <option value="ast">Assured Shorthold Tenancy (AST)</option>
-                                      <option value="non-ast">Non-AST</option>
-                                      <option value="company-let">Company Let</option>
-                                      <option value="student">Student</option>
-                                      <option value="other">Other</option>
-                                    </select>
-                                  </div>
-                                </div>
-                                
-                                <div className="sm:col-span-3">
-                                  <label htmlFor={`tenancyTerm-${index}`} className="block text-sm font-medium leading-6 text-gray-900">
-                                    Tenancy term <span className="text-red-500">*</span>
-                                  </label>
-                                  <div className="mt-2">
-                                    <select
-                                      id={`tenancyTerm-${index}`}
-                                      required
-                                      value={tenant.tenancyTerm}
-                                      onChange={(e) => handleTenantChange(index, 'tenancyTerm', e.target.value)}
-                                      className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                                    >
-                                      <option value="">Select tenancy term</option>
-                                      <option value="fixed">Fixed Term</option>
-                                      <option value="periodic">Periodic</option>
-                                    </select>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            {/* Tenancy Dates for HMO room */}
-                            <div className="sm:col-span-6 border-b border-gray-200 pt-2 pb-4 mb-2">
-                              <h4 className="text-sm font-medium leading-6 text-gray-900 mb-3">Room Tenancy Dates</h4>
-                              
-                              <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-6">
-                                <div className="sm:col-span-3">
-                                  <label htmlFor={`startDate-${index}`} className="block text-sm font-medium leading-6 text-gray-900">
-                                    Start date <span className="text-red-500">*</span>
-                                  </label>
-                                  <div className="mt-2">
-                                    <input
-                                      type="date"
-                                      id={`startDate-${index}`}
-                                      required
-                                      value={tenant.startDate}
-                                      onChange={(e) => handleTenantChange(index, 'startDate', e.target.value)}
-                                      className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                                    />
-                                  </div>
-                                </div>
-                                
-                                {tenant.tenancyTerm === 'fixed' && (
-                                  <div className="sm:col-span-3">
-                                    <label htmlFor={`endDate-${index}`} className="block text-sm font-medium leading-6 text-gray-900">
-                                      End date
-                                    </label>
-                                    <div className="mt-2">
-                                      <input
-                                        type="date"
-                                        id={`endDate-${index}`}
-                                        value={tenant.endDate}
-                                        onChange={(e) => handleTenantChange(index, 'endDate', e.target.value)}
-                                        className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                                      />
-                                    </div>
-                                  </div>
-                                )}
-                                
-                                <div className="sm:col-span-6">
-                                  <div className="flex items-center">
-                                    <input
-                                      id={`hasBreakClause-${index}`}
-                                      type="checkbox"
-                                      checked={tenant.hasBreakClause}
-                                      onChange={(e) => handleTenantChange(index, 'hasBreakClause', e.target.checked)}
-                                      className="size-4 text-gray-900 focus:ring-[#D9E8FF]"
-                                    />
-                                    <label htmlFor={`hasBreakClause-${index}`} className="ml-2 text-sm font-medium text-gray-900">
-                                      Break clause
-                                    </label>
-                                  </div>
-                                  
-                                  {tenant.hasBreakClause && (
-                                    <div className="ml-6 mt-2">
-                                      <label htmlFor={`breakClauseDetails-${index}`} className="block text-sm font-medium leading-6 text-gray-700">
-                                        Break clause details
-                                      </label>
-                                      <div className="mt-1">
-                                        <textarea
-                                          id={`breakClauseDetails-${index}`}
-                                          rows={2}
-                                          value={tenant.breakClauseDetails}
-                                          onChange={(e) => handleTenantChange(index, 'breakClauseDetails', e.target.value)}
-                                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                                          placeholder="e.g. After 6 months with 2 months notice"
-                                        />
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            
-                            {/* Rent details for HMO room */}
-                            <div className="sm:col-span-6 border-b border-gray-200 pt-2 pb-4 mb-2">
-                              <h4 className="text-sm font-medium leading-6 text-gray-900 mb-3">Room Rent Details</h4>
-                              
-                              <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-6">
-                                <div className="sm:col-span-3">
-                                  <label htmlFor={`rentAmount-${index}`} className="block text-sm font-medium leading-6 text-gray-900">
-                                    Room rent <span className="text-red-500">*</span>
-                                  </label>
-                                  <div className="mt-2 relative rounded-md shadow-sm">
-                                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                                      <span className="text-gray-500 sm:text-sm">£</span>
-                                    </div>
-                                    <input
-                                      type="text"
-                                      id={`rentAmount-${index}`}
-                                      required
-                                      value={tenant.rentAmount}
-                                      onChange={(e) => handleTenantChange(index, 'rentAmount', e.target.value)}
-                                      className="block w-full rounded-md border border-gray-300 py-1.5 pl-7 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                                      placeholder="0.00"
-                                    />
-                                  </div>
-                                </div>
-                                
-                                <div className="sm:col-span-3">
-                                  <label htmlFor={`rentFrequency-${index}`} className="block text-sm font-medium leading-6 text-gray-900">
-                                    Frequency <span className="text-red-500">*</span>
-                                  </label>
-                                  <div className="mt-2">
-                                    <select
-                                      id={`rentFrequency-${index}`}
-                                      value={tenant.rentFrequency}
-                                      onChange={(e) => handleTenantChange(index, 'rentFrequency', e.target.value)}
-                                      className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                                    >
-                                      <option value="weekly">Weekly</option>
-                                      <option value="monthly">Monthly</option>
-                                      <option value="quarterly">Quarterly</option>
-                                      <option value="annually">Annually</option>
-                                    </select>
-                                  </div>
-                                </div>
-                                
-                                <div className="sm:col-span-3">
-                                  <label htmlFor={`rentDueDay-${index}`} className="block text-sm font-medium leading-6 text-gray-900">
-                                    Due on day <span className="text-red-500">*</span>
-                                  </label>
-                                  <div className="mt-2">
-                                    <input
-                                      type="number"
-                                      id={`rentDueDay-${index}`}
-                                      required
-                                      min="1"
-                                      max="31"
-                                      value={tenant.rentDueDay}
-                                      onChange={(e) => handleTenantChange(index, 'rentDueDay', e.target.value)}
-                                      className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                                      placeholder="1"
-                                    />
-                                  </div>
-                                </div>
-                                
-                                <div className="sm:col-span-3">
-                                  <label htmlFor={`paymentMethod-${index}`} className="block text-sm font-medium leading-6 text-gray-900">
-                                    Payment method
-                                  </label>
-                                  <div className="mt-2">
-                                    <select
-                                      id={`paymentMethod-${index}`}
-                                      value={tenant.paymentMethod}
-                                      onChange={(e) => handleTenantChange(index, 'paymentMethod', e.target.value)}
-                                      className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                                    >
-                                      <option value="">Select payment method</option>
-                                      <option value="bank-transfer">Bank Transfer</option>
-                                      <option value="standing-order">Standing Order</option>
-                                      <option value="direct-debit">Direct Debit</option>
-                                      <option value="cash">Cash</option>
-                                      <option value="check">Check</option>
-                                    </select>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            {/* Deposit details for HMO room */}
-                            <div className="sm:col-span-6 pt-2">
-                              <h4 className="text-sm font-medium leading-6 text-gray-900 mb-3">Room Deposit Details</h4>
-                              
-                              <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-6">
-                                <div className="sm:col-span-3">
-                                  <label htmlFor={`depositAmount-${index}`} className="block text-sm font-medium leading-6 text-gray-900">
-                                    Deposit amount
-                                  </label>
-                                  <div className="mt-2 relative rounded-md shadow-sm">
-                                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                                      <span className="text-gray-500 sm:text-sm">£</span>
-                                    </div>
-                                    <input
-                                      type="text"
-                                      id={`depositAmount-${index}`}
-                                      value={tenant.depositAmount}
-                                      onChange={(e) => handleTenantChange(index, 'depositAmount', e.target.value)}
-                                      className="block w-full rounded-md border border-gray-300 py-1.5 pl-7 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                                      placeholder="0.00"
-                                    />
-                                  </div>
-                                </div>
-                                
-                                <div className="sm:col-span-3">
-                                  <label htmlFor={`depositScheme-${index}`} className="block text-sm font-medium leading-6 text-gray-900">
-                                    Deposit scheme
-                                  </label>
-                                  <div className="mt-2">
-                                    <select
-                                      id={`depositScheme-${index}`}
-                                      value={tenant.depositScheme}
-                                      onChange={(e) => handleTenantChange(index, 'depositScheme', e.target.value)}
-                                      className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                                    >
-                                      <option value="">Select deposit scheme</option>
-                                      <option value="deposit-protection-service">Deposit Protection Service (DPS)</option>
-                                      <option value="my-deposits">My Deposits</option>
-                                      <option value="tenancy-deposit-scheme">Tenancy Deposit Scheme (TDS)</option>
-                                      <option value="other">Other</option>
-                                    </select>
-                                  </div>
-                                </div>
-                                
-                                <div className="sm:col-span-3">
-                                  <label htmlFor={`depositRegistrationDate-${index}`} className="block text-sm font-medium leading-6 text-gray-900">
-                                    Registration date
-                                  </label>
-                                  <div className="mt-2">
-                                    <input
-                                      type="date"
-                                      id={`depositRegistrationDate-${index}`}
-                                      value={tenant.depositRegistrationDate}
-                                      onChange={(e) => handleTenantChange(index, 'depositRegistrationDate', e.target.value)}
-                                      className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                                    />
-                                  </div>
-                                </div>
-                                
-                                <div className="sm:col-span-3">
-                                  <label htmlFor={`depositRegistrationRef-${index}`} className="block text-sm font-medium leading-6 text-gray-900">
-                                    Registration reference
-                                  </label>
-                                  <div className="mt-2">
-                                    <input
-                                      type="text"
-                                      id={`depositRegistrationRef-${index}`}
-                                      value={tenant.depositRegistrationRef}
-                                      onChange={(e) => handleTenantChange(index, 'depositRegistrationRef', e.target.value)}
-                                      className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                                      placeholder="Enter reference number"
-                                    />
-                                  </div>
-                                </div>
+                        <div className="sm:col-span-3">
+                          <label htmlFor={`lastName-${index}`} className="block text-sm font-medium leading-6 text-gray-900">
+                            Last name <span className="text-red-500">*</span>
+                          </label>
+                          <div className="mt-2">
+                            <input
+                              type="text"
+                              id={`lastName-${index}`}
+                              required
+                              value={tenant.lastName}
+                              onChange={(e) => handleTenantChange(index, 'lastName', e.target.value)}
+                              className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                            />
                           </div>
                         </div>
-                      </>
-                    )}
-                  </div>
+                        
+                        <div className="sm:col-span-3">
+                          <label htmlFor={`email-${index}`} className="block text-sm font-medium leading-6 text-gray-900">
+                            Email <span className="text-red-500">*</span>
+                          </label>
+                          <div className="mt-2">
+                            <input
+                              type="email"
+                              id={`email-${index}`}
+                              required
+                              value={tenant.email}
+                              onChange={(e) => handleTenantChange(index, 'email', e.target.value)}
+                              className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="sm:col-span-3">
+                          <label htmlFor={`phoneNumber-${index}`} className="block text-sm font-medium leading-6 text-gray-900">
+                            Phone number
+                          </label>
+                          <div className="mt-2">
+                            <input
+                              type="tel"
+                              id={`phoneNumber-${index}`}
+                              value={tenant.phoneNumber}
+                              onChange={(e) => handleTenantChange(index, 'phoneNumber', e.target.value)}
+                              className="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* For HMO properties, show individual tenancy information for each room */}
+                      {propertyData.isHmo && (
+                        <>
+                          {/* Tenancy Type for HMO room */}
+                          <div className="sm:col-span-6 border-b border-gray-200 pt-4 pb-4 mb-2">
+                            <h4 className="text-sm font-medium leading-6 text-gray-900 mb-3">Room Tenancy Type</h4>
+                            
+                            <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-6">
+                              <div className="sm:col-span-3">
+                                <label htmlFor={`agreementType-${index}`} className="block text-sm font-medium leading-6 text-gray-900">
+                                  Agreement type <span className="text-red-500">*</span>
+                                </label>
+                                <div className="mt-2">
+                                  <select
+                                    id={`agreementType-${index}`}
+                                    required
+                                    value={tenant.agreementType}
+                                    onChange={(e) => handleTenantChange(index, 'agreementType', e.target.value)}
+                                    className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                                  >
+                                    <option value="">Select agreement type</option>
+                                    <option value="ast">Assured Shorthold Tenancy (AST)</option>
+                                    <option value="non-ast">Non-AST</option>
+                                    <option value="company-let">Company Let</option>
+                                    <option value="student">Student</option>
+                                    <option value="other">Other</option>
+                                  </select>
+                                </div>
+                              </div>
+                              
+                              <div className="sm:col-span-3">
+                                <label htmlFor={`tenancyTerm-${index}`} className="block text-sm font-medium leading-6 text-gray-900">
+                                  Tenancy term <span className="text-red-500">*</span>
+                                </label>
+                                <div className="mt-2">
+                                  <select
+                                    id={`tenancyTerm-${index}`}
+                                    required
+                                    value={tenant.tenancyTerm}
+                                    onChange={(e) => handleTenantChange(index, 'tenancyTerm', e.target.value)}
+                                    className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                                  >
+                                    <option value="">Select tenancy term</option>
+                                    <option value="fixed">Fixed Term</option>
+                                    <option value="periodic">Periodic</option>
+                                  </select>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                   ))}
                   
@@ -1089,15 +1036,17 @@ export default function TenancySetup() {
               <button
                 type="button"
                 onClick={handleSaveAsDraft}
-                className="text-sm font-semibold leading-6 text-gray-900"
+                disabled={isSubmitting}
+                className="text-sm font-semibold leading-6 text-gray-900 disabled:opacity-50"
               >
-                Save as draft
+                {isSubmitting ? 'Saving...' : 'Save as draft'}
               </button>
               <button
                 type="submit"
-                className="rounded-md bg-[#D9E8FF] px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-[#D9E8FF]/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
+                disabled={isSubmitting}
+                className="rounded-md bg-[#D9E8FF] px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-[#D9E8FF]/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF] disabled:opacity-50"
               >
-                Continue
+                {isSubmitting ? 'Submitting...' : 'Continue'}
               </button>
             </div>
           </form>

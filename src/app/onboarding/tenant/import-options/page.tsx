@@ -1,11 +1,17 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { SidebarLayout } from '../../../components/sidebar-layout';
 import { SideboardOnboardingContent } from '../../../components/sideboard-onboarding-content';
 import { CheckIcon as CheckIconSolid } from '@heroicons/react/24/solid';
-import { UserPlusIcon } from '@heroicons/react/24/outline';
+import { UserPlusIcon, TableCellsIcon } from '@heroicons/react/24/outline';
+import { createClient } from '@supabase/supabase-js';
+
+// Create Supabase client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const steps = [
   { id: '01', name: 'Account', href: '/sign-up/account-creation', status: 'complete' },
@@ -27,36 +33,137 @@ const importOptions = [
     id: 'spreadsheet',
     title: 'Import from spreadsheet',
     description: 'Upload tenant details via an Excel or CSV template.',
-    icon: UserPlusIcon,
+    icon: TableCellsIcon,
   }
 ];
 
 export default function TenantImportOptions() {
   const router = useRouter();
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [properties, setProperties] = useState<any[]>([]);
+  
+  // Get the current user and user's properties on component mount
+  useEffect(() => {
+    async function fetchUserAndProperties() {
+      try {
+        // In development, use the test user ID
+        if (process.env.NODE_ENV === 'development') {
+          setUserId('00000000-0000-0000-0000-000000000001');
+          
+          // Fetch properties for the test user
+          const { data: propertiesData, error: propertiesError } = await supabase
+            .from('properties')
+            .select('*')
+            .eq('user_id', '00000000-0000-0000-0000-000000000001')
+            .eq('status', 'active');
+            
+          if (propertiesError) {
+            console.error('Error fetching properties:', propertiesError);
+          } else if (propertiesData) {
+            setProperties(propertiesData);
+          }
+          
+          return;
+        }
+
+        // For production
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        
+        if (userError) {
+          console.error('Error fetching user:', userError);
+          setError('Authentication error. Please sign in again.');
+          router.push('/sign-in');
+          return;
+        }
+        
+        if (userData && userData.user) {
+          setUserId(userData.user.id);
+          
+          // Fetch properties for this user
+          const { data: propertiesData, error: propertiesError } = await supabase
+            .from('properties')
+            .select('*')
+            .eq('user_id', userData.user.id)
+            .eq('status', 'active');
+            
+          if (propertiesError) {
+            console.error('Error fetching properties:', propertiesError);
+          } else if (propertiesData) {
+            setProperties(propertiesData);
+          }
+        } else {
+          setError('User not authenticated. Please sign in again.');
+          router.push('/sign-in');
+        }
+      } catch (error) {
+        console.error('Error in fetchUserAndProperties:', error);
+        setError('An error occurred while loading your data.');
+      }
+    }
+    
+    fetchUserAndProperties();
+  }, [router]);
   
   // Handle option selection
   const handleOptionSelect = (optionId: string) => {
     setSelectedOption(optionId);
+    setError(null);
   };
   
   // Handle continue button click
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!selectedOption) {
-      alert('Please select an import option');
+      setError('Please select an import method');
       return;
     }
     
-    // Navigate based on selected option
-    switch (selectedOption) {
-      case 'manual':
-        router.push('/onboarding/tenant/tenancy-setup');
-        break;
-      case 'spreadsheet':
-        router.push('/onboarding/tenant/spreadsheet-import');
-        break;
-      default:
-        console.error('Unknown option selected');
+    if (!userId) {
+      setError('User authentication error. Please sign in again.');
+      return;
+    }
+    
+    // Check if user has any properties
+    if (properties.length === 0) {
+      setError('You need to add at least one property before adding tenants.');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setError(null);
+    
+    try {
+      // Save the selected import option to user profile
+      const { error: updateError } = await supabase
+        .from('user_profiles')
+        .upsert({
+          user_id: userId,
+          tenant_import_method: selectedOption,
+          updated_at: new Date().toISOString()
+        });
+      
+      if (updateError) {
+        throw new Error(`Failed to save import preference: ${updateError.message}`);
+      }
+      
+      // Navigate based on selected option
+      switch (selectedOption) {
+        case 'manual':
+          router.push('/onboarding/tenant/tenancy-setup');
+          break;
+        case 'spreadsheet':
+          router.push('/onboarding/tenant/spreadsheet-import');
+          break;
+        default:
+          console.error('Unknown option selected');
+      }
+    } catch (err) {
+      console.error('Error saving import preference:', err);
+      setError(err instanceof Error ? err.message : 'Failed to save import preference');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -128,9 +235,25 @@ export default function TenantImportOptions() {
             <p className="mt-1 text-sm/6 text-gray-600">
               Choose how you want to add your tenants to the system.
             </p>
+            
+            {/* Display properties count */}
+            {properties.length > 0 && (
+              <div className="mt-4 p-4 bg-gray-50 rounded-md">
+                <p className="text-sm font-medium text-gray-700">
+                  You have {properties.length} {properties.length === 1 ? 'property' : 'properties'} available for tenant assignment
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="bg-white border border-gray-300 ring-1 shadow-xs ring-gray-900/5 sm:rounded-xl md:col-span-2">
+            {/* Display error message if any */}
+            {error && (
+              <div className="px-4 py-3 border-l-4 border-red-400 bg-red-50 text-red-700 mt-4 mx-4">
+                <p>{error}</p>
+              </div>
+            )}
+            
             <div className="px-4 py-4 sm:p-6">
               <div className="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8">
                 {/* Import Options */}
@@ -213,20 +336,21 @@ export default function TenantImportOptions() {
                 type="button"
                 onClick={() => router.back()}
                 className="text-sm/6 font-semibold text-gray-900"
+                disabled={isSubmitting}
               >
                 Back
               </button>
               <button
                 type="button"
                 onClick={handleContinue}
-                disabled={!selectedOption}
+                disabled={!selectedOption || isSubmitting || properties.length === 0}
                 className={`rounded-md px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF] ${
-                  selectedOption
+                  selectedOption && !isSubmitting && properties.length > 0
                     ? 'bg-[#D9E8FF] hover:bg-[#D9E8FF]/80'
                     : 'bg-gray-300 cursor-not-allowed'
                 }`}
               >
-                Continue with Selected Method
+                {isSubmitting ? 'Processing...' : 'Continue with Selected Method'}
               </button>
             </div>
           </div>

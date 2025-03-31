@@ -6,6 +6,7 @@ import { SidebarLayout } from '../../../components/sidebar-layout';
 import { SideboardOnboardingContent } from '../../../components/sideboard-onboarding-content';
 import { CheckIcon, DocumentTextIcon, QuestionMarkCircleIcon } from '@heroicons/react/24/outline';
 import { CheckIcon as CheckIconSolid } from '@heroicons/react/24/solid';
+import { supabase } from '@/lib/supabase';
 
 const steps = [
   { id: '01', name: 'Account', href: '/sign-up/account-creation', status: 'complete' },
@@ -46,8 +47,95 @@ export default function TaxInformation() {
   const [isNonResidentScheme, setIsNonResidentScheme] = useState(false);
   const [accountingPeriod, setAccountingPeriod] = useState('');
   
+  // UI state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  
   // Reference label based on tax status
   const [taxReferenceLabel, setTaxReferenceLabel] = useState('Tax Reference Number');
+  
+  // Load existing user profile data
+  useEffect(() => {
+    async function getUserAndProfile() {
+      try {
+        // In development, use the test user ID
+        if (process.env.NODE_ENV === 'development') {
+          setUserId('00000000-0000-0000-0000-000000000001');
+          
+          // Fetch existing profile data for this user
+          const { data: profileData, error: profileError } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('user_id', '00000000-0000-0000-0000-000000000001')
+            .single();
+          
+          if (profileError && profileError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+            console.error('Error fetching profile:', profileError);
+          }
+          
+          if (profileData) {
+            // Pre-fill form with existing tax data
+            setTaxStatus(profileData.tax_status || '');
+            setTaxReference(profileData.tax_reference_number || '');
+            setUtr(profileData.utr || '');
+            setMtdStatus(profileData.mtd_status || '');
+            setIsUKTaxResident(profileData.is_uk_tax_resident !== false);
+            setIsNonResidentScheme(profileData.is_non_resident_scheme || false);
+            setAccountingPeriod(profileData.accounting_period || '');
+          }
+          
+          setProfileLoaded(true);
+          return;
+        }
+
+        // For production
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        
+        if (userError) {
+          console.error('Error fetching user:', userError);
+          router.push('/sign-up'); // Redirect to sign up if no user
+          return;
+        }
+        
+        if (userData && userData.user) {
+          setUserId(userData.user.id);
+          
+          // Fetch existing profile data for this user
+          const { data: profileData, error: profileError } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('user_id', userData.user.id)
+            .single();
+          
+          if (profileError && profileError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+            console.error('Error fetching profile:', profileError);
+          }
+          
+          if (profileData) {
+            // Pre-fill form with existing tax data
+            setTaxStatus(profileData.tax_status || '');
+            setTaxReference(profileData.tax_reference_number || '');
+            setUtr(profileData.utr || '');
+            setMtdStatus(profileData.mtd_status || '');
+            setIsUKTaxResident(profileData.is_uk_tax_resident !== false);
+            setIsNonResidentScheme(profileData.is_non_resident_scheme || false);
+            setAccountingPeriod(profileData.accounting_period || '');
+          }
+        } else {
+          router.push('/sign-up'); // Redirect to sign up if no user
+        }
+        
+        setProfileLoaded(true);
+      } catch (error) {
+        console.error('Error in getUserAndProfile:', error);
+        router.push('/sign-up'); // Redirect to sign up on error
+      }
+    }
+    
+    getUserAndProfile();
+  }, [router]);
   
   // Update tax reference label when tax status changes
   useEffect(() => {
@@ -90,49 +178,116 @@ export default function TaxInformation() {
   };
   
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validation
     if (!taxStatus || !accountingPeriod || !mtdStatus) {
-      alert("Please fill in all required fields");
+      setError("Please fill in all required fields");
       return;
     }
     
     if (utr && !validateUTR(utr)) {
-      alert("Please enter a valid UTR (10 digits)");
+      setError("Please enter a valid UTR (10 digits)");
       return;
     }
     
     if (taxReference && !validateTaxReference(taxReference)) {
-      alert(`Please enter a valid ${taxReferenceLabel}`);
+      setError(`Please enter a valid ${taxReferenceLabel}`);
       return;
     }
     
-    // Submit form and redirect to next step
-    router.push('/onboarding/property/import-options');
+    if (!userId) {
+      setError("User authentication error. Please sign up again.");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setError(null);
+    
+    try {
+      // Save tax information to Supabase user_profiles table
+      const { error: upsertError } = await supabase
+        .from('user_profiles')
+        .upsert({
+          user_id: userId,
+          tax_status: taxStatus,
+          tax_reference_number: taxReference,
+          utr: utr,
+          mtd_status: mtdStatus,
+          is_uk_tax_resident: isUKTaxResident,
+          is_non_resident_scheme: isNonResidentScheme,
+          accounting_period: accountingPeriod,
+          updated_at: new Date().toISOString()
+        });
+      
+      if (upsertError) {
+        throw new Error(`Failed to save tax information: ${upsertError.message}`);
+      }
+      
+      // Redirect to next step
+      router.push('/onboarding/property/import-options');
+    } catch (err) {
+      console.error('Error saving tax information:', err);
+      setError(err instanceof Error ? err.message : 'Failed to save tax information');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
   // Handle save as draft
-  const handleSaveAsDraft = () => {
-    // Save to localStorage
+  const handleSaveAsDraft = async () => {
+    if (!userId) {
+      setError("User authentication error. Please sign up again.");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setError(null);
+    
     try {
-      const taxData = {
-        taxStatus,
-        utr,
-        taxReference,
-        accountingPeriod,
-        mtdStatus,
-        taxReferenceLabel
-      };
-      localStorage.setItem('taxInformationDraft', JSON.stringify(taxData));
+      // Save to Supabase
+      const { error: upsertError } = await supabase
+        .from('user_profiles')
+        .upsert({
+          user_id: userId,
+          tax_status: taxStatus || null,
+          tax_reference_number: taxReference || null,
+          utr: utr || null,
+          mtd_status: mtdStatus || null,
+          is_uk_tax_resident: isUKTaxResident,
+          is_non_resident_scheme: isNonResidentScheme,
+          accounting_period: accountingPeriod || null,
+          updated_at: new Date().toISOString()
+        });
+      
+      if (upsertError) {
+        throw new Error(`Failed to save draft: ${upsertError.message}`);
+      }
+      
       // Navigate to next step
       router.push('/onboarding/property/import-options');
     } catch (error) {
       console.error("Error saving tax information draft data:", error);
-      alert('Failed to save draft. Please try again.');
+      setError(error instanceof Error ? error.message : 'Failed to save draft');
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
+  // Show loading state if profile is not loaded yet
+  if (!profileLoaded) {
+    return (
+      <SidebarLayout 
+        sidebar={<SideboardOnboardingContent />}
+        isOnboarding={true}
+      >
+        <div className="flex items-center justify-center h-full">
+          <p className="text-gray-500">Loading tax information...</p>
+        </div>
+      </SidebarLayout>
+    );
+  }
 
   return (
     <SidebarLayout 
@@ -205,6 +360,13 @@ export default function TaxInformation() {
           </div>
 
           <form className="bg-white border border-gray-300 ring-1 shadow-xs ring-gray-900/5 sm:rounded-xl md:col-span-2" onSubmit={handleSubmit}>
+            {/* Display error message if any */}
+            {error && (
+              <div className="px-4 py-3 bg-red-50 border-l-4 border-red-400 text-red-700 mb-4">
+                <p>{error}</p>
+              </div>
+            )}
+            
             <div className="px-4 py-4 sm:p-6">
               <div className="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8">
                 {/* Tax Status and Reference */}
@@ -460,29 +622,31 @@ export default function TaxInformation() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center justify-between gap-x-6 border-t border-gray-900/10 px-4 py-4 sm:px-6">
+            
+            <div className="flex items-center justify-end gap-x-6 border-t border-gray-900/10 px-4 py-4 sm:px-6">
+              <button 
+                type="button" 
+                onClick={() => router.back()} 
+                className="text-sm/6 font-semibold text-gray-900"
+                disabled={isSubmitting}
+              >
+                Back
+              </button>
               <button
                 type="button"
                 onClick={handleSaveAsDraft}
-                className="text-sm/6 font-semibold text-gray-900 hover:text-gray-700"
+                className="text-sm/6 font-semibold text-gray-900"
+                disabled={isSubmitting}
               >
                 Save as Draft
               </button>
-              <div className="flex gap-x-4">
-                <button
-                  type="button"
-                  onClick={() => router.back()}
-                  className="text-sm/6 font-semibold text-gray-900"
-                >
-                  Back
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-md bg-d9e8ff px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs hover:bg-d9e8ff-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff"
-                >
-                  Save and Continue
-                </button>
-              </div>
+              <button
+                type="submit"
+                className="rounded-md bg-d9e8ff px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs hover:bg-d9e8ff-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff disabled:opacity-50"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Saving...' : 'Next'}
+              </button>
             </div>
           </form>
         </div>

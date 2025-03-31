@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { SidebarLayout } from '../../components/sidebar-layout';
 import { SideboardOnboardingContent } from '../../components/sideboard-onboarding-content';
 import { UserCircleIcon, PhoneIcon } from '@heroicons/react/24/outline';
 import { BuildingOfficeIcon, HomeIcon } from '@heroicons/react/24/solid';
 import { CheckIcon } from '@heroicons/react/24/solid';
+import { supabase } from '@/lib/supabase';
 
 const steps = [
   { id: '01', name: 'Account', href: '/sign-up/account-creation', status: 'current' },
@@ -35,24 +36,115 @@ export default function AccountCreation() {
   const [accountType, setAccountType] = useState('individual');
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Get the current user on component mount
+  useEffect(() => {
+    async function getUser() {
+      try {
+        // In development, use the test user ID
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Development mode: Using test user ID');
+          setUserId('00000000-0000-0000-0000-000000000001');
+          return;
+        }
+
+        const { data, error } = await supabase.auth.getUser();
+        
+        if (error) {
+          console.error('Error fetching user:', error);
+          router.push('/sign-up'); // Redirect to sign up if no user
+          return;
+        }
+        
+        if (data && data.user) {
+          setUserId(data.user.id);
+        } else {
+          router.push('/sign-up'); // Redirect to sign up if no user
+        }
+      } catch (error) {
+        console.error('Error in getUser:', error);
+        router.push('/sign-up'); // Redirect to sign up on error
+      }
+    }
+    
+    getUser();
+  }, [router]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validation
     if (!firstName || !lastName) {
-      alert("First name and last name are required");
+      setError("First name and last name are required");
       return;
     }
     
     if (!agreeTerms || !agreePrivacy) {
-      alert("You must agree to the terms of service and privacy policy");
+      setError("You must agree to the terms of service and privacy policy");
+      return;
+    }
+
+    if (!userId) {
+      setError("User authentication error. Please sign up again.");
       return;
     }
     
-    // Submit form
-    // Redirect to the next step in the onboarding flow
-    router.push('/onboarding/landlord/personal-profile');
+    setIsSubmitting(true);
+    setError(null);
+    
+    try {
+      console.log('Submitting user profile for ID:', userId);
+      
+      // First check if user_profiles table exists
+      const { error: tableCheckError } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .limit(1);
+      
+      // If table doesn't exist, create it
+      if (tableCheckError && tableCheckError.message.includes('relation "user_profiles" does not exist')) {
+        console.log('Creating user_profiles table');
+        // Create the user_profiles table via RPC (would normally be done via migration)
+        const { error: createTableError } = await supabase.rpc('create_user_profiles_table');
+        
+        if (createTableError) {
+          throw new Error(`Failed to create user_profiles table: ${createTableError.message}`);
+        }
+      }
+      
+      // Insert profile data
+      const { error: insertError } = await supabase
+        .from('user_profiles')
+        .upsert({
+          user_id: userId,
+          title: title,
+          first_name: firstName,
+          last_name: lastName,
+          phone: mobile ? `+44${mobile}` : null,
+          account_type: accountType,
+          agreed_terms: agreeTerms,
+          agreed_privacy: agreePrivacy,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+      
+      if (insertError) {
+        throw new Error(`Failed to create profile: ${insertError.message}`);
+      }
+      
+      console.log('Profile created successfully');
+      
+      // Redirect to the next step in the onboarding flow
+      router.push('/onboarding/landlord/personal-profile');
+    } catch (err) {
+      console.error('Error saving profile:', err);
+      setError(err instanceof Error ? err.message : 'Failed to create profile');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -126,6 +218,13 @@ export default function AccountCreation() {
           </div>
 
           <form className="bg-white border border-gray-300 ring-1 shadow-xs ring-gray-900/5 sm:rounded-xl md:col-span-2" onSubmit={handleSubmit}>
+            {/* Display error message if any */}
+            {error && (
+              <div className="px-4 py-3 bg-red-50 border-l-4 border-red-400 text-red-700 mb-4">
+                <p>{error}</p>
+              </div>
+            )}
+            
             <div className="px-4 py-4 sm:p-6">
               <div className="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8">
                 {/* Personal Details */}
@@ -371,14 +470,20 @@ export default function AccountCreation() {
               </div>
             </div>
             <div className="flex items-center justify-end gap-x-6 border-t border-gray-900/10 px-4 py-4 sm:px-6">
-              <button type="button" onClick={() => router.back()} className="text-sm/6 font-semibold text-gray-900">
+              <button 
+                type="button" 
+                onClick={() => router.back()} 
+                className="text-sm/6 font-semibold text-gray-900"
+                disabled={isSubmitting}
+              >
                 Back
               </button>
               <button
                 type="submit"
-                className="rounded-md bg-d9e8ff px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs hover:bg-d9e8ff-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff"
+                className="rounded-md bg-d9e8ff px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs hover:bg-d9e8ff-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff disabled:opacity-50"
+                disabled={isSubmitting}
               >
-                Create Account
+                {isSubmitting ? 'Creating Account...' : 'Create Account'}
               </button>
             </div>
           </form>

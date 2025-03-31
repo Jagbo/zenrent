@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { CheckCircleIcon, BuildingOfficeIcon } from '@heroicons/react/24/solid'
 import { Button } from '@/components/ui/button'
 import { BaseDrawer } from './BaseDrawer'
-import { classNames } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 
 // Define the BankAccountDrawer props interface
 export interface BankAccountDrawerProps {
@@ -172,7 +172,7 @@ export const BankAccountDrawer: React.FC<BankAccountDrawerProps> = ({
                   setSelectedProperty(property.id);
                   setStep(2);
                 }}
-                className={classNames(
+                className={cn(
                   'flex items-center justify-between p-4 rounded-lg border cursor-pointer',
                   selectedProperty === property.id
                     ? 'border-[#D9E8FF] bg-[#D9E8FF]/5'

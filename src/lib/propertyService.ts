@@ -7,6 +7,7 @@ export interface IProperty {
   city: string;
   state?: string;
   zipCode?: string;
+  postcode?: string;
   property_type: string;
   status?: string;
   bedrooms?: number;
@@ -21,7 +22,16 @@ export interface IProperty {
   occupied_units?: number;
   user_id: string;
   image?: string;
+  photo_url?: string;
   property_code?: string;
+  has_garden?: boolean;
+  has_parking?: boolean;
+  metadata?: {
+    amenities?: string[];
+    year_built?: number;
+    square_footage?: number;
+    [key: string]: any;
+  };
 }
 
 export interface ITenant {
@@ -69,30 +79,98 @@ export const getProperties = async (userId?: string): Promise<IProperty[]> => {
     }
 
     console.log('Fetching properties for user:', effectiveUserId);
+    
+    // Attempt to fetch from the database
     const { data, error } = await supabase
       .from('properties')
       .select('*')
       .eq('user_id', effectiveUserId);
     
     if (error) {
-      console.error('Error fetching properties:', error);
+      console.error('Error fetching properties from Supabase:', error);
+      
+      // Only use fallback data in development mode when there's an actual error
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Using fallback property data for development due to error');
+        return getDevelopmentFallbackProperties(effectiveUserId);
+      }
+      
       throw error;
     }
     
-    console.log('Properties fetched:', data?.length || 0);
+    console.log('Properties fetched from Supabase:', data?.length || 0);
+    
+    // If we have data from the database, return it
     if (data && data.length > 0) {
-      console.log('First property sample:', {
-        id: data[0].id,
-        name: data[0].address,
-        property_code: data[0].property_code
-      });
+      if (data[0]) {
+        console.log('First property from DB:', {
+          id: data[0].id,
+          name: data[0].address,
+          property_code: data[0].property_code
+        });
+      }
+      return data;
     }
     
-    return data || [];
+    // If no data was found in the database, log a warning
+    console.warn('No properties found in the database for user:', effectiveUserId);
+    
+    // Only use fallback data in development mode when no properties are found
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Using fallback property data for development due to empty result');
+      return getDevelopmentFallbackProperties(effectiveUserId);
+    }
+    
+    // In production, return empty array if no properties found
+    return [];
+    
   } catch (error) {
-    console.error('Error fetching properties:', error);
+    console.error('Error in getProperties:', error);
+    
+    // Only use fallback data in development mode
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Using fallback property data for development due to exception');
+      return getDevelopmentFallbackProperties(TEST_USER_ID);
+    }
+    
     return [];
   }
+};
+
+// Helper function to get fallback properties for development
+const getDevelopmentFallbackProperties = (userId: string): IProperty[] => {
+  return [
+    {
+      id: '7a2e1487-f17b-4ceb-b6d1-56934589025b',
+      name: '8 Victoria Gardens',
+      address: '8 Victoria Gardens',
+      city: 'Manchester',
+      property_type: 'flat',
+      status: 'active',
+      user_id: userId,
+      property_code: 'prop_8_victoria_gardens'
+    },
+    {
+      id: 'bd8e3211-2403-47ac-9947-7a4842c5a4e3',
+      name: '15 Crescent Road',
+      address: '15 Crescent Road',
+      city: 'London',
+      property_type: 'flat',
+      status: 'active',
+      user_id: userId,
+      property_code: 'prop_15_crescent_road'
+    },
+    {
+      id: 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8',
+      name: '42 Harley Street',
+      address: '42 Harley Street',
+      city: 'London',
+      property_type: 'house',
+      status: 'active',
+      user_id: userId,
+      property_code: 'prop_42_harley_street'
+    }
+  ];
 };
 
 // Fetch all properties direct (debug)

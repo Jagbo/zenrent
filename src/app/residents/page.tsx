@@ -55,44 +55,51 @@ export default function Residents() {
   // Fetch tenants when component mounts
   useEffect(() => {
     const fetchTenants = async () => {
-      if (user?.id) {
+      try {
         setLoading(true);
-        try {
-          const fetchedTenants = await getTenants(user.id);
-          
-          // Transform tenants for UI display
-          const tenantsWithUI = fetchedTenants.map(tenant => ({
-            ...tenant,
-            image: tenant.image || getInitialsAvatar(tenant.name),
-            attachments: [
-              { name: 'lease_agreement.pdf', size: '1.2mb' },
-              { name: 'tenant_application.pdf', size: '2.8mb' }
-            ],
-            property_name: tenant.property_address || 'Unassigned'
-          }));
-          
-          setTenants(tenantsWithUI);
-          
-          // Create unique property list from property_address
-          const propertySet = new Set<string>();
-          const propertyList: PropertyListItem[] = [];
-          
-          tenantsWithUI.forEach(tenant => {
-            if (tenant.property_address && !propertySet.has(tenant.property_address)) {
-              propertySet.add(tenant.property_address);
-              propertyList.push({
-                id: tenant.property_address,
-                name: tenant.property_address
-              });
-            }
-          });
-          
-          setProperties(propertyList);
-        } catch (error) {
-          console.error('Error fetching tenants:', error);
-        } finally {
-          setLoading(false);
+        let fetchedTenants: ITenant[] = [];
+        
+        if (user?.id) {
+          fetchedTenants = await getTenants(user.id);
+        } else if (process.env.NODE_ENV === 'development') {
+          // In development mode, try to get tenants without user ID
+          console.log('No user ID available in development mode, trying to fetch tenants anyway');
+          fetchedTenants = await getTenants();
         }
+        
+        // Transform tenants for UI display
+        const tenantsWithUI = fetchedTenants.map(tenant => ({
+          ...tenant,
+          image: tenant.image || getInitialsAvatar(tenant.name),
+          attachments: [
+            { name: 'lease_agreement.pdf', size: '1.2mb' },
+            { name: 'tenant_application.pdf', size: '2.8mb' }
+          ],
+          property_name: tenant.property_address || 'Unassigned'
+        }));
+        
+        setTenants(tenantsWithUI);
+        
+        // Create unique property list from property_address
+        const propertySet = new Set<string>();
+        const propertyList: PropertyListItem[] = [];
+        
+        tenantsWithUI.forEach(tenant => {
+          if (tenant.property_address && !propertySet.has(tenant.property_address)) {
+            propertySet.add(tenant.property_address);
+            propertyList.push({
+              id: tenant.property_address,
+              name: tenant.property_address
+            });
+          }
+        });
+        
+        setProperties(propertyList);
+      } catch (error) {
+        console.error('Error fetching tenants:', error);
+        // Show error state or toast message if needed
+      } finally {
+        setLoading(false);
       }
     };
 

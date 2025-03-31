@@ -8,6 +8,12 @@ import { CheckIcon as CheckIconSolid } from '@heroicons/react/24/solid';
 import { AddressAutocomplete } from '../../../components/address-autocomplete';
 import { RadioGroup, RadioField, Radio } from '../../../components/radio';
 import { OnboardingProgress } from '../../../components/onboarding-progress';
+import { createClient } from '@supabase/supabase-js';
+
+// Create Supabase client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 type Step = {
   id: string;
@@ -30,6 +36,11 @@ export default function AddProperty() {
   // Track property number and list of saved properties
   const [propertyCount, setPropertyCount] = useState(1);
   const [savedProperties, setSavedProperties] = useState<any[]>([]);
+  
+  // Add Supabase related state
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   // Basic property state
   const [formData, setFormData] = useState({
@@ -65,8 +76,40 @@ export default function AddProperty() {
     managementCompany: ''
   });
   
-  // Load saved properties on component mount
+  // Fetch current user on component mount
   useEffect(() => {
+    const getUser = async () => {
+      try {
+        // In development, use a fixed user ID for testing
+        if (process.env.NODE_ENV === 'development') {
+          setUserId('00000000-0000-0000-0000-000000000001');
+          return;
+        }
+        
+        const { data, error } = await supabase.auth.getUser();
+        
+        if (error) {
+          console.error('Error fetching user:', error);
+          setError('Authentication error. Please sign in again.');
+          router.push('/sign-in');
+          return;
+        }
+        
+        if (data && data.user) {
+          setUserId(data.user.id);
+        } else {
+          // Redirect to sign in if no user is found
+          router.push('/sign-in');
+        }
+      } catch (error) {
+        console.error('Error in getUser:', error);
+        setError('Authentication error. Please sign in again.');
+      }
+    };
+    
+    getUser();
+    
+    // Load saved properties from localStorage
     try {
       const existingProperties = JSON.parse(localStorage.getItem('savedProperties') || '[]');
       if (existingProperties.length > 0) {
@@ -76,32 +119,37 @@ export default function AddProperty() {
     } catch (error) {
       console.error("Error loading saved properties:", error);
     }
-  }, []);
+  }, [router]);
   
   // Handle input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target as HTMLInputElement;
+    const { name, value, type, checked } = e.target as HTMLInputElement;
     
     if (type === 'checkbox') {
       if (name === 'isHmo') {
         setFormData({
           ...formData,
-          [name]: (e.target as HTMLInputElement).checked
+          [name]: checked
         });
       } else if (name.startsWith('features-') || name.startsWith('hmoSharedFacilities-')) {
         const field = name.startsWith('features-') ? 'features' : 'hmoSharedFacilities';
-        const feature = name.split('-')[1];
-        const isChecked = (e.target as HTMLInputElement).checked;
+        const feature = name.split('-').slice(1).join('-'); // Handle feature IDs that might contain hyphens
         
-        if (isChecked) {
-          setFormData({
-            ...formData,
-            [field]: [...formData[field as keyof typeof formData] as string[], feature]
-          });
+        if (checked) {
+          // Add the feature to the array if it's not already there
+          const currentFeatures = formData[field as keyof typeof formData] as string[];
+          if (!currentFeatures.includes(feature)) {
+            setFormData({
+              ...formData,
+              [field]: [...currentFeatures, feature]
+            });
+          }
         } else {
+          // Remove the feature from the array
+          const currentFeatures = formData[field as keyof typeof formData] as string[];
           setFormData({
             ...formData,
-            [field]: (formData[field as keyof typeof formData] as string[]).filter(item => item !== feature)
+            [field]: currentFeatures.filter(item => item !== feature)
           });
         }
       }
@@ -123,7 +171,7 @@ export default function AddProperty() {
   };
   
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Basic validation to ensure required fields are filled
@@ -132,108 +180,334 @@ export default function AddProperty() {
       return;
     }
     
-    console.log('Submitting property data:', formData);
-    
-    // Save property data to localStorage
-    try {
-      localStorage.setItem('propertyData', JSON.stringify(formData));
-      
-      // Also add to savedProperties if not already there
-      const existingProperties = JSON.parse(localStorage.getItem('savedProperties') || '[]');
-      console.log('Existing saved properties:', existingProperties);
-      
-      // Check if property with same address already exists
-      const existingIndex = existingProperties.findIndex((prop: any) => prop.address === formData.address);
-      
-      if (existingIndex === -1) {
-        // Add to saved properties if it's a new property
-        existingProperties.push(formData);
-        localStorage.setItem('savedProperties', JSON.stringify(existingProperties));
-        console.log('Updated saved properties:', existingProperties);
-      } else {
-        // Update existing property
-        existingProperties[existingIndex] = formData;
-        localStorage.setItem('savedProperties', JSON.stringify(existingProperties));
-        console.log('Updated existing property in saved properties:', existingProperties);
-      }
-    } catch (error) {
-      console.error("Error saving property data:", error);
+    if (!userId) {
+      setError('User not authenticated. Please sign in again.');
+      return;
     }
     
-    // Navigate to the next step
-    router.push('/onboarding/tenant/import-options');
+    setIsSubmitting(true);
+    setError(null);
+    
+    try {
+      console.log('Submitting property data to Supabase:', formData);
+      
+      // Generate a property code based on postcode and random string
+      const postcodePart = formData.address.split(',').pop()?.trim().replace(/\s+/g, '').substring(0, 4) || 'PROP';
+      const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+      const propertyCode = `${postcodePart}-${randomPart}`;
+      
+      // Extract city and postcode from address
+      const addressParts = formData.address.split(',');
+      const postcode = addressParts.pop()?.trim() || '';
+      const city = addressParts.pop()?.trim() || '';
+      
+      // Prepare property data for Supabase
+      const propertyData = {
+        user_id: userId,
+        property_code: propertyCode,
+        address: formData.address,
+        city: city,
+        postcode: postcode,
+        property_type: formData.propertyType,
+        bedrooms: parseInt(formData.bedrooms),
+        bathrooms: parseFloat(formData.bathrooms),
+        is_furnished: formData.furnishingStatus === 'furnished' ? true : 
+                      formData.furnishingStatus === 'partFurnished' ? true : false,
+        description: '',
+        status: 'active',
+        has_garden: formData.features.includes('garden'),
+        has_parking: formData.parking !== 'none' && formData.parking !== '',
+        notes: '',
+        metadata: {
+          propertySubtype: formData.propertySubtype,
+          furnishingStatus: formData.furnishingStatus,
+          squareFootage: formData.squareFootage,
+          councilTaxBand: formData.councilTaxBand,
+          epcRating: formData.epcRating,
+          heatingType: formData.heatingType,
+          parking: formData.parking,
+          outdoorSpace: formData.outdoorSpace,
+          features: formData.features,
+          isHmo: formData.isHmo,
+          hmoDetails: formData.isHmo ? {
+            licenseNumber: formData.hmoLicenseNumber,
+            licenseExpiry: formData.hmoLicenseExpiry,
+            maxOccupancy: formData.hmoMaxOccupancy,
+            sharedFacilities: formData.hmoSharedFacilities
+          } : null,
+          propertyOwnership: formData.propertyOwnership,
+          leaseholdDetails: formData.propertyOwnership === 'leasehold' ? {
+            leaseLengthRemaining: formData.leaseLengthRemaining,
+            groundRent: formData.groundRent,
+            serviceCharge: formData.serviceCharge,
+            managementCompany: formData.managementCompany
+          } : null
+        }
+      };
+      
+      // Insert property into Supabase
+      const { data, error } = await supabase
+        .from('properties')
+        .insert(propertyData)
+        .select();
+      
+      if (error) {
+        throw error;
+      }
+      
+      console.log('Property saved to Supabase:', data);
+      
+      // Also save to localStorage for backup and to show in the UI
+      try {
+        const existingProperties = JSON.parse(localStorage.getItem('savedProperties') || '[]');
+        existingProperties.push({
+          ...formData,
+          supabaseId: data[0]?.id,
+          propertyCode: propertyCode
+        });
+        localStorage.setItem('savedProperties', JSON.stringify(existingProperties));
+        setSavedProperties(existingProperties);
+      } catch (storageError) {
+        console.error("Error saving to localStorage:", storageError);
+      }
+      
+      // Navigate to the next step
+      router.push('/onboarding/tenant/import-options');
+    } catch (error: any) {
+      console.error("Error saving property to Supabase:", error);
+      setError(error.message || 'Failed to save property. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
   // Handle save as draft
-  const handleSaveAsDraft = () => {
-    // In a real application, you would save the draft here
-    console.log('Form data saved as draft:', formData);
-    
-    // Save to localStorage
-    try {
-      localStorage.setItem('propertyDataDraft', JSON.stringify(formData));
-    } catch (error) {
-      console.error("Error saving property draft data:", error);
+  const handleSaveAsDraft = async () => {
+    if (!userId) {
+      setError('User not authenticated. Please sign in again.');
+      return;
     }
     
-    alert('Your property details have been saved as draft');
+    setIsSubmitting(true);
+    setError(null);
+    
+    try {
+      console.log('Saving property data as draft to Supabase:', formData);
+      
+      // Generate a property code
+      const postcodePart = formData.address.split(',').pop()?.trim().replace(/\s+/g, '').substring(0, 4) || 'DRAFT';
+      const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+      const propertyCode = `${postcodePart}-${randomPart}`;
+      
+      // Extract city and postcode from address (if available)
+      const addressParts = formData.address.split(',');
+      const postcode = addressParts.length > 1 ? addressParts.pop()?.trim() || '' : '';
+      const city = addressParts.length > 1 ? addressParts.pop()?.trim() || '' : '';
+      
+      // Prepare property data for Supabase with draft status
+      const propertyData = {
+        user_id: userId,
+        property_code: propertyCode,
+        address: formData.address || 'Draft Property',
+        city: city || '',
+        postcode: postcode || '',
+        property_type: formData.propertyType || '',
+        bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : 0,
+        bathrooms: formData.bathrooms ? parseFloat(formData.bathrooms) : 0,
+        status: 'draft', // Mark as draft
+        metadata: {
+          isDraft: true,
+          draftData: formData
+        }
+      };
+      
+      // Insert draft property into Supabase
+      const { data, error } = await supabase
+        .from('properties')
+        .insert(propertyData)
+        .select();
+      
+      if (error) {
+        throw error;
+      }
+      
+      console.log('Property draft saved to Supabase:', data);
+      
+      // Also save to localStorage
+      try {
+        localStorage.setItem('propertyDataDraft', JSON.stringify({
+          ...formData,
+          supabaseId: data[0]?.id,
+          propertyCode: propertyCode,
+          status: 'draft'
+        }));
+      } catch (storageError) {
+        console.error("Error saving draft to localStorage:", storageError);
+      }
+      
+      alert('Your property details have been saved as draft');
+    } catch (error: any) {
+      console.error("Error saving property draft to Supabase:", error);
+      setError(error.message || 'Failed to save draft. Please try again.');
+      
+      // Fall back to localStorage if Supabase fails
+      try {
+        localStorage.setItem('propertyDataDraft', JSON.stringify(formData));
+        alert('Your property details have been saved locally (failed to save to database)');
+      } catch (storageError) {
+        console.error("Error saving property draft data:", storageError);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
   // Handle add another property
-  const handleAddAnother = () => {
-    // Save current property and reset form
-    console.log('Property saved, adding another:', formData);
-    
-    // Save to localStorage
-    try {
-      // Get existing properties array or create a new one
-      const existingProperties = JSON.parse(localStorage.getItem('savedProperties') || '[]');
-      existingProperties.push(formData);
-      localStorage.setItem('savedProperties', JSON.stringify(existingProperties));
-      
-      // Update state with new property
-      setSavedProperties(existingProperties);
-      setPropertyCount(existingProperties.length + 1);
-    } catch (error) {
-      console.error("Error saving property:", error);
+  const handleAddAnother = async () => {
+    if (!userId) {
+      setError('User not authenticated. Please sign in again.');
+      return;
     }
     
-    // Reset form for new property
-    setFormData({
-      // Property Basics
-      address: '',
-      propertyType: '',
-      propertySubtype: '',
-      bedrooms: '',
-      bathrooms: '',
-      furnishingStatus: '',
-      
-      // Property Details
-      squareFootage: '',
-      councilTaxBand: '',
-      epcRating: '',
-      heatingType: '',
-      parking: '',
-      outdoorSpace: '',
-      features: [],
-      
-      // HMO Information
-      isHmo: false,
-      hmoLicenseNumber: '',
-      hmoLicenseExpiry: '',
-      hmoMaxOccupancy: '',
-      hmoSharedFacilities: [],
-      
-      // Leasehold Information
-      propertyOwnership: 'freehold',
-      leaseLengthRemaining: '',
-      groundRent: '',
-      serviceCharge: '',
-      managementCompany: ''
-    });
+    // First save the current property
+    setIsSubmitting(true);
+    setError(null);
     
-    // Show confirmation
-    alert('Property saved. You can now add another property.');
+    try {
+      console.log('Adding another property after saving current one to Supabase:', formData);
+      
+      // Only proceed if we have the minimum required data
+      if (!formData.address || !formData.propertyType) {
+        alert('Please fill in at least the address and property type before adding another property');
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Generate a property code
+      const postcodePart = formData.address.split(',').pop()?.trim().replace(/\s+/g, '').substring(0, 4) || 'PROP';
+      const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+      const propertyCode = `${postcodePart}-${randomPart}`;
+      
+      // Extract city and postcode from address
+      const addressParts = formData.address.split(',');
+      const postcode = addressParts.pop()?.trim() || '';
+      const city = addressParts.length > 0 ? addressParts.pop()?.trim() || '' : '';
+      
+      // Prepare property data for Supabase
+      const propertyData = {
+        user_id: userId,
+        property_code: propertyCode,
+        address: formData.address,
+        city: city,
+        postcode: postcode,
+        property_type: formData.propertyType,
+        bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : 0,
+        bathrooms: formData.bathrooms ? parseFloat(formData.bathrooms) : 0,
+        is_furnished: formData.furnishingStatus === 'furnished' ? true : 
+                      formData.furnishingStatus === 'partFurnished' ? true : false,
+        description: '',
+        status: 'active',
+        has_garden: formData.features.includes('garden'),
+        has_parking: formData.parking !== 'none' && formData.parking !== '',
+        metadata: {
+          propertySubtype: formData.propertySubtype,
+          furnishingStatus: formData.furnishingStatus,
+          squareFootage: formData.squareFootage,
+          councilTaxBand: formData.councilTaxBand,
+          epcRating: formData.epcRating,
+          heatingType: formData.heatingType,
+          parking: formData.parking,
+          outdoorSpace: formData.outdoorSpace,
+          features: formData.features,
+          isHmo: formData.isHmo,
+          hmoDetails: formData.isHmo ? {
+            licenseNumber: formData.hmoLicenseNumber,
+            licenseExpiry: formData.hmoLicenseExpiry,
+            maxOccupancy: formData.hmoMaxOccupancy,
+            sharedFacilities: formData.hmoSharedFacilities
+          } : null,
+          propertyOwnership: formData.propertyOwnership,
+          leaseholdDetails: formData.propertyOwnership === 'leasehold' ? {
+            leaseLengthRemaining: formData.leaseLengthRemaining,
+            groundRent: formData.groundRent,
+            serviceCharge: formData.serviceCharge,
+            managementCompany: formData.managementCompany
+          } : null
+        }
+      };
+      
+      // Insert property into Supabase
+      const { data, error } = await supabase
+        .from('properties')
+        .insert(propertyData)
+        .select();
+      
+      if (error) {
+        throw error;
+      }
+      
+      console.log('Property saved to Supabase:', data);
+      
+      // Also save to localStorage and update state
+      try {
+        const existingProperties = JSON.parse(localStorage.getItem('savedProperties') || '[]');
+        const newProperty = {
+          ...formData,
+          supabaseId: data[0]?.id,
+          propertyCode: propertyCode
+        };
+        existingProperties.push(newProperty);
+        localStorage.setItem('savedProperties', JSON.stringify(existingProperties));
+        
+        // Update state with new property
+        setSavedProperties(existingProperties);
+        setPropertyCount(existingProperties.length + 1);
+      } catch (storageError) {
+        console.error("Error saving to localStorage:", storageError);
+      }
+      
+      // Reset form for new property
+      setFormData({
+        // Property Basics
+        address: '',
+        propertyType: '',
+        propertySubtype: '',
+        bedrooms: '',
+        bathrooms: '',
+        furnishingStatus: '',
+        
+        // Property Details
+        squareFootage: '',
+        councilTaxBand: '',
+        epcRating: '',
+        heatingType: '',
+        parking: '',
+        outdoorSpace: '',
+        features: [],
+        
+        // HMO Information
+        isHmo: false,
+        hmoLicenseNumber: '',
+        hmoLicenseExpiry: '',
+        hmoMaxOccupancy: '',
+        hmoSharedFacilities: [],
+        
+        // Leasehold Information
+        propertyOwnership: 'freehold',
+        leaseLengthRemaining: '',
+        groundRent: '',
+        serviceCharge: '',
+        managementCompany: ''
+      });
+      
+      // Show confirmation
+      alert('Property saved. You can now add another property.');
+    } catch (error: any) {
+      console.error("Error saving property to Supabase:", error);
+      setError(error.message || 'Failed to save property. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Custom sidebar content without saved properties
@@ -260,6 +534,22 @@ export default function AddProperty() {
             <p className="mt-1 text-sm/6 text-gray-600">
               Enter the details of your property to add it to your portfolio.
             </p>
+            
+            {/* Display error if any */}
+            {error && (
+              <div className="mt-4 rounded-md bg-red-50 p-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-red-800">{error}</h3>
+                  </div>
+                </div>
+              </div>
+            )}
             
             {/* Display saved properties below the description */}
             {savedProperties.length > 0 && (
@@ -632,7 +922,7 @@ export default function AddProperty() {
                               />
                             </div>
                             <div className="ml-3 text-sm leading-6">
-                              <label htmlFor={`features-${feature.id}`} className="font-medium text-gray-900">
+                              <label htmlFor={`features-${feature.id}`} className="font-medium text-gray-900 cursor-pointer">
                                 {feature.label}
                               </label>
                             </div>
@@ -757,20 +1047,24 @@ export default function AddProperty() {
                           onChange={(value: string) => setFormData({ ...formData, propertyOwnership: value })}
                         >
                           <RadioField className="w-full">
-                            <div className="flex items-center w-full">
-                              <Radio color="custom" value="freehold" />
-                              <div className="flex items-center ml-2 w-full">
-                                <span className="text-sm font-medium text-gray-900">Freehold</span>
-                                <span className="text-sm text-gray-500 ml-2">You own the property and land outright</span>
+                            <div className="flex w-full">
+                              <div className="flex items-start">
+                                <Radio color="custom" value="freehold" />
+                                <div className="ml-2 flex flex-col" style={{width: "450px"}}>
+                                  <span className="text-sm font-medium text-gray-900 block">Freehold</span>
+                                  <span className="text-sm text-gray-500 block">You own the property and land outright</span>
+                                </div>
                               </div>
                             </div>
                           </RadioField>
                           <RadioField className="w-full">
-                            <div className="flex items-center w-full">
-                              <Radio color="custom" value="leasehold" />
-                              <div className="flex items-center ml-2 w-full">
-                                <span className="text-sm font-medium text-gray-900">Leasehold</span>
-                                <span className="text-sm text-gray-500 ml-2">You own the property for a fixed period but not the land</span>
+                            <div className="flex w-full">
+                              <div className="flex items-start">
+                                <Radio color="custom" value="leasehold" />
+                                <div className="ml-2 flex flex-col" style={{width: "450px"}}>
+                                  <span className="text-sm font-medium text-gray-900 block">Leasehold</span>
+                                  <span className="text-sm text-gray-500 block">You own the property for a fixed period but not the land</span>
+                                </div>
                               </div>
                             </div>
                           </RadioField>
@@ -862,22 +1156,25 @@ export default function AddProperty() {
               <button
                 type="button"
                 onClick={handleSaveAsDraft}
-                className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:outline-[#D9E8FF]"
+                disabled={isSubmitting}
+                className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:outline-[#D9E8FF] disabled:opacity-50"
               >
-                Save as Draft
+                {isSubmitting ? 'Saving...' : 'Save as Draft'}
               </button>
               <button
                 type="button"
                 onClick={handleAddAnother}
-                className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:outline-[#D9E8FF]"
+                disabled={isSubmitting}
+                className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:outline-[#D9E8FF] disabled:opacity-50"
               >
-                Add Another Property
+                {isSubmitting ? 'Saving...' : 'Add Another Property'}
               </button>
               <button
                 type="submit"
-                className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-[#D9E8FF]/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
+                disabled={isSubmitting}
+                className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-[#D9E8FF]/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF] disabled:opacity-50"
               >
-                Save Property
+                {isSubmitting ? 'Saving...' : 'Save Property'}
               </button>
             </div>
           </form>

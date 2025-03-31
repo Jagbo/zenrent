@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { SidebarLayout } from '../../../components/sidebar-layout';
 import { SideboardOnboardingContent } from '../../../components/sideboard-onboarding-content';
 import { CheckIcon, UserCircleIcon, MapPinIcon, CalendarIcon, PhotoIcon } from '@heroicons/react/24/outline';
 import { CheckIcon as CheckIconSolid } from '@heroicons/react/24/solid';
 import { AddressAutocomplete } from '../../../components/address-autocomplete';
+import { supabase } from '@/lib/supabase';
 
 const steps = [
   { id: '01', name: 'Account', href: '/sign-up/account-creation', status: 'complete' },
@@ -30,51 +31,224 @@ export default function PersonalProfile() {
   const [postcode, setPostcode] = useState('');
   const [isCompany, setIsCompany] = useState(false);
   
+  // UI state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  
+  // Get the current user and existing profile data on component mount
+  useEffect(() => {
+    async function getUserAndProfile() {
+      try {
+        // In development, use the test user ID
+        if (process.env.NODE_ENV === 'development') {
+          setUserId('00000000-0000-0000-0000-000000000001');
+          
+          // Fetch existing profile data for this user
+          const { data: profileData, error: profileError } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('user_id', '00000000-0000-0000-0000-000000000001')
+            .single();
+          
+          if (profileError && profileError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+            console.error('Error fetching profile:', profileError);
+          }
+          
+          if (profileData) {
+            // Pre-fill form with existing data
+            setProfilePhoto(profileData.profile_photo_url);
+            setDateOfBirth(profileData.date_of_birth ? new Date(profileData.date_of_birth).toISOString().split('T')[0] : '');
+            setAddressLine1(profileData.address_line1 || '');
+            setAddressLine2(profileData.address_line2 || '');
+            setTownCity(profileData.town_city || '');
+            setCounty(profileData.county || '');
+            setPostcode(profileData.postcode || '');
+            setIsCompany(profileData.is_company || false);
+          }
+          
+          setProfileLoaded(true);
+          return;
+        }
+
+        // For production
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        
+        if (userError) {
+          console.error('Error fetching user:', userError);
+          router.push('/sign-up'); // Redirect to sign up if no user
+          return;
+        }
+        
+        if (userData && userData.user) {
+          setUserId(userData.user.id);
+          
+          // Fetch existing profile data for this user
+          const { data: profileData, error: profileError } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('user_id', userData.user.id)
+            .single();
+          
+          if (profileError && profileError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+            console.error('Error fetching profile:', profileError);
+          }
+          
+          if (profileData) {
+            // Pre-fill form with existing data
+            setProfilePhoto(profileData.profile_photo_url);
+            setDateOfBirth(profileData.date_of_birth ? new Date(profileData.date_of_birth).toISOString().split('T')[0] : '');
+            setAddressLine1(profileData.address_line1 || '');
+            setAddressLine2(profileData.address_line2 || '');
+            setTownCity(profileData.town_city || '');
+            setCounty(profileData.county || '');
+            setPostcode(profileData.postcode || '');
+            setIsCompany(profileData.is_company || false);
+          }
+        } else {
+          router.push('/sign-up'); // Redirect to sign up if no user
+        }
+        
+        setProfileLoaded(true);
+      } catch (error) {
+        console.error('Error in getUserAndProfile:', error);
+        router.push('/sign-up'); // Redirect to sign up on error
+      }
+    }
+    
+    getUserAndProfile();
+  }, [router]);
+  
   // Handle profile photo upload
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
+    if (!file || !userId) return;
+    
+    try {
+      // Show file in UI immediately
       const reader = new FileReader();
       reader.onload = (e) => {
         setProfilePhoto(e.target?.result as string);
       };
       reader.readAsDataURL(file);
+      
+      // Upload to Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${userId}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+      const filePath = `profile-photos/${fileName}`;
+      
+      const { data, error } = await supabase.storage
+        .from('user-uploads')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
+      
+      if (error) {
+        console.error('Error uploading photo:', error);
+        // We continue anyway, as we'll use the base64 version temporarily
+      }
+      
+      // If upload was successful, get public URL
+      if (data) {
+        const { data: publicUrlData } = supabase.storage
+          .from('user-uploads')
+          .getPublicUrl(filePath);
+        
+        if (publicUrlData) {
+          setProfilePhoto(publicUrlData.publicUrl);
+        }
+      }
+    } catch (error) {
+      console.error('Error processing photo:', error);
     }
   };
   
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validation
     if (!dateOfBirth || !addressLine1 || !townCity || !county || !postcode) {
-      alert("Please fill in all required fields");
+      setError("Please fill in all required fields");
       return;
     }
     
-    // Submit form and redirect to next step
-    if (isCompany) {
-      router.push('/onboarding/landlord/company-profile');
-    } else {
-      router.push('/onboarding/landlord/tax-information');
+    if (!userId) {
+      setError("User authentication error. Please sign up again.");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setError(null);
+    
+    try {
+      // Save profile data to Supabase
+      const { error: upsertError } = await supabase
+        .from('user_profiles')
+        .upsert({
+          user_id: userId,
+          profile_photo_url: profilePhoto,
+          date_of_birth: dateOfBirth,
+          address_line1: addressLine1,
+          address_line2: addressLine2,
+          town_city: townCity,
+          county: county,
+          postcode: postcode,
+          is_company: isCompany,
+          updated_at: new Date().toISOString()
+        });
+      
+      if (upsertError) {
+        throw new Error(`Failed to save profile: ${upsertError.message}`);
+      }
+      
+      // Submit form and redirect to next step
+      if (isCompany) {
+        router.push('/onboarding/landlord/company-profile');
+      } else {
+        router.push('/onboarding/landlord/tax-information');
+      }
+    } catch (err) {
+      console.error('Error saving profile:', err);
+      setError(err instanceof Error ? err.message : 'Failed to save profile');
+    } finally {
+      setIsSubmitting(false);
     }
   };
   
   // Handle save as draft
-  const handleSaveAsDraft = () => {
-    // Save to localStorage
+  const handleSaveAsDraft = async () => {
+    if (!userId) {
+      setError("User authentication error. Please sign up again.");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setError(null);
+    
     try {
-      const profileData = {
-        profilePhoto,
-        dateOfBirth,
-        addressLine1,
-        addressLine2,
-        townCity,
-        county,
-        postcode,
-        isCompany
-      };
-      localStorage.setItem('personalProfileDraft', JSON.stringify(profileData));
+      // Save to Supabase
+      const { error: upsertError } = await supabase
+        .from('user_profiles')
+        .upsert({
+          user_id: userId,
+          profile_photo_url: profilePhoto,
+          date_of_birth: dateOfBirth || null,
+          address_line1: addressLine1 || null,
+          address_line2: addressLine2 || null,
+          town_city: townCity || null,
+          county: county || null,
+          postcode: postcode || null,
+          is_company: isCompany,
+          updated_at: new Date().toISOString()
+        });
+      
+      if (upsertError) {
+        throw new Error(`Failed to save draft: ${upsertError.message}`);
+      }
+      
       // Navigate to next step based on company status
       if (isCompany) {
         router.push('/onboarding/landlord/company-profile');
@@ -83,9 +257,25 @@ export default function PersonalProfile() {
       }
     } catch (error) {
       console.error("Error saving profile draft data:", error);
-      alert('Failed to save draft. Please try again.');
+      setError(error instanceof Error ? error.message : 'Failed to save draft');
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
+  // Show loading state if profile is not loaded yet
+  if (!profileLoaded) {
+    return (
+      <SidebarLayout 
+        sidebar={<SideboardOnboardingContent />}
+        isOnboarding={true}
+      >
+        <div className="flex items-center justify-center h-full">
+          <p className="text-gray-500">Loading profile data...</p>
+        </div>
+      </SidebarLayout>
+    );
+  }
 
   return (
     <SidebarLayout 
@@ -156,6 +346,13 @@ export default function PersonalProfile() {
           </div>
 
           <form className="bg-white border border-gray-300 ring-1 shadow-xs ring-gray-900/5 sm:rounded-xl md:col-span-2" onSubmit={handleSubmit}>
+            {/* Display error message if any */}
+            {error && (
+              <div className="px-4 py-3 bg-red-50 border-l-4 border-red-400 text-red-700 mb-4">
+                <p>{error}</p>
+              </div>
+            )}
+            
             <div className="px-4 py-4 sm:p-6">
               <div className="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8">
                 {/* Profile Photo */}
@@ -325,19 +522,30 @@ export default function PersonalProfile() {
                 </div>
               </div>
             </div>
+            
             <div className="flex items-center justify-end gap-x-6 border-t border-gray-900/10 px-4 py-4 sm:px-6">
-              <button
-                type="button"
-                onClick={() => router.back()}
+              <button 
+                type="button" 
+                onClick={() => router.back()} 
                 className="text-sm/6 font-semibold text-gray-900"
+                disabled={isSubmitting}
               >
                 Back
               </button>
               <button
-                type="submit"
-                className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs hover:bg-[#D9E8FF]/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
+                type="button"
+                onClick={handleSaveAsDraft}
+                className="text-sm/6 font-semibold text-gray-900"
+                disabled={isSubmitting}
               >
-                Save and Continue
+                Save as Draft
+              </button>
+              <button
+                type="submit"
+                className="rounded-md bg-d9e8ff px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs hover:bg-d9e8ff-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff disabled:opacity-50"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Saving...' : 'Next'}
               </button>
             </div>
           </form>

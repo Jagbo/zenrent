@@ -126,7 +126,7 @@ SET
   updated_at = NOW()
 WHERE id = 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8';
 
--- Seed income data for the last 6 months
+-- Seed income data for the last 6 months - USE PROPERTY UUIDs
 INSERT INTO income (id, property_id, date, income_type, category, description, amount)
 VALUES
   (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '5 months', 'Rent', 'Monthly Rent', 'Monthly rental income', 2500),
@@ -150,7 +150,7 @@ VALUES
   (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '1 month', 'Rent', 'Monthly Rent', 'Monthly rental income', 3000),
   (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE, 'Rent', 'Monthly Rent', 'Monthly rental income', 3000);
 
--- Seed expense data for the last 6 months
+-- Seed expense data for the last 6 months - USE PROPERTY UUIDs
 INSERT INTO expenses (id, property_id, date, expense_type, category, description, amount)
 VALUES
   (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE - INTERVAL '5 months', 'Maintenance', 'Regular Maintenance', 'Monthly maintenance and repairs', 800),
@@ -174,7 +174,7 @@ VALUES
   (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE - INTERVAL '1 month', 'Maintenance', 'Regular Maintenance', 'Monthly maintenance and repairs', 1000),
   (gen_random_uuid(), 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8', CURRENT_DATE, 'Maintenance', 'Regular Maintenance', 'Monthly maintenance and repairs', 1000);
 
--- Seed financial metrics
+-- Seed financial metrics - USE PROPERTY UUIDs
 INSERT INTO financial_metrics (id, property_id, period_start, period_end, roi_percentage, yield_percentage, occupancy_rate)
 VALUES
   (gen_random_uuid(), '7a2e1487-f17b-4ceb-b6d1-56934589025b', CURRENT_DATE, CURRENT_DATE + INTERVAL '1 month', 7.8, 6.7, 95.0),

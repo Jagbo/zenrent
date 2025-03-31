@@ -76,35 +76,46 @@ const convertToUIProperty = (property: IProperty): PropertyForUI => {
   // Default image if not available
   const defaultImage = 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=800&h=400';
   
+  // Log the property for debugging purposes
+  console.log('Converting property to UI:', property.id, property.address);
+  
   // Calculate occupancy rate if units data is available
   const units = property.units || 1;
   const occupiedUnits = property.occupied_units || 0;
-  const occupancyRate = Math.round((occupiedUnits / units) * 100);
+  const occupancyRate = units > 0 ? Math.round((occupiedUnits / units) * 100) : 0;
   
-  // Calculate monthly revenue based on rent amount
-  const monthlyRevenue = property.rentAmount || 0;
+  // Extract amenities from metadata if available
+  let amenities: string[] = [];
+  if (property.metadata && typeof property.metadata === 'object' && 'amenities' in property.metadata) {
+    amenities = property.metadata.amenities as string[] || [];
+  }
+  
+  // Calculate monthly revenue or use default
+  const rentAmount = typeof property.rentAmount === 'number' ? property.rentAmount : 0;
   
   return {
     id: property.id,
     name: property.name || property.address,
-    address: `${property.address}, ${property.city}${property.zipCode ? `, ${property.zipCode}` : ''}`,
-    city: property.city,
+    address: property.address ? 
+      `${property.address}${property.city ? `, ${property.city}` : ''}${property.postcode ? `, ${property.postcode}` : ''}` : 
+      'Address not available',
+    city: property.city || '',
     state: property.state || '',
-    zipCode: property.zipCode || '',
-    type: property.property_type,
+    zipCode: property.postcode || property.zipCode || '',
+    type: property.property_type || 'Not specified',
     status: property.status || 'available',
     bedrooms: property.bedrooms || 0,
     bathrooms: property.bathrooms || 0,
-    squareFeet: property.squareFeet || 0,
-    rentAmount: property.rentAmount || 0,
+    squareFeet: property.metadata?.square_footage || property.squareFeet || 0,
+    rentAmount: rentAmount,
     description: property.description || '',
-    amenities: property.amenities || [],
-    yearBuilt: property.yearBuilt || 0,
-    parkingSpots: property.parkingSpots || 0,
+    amenities: amenities,
+    yearBuilt: property.metadata?.year_built || property.yearBuilt || 0,
+    parkingSpots: property.has_parking ? 1 : 0,
     units: units,
     occupancyRate: occupancyRate,
-    monthlyRevenue: monthlyRevenue,
-    image: property.image || defaultImage
+    monthlyRevenue: rentAmount, // For now use rent amount as monthly revenue
+    image: property.photo_url || property.image || defaultImage
   };
 };
 
@@ -292,29 +303,31 @@ export default function Properties() {
   // Fetch properties when the component mounts
   useEffect(() => {
     const fetchPropertiesData = async () => {
-      if (user?.id) {
-        setLoading(true);
-        try {
-          const propData = await getProperties(user.id);
+      setLoading(true);
+      try {
+        let propData: IProperty[] = [];
+        
+        if (user?.id) {
+          propData = await getProperties(user.id);
           console.log('Properties fetched:', propData.length);
-          
-          if (propData.length > 0) {
-            // Convert to UI format
-            const uiProperties = propData.map(convertToUIProperty);
-            setProperties(uiProperties);
-          } else {
-            console.log('No properties found, using sample data');
-            setProperties(sampleProperties);
-          }
-        } catch (error) {
-          console.error('Error fetching properties:', error);
-          setProperties(sampleProperties);
-        } finally {
-          setLoading(false);
+        } else if (process.env.NODE_ENV === 'development') {
+          // In development mode, try to get properties without user ID
+          console.log('No user ID available in development mode, trying to fetch properties anyway');
+          propData = await getProperties();
         }
-      } else {
-        console.log('No user ID available, using sample data');
-        setProperties(sampleProperties);
+        
+        if (propData.length > 0) {
+          // Convert to UI format
+          const uiProperties = propData.map(convertToUIProperty);
+          setProperties(uiProperties);
+        } else {
+          console.log('No properties found in the API response');
+          setProperties([]);
+        }
+      } catch (error) {
+        console.error('Error in fetchPropertiesData:', error);
+        setProperties([]);
+      } finally {
         setLoading(false);
       }
     };

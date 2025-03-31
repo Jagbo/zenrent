@@ -46,7 +46,7 @@ import {
 } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { SidebarContent } from '../components/sidebar-content'
-import { classNames } from '@/lib/utils'
+import { classNames } from '@/utils/classNames'
 import { WhatsAppBusinessDrawer } from '../components/WhatsAppBusinessDrawer'
 import { BankAccountDrawer } from '../components/BankAccountDrawer'
 import { AccountingSoftwareDrawer } from '../components/AccountingSoftwareDrawer'

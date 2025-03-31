@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { SidebarLayout } from '../../../components/sidebar-layout';
 import { SideboardOnboardingContent } from '../../../components/sideboard-onboarding-content';
 import { CheckIcon, BuildingOfficeIcon, MapPinIcon, PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { CheckIcon as CheckIconSolid } from '@heroicons/react/24/solid';
 import { AddressAutocomplete } from '../../../components/address-autocomplete';
+import { supabase } from '@/lib/supabase';
 
 const steps = [
   { id: '01', name: 'Account', href: '/sign-up/account-creation', status: 'complete' },
@@ -47,6 +48,127 @@ export default function CompanyProfile() {
     { id: '1', name: '', email: '', phone: '' }
   ]);
   
+  // UI state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  
+  // Get the current user and existing company profile data on component mount
+  useEffect(() => {
+    async function getUserAndProfile() {
+      try {
+        // In development, use the test user ID
+        if (process.env.NODE_ENV === 'development') {
+          setUserId('00000000-0000-0000-0000-000000000001');
+          
+          // Fetch existing profile data for this user
+          const { data: profileData, error: profileError } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('user_id', '00000000-0000-0000-0000-000000000001')
+            .single();
+          
+          if (profileError && profileError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+            console.error('Error fetching profile:', profileError);
+          }
+          
+          if (profileData) {
+            // Pre-fill form with existing company data
+            setCompanyName(profileData.company_name || '');
+            setRegistrationNumber(profileData.company_registration_number || '');
+            setVatNumber(profileData.vat_number || '');
+            setAddressLine1(profileData.company_address_line1 || '');
+            setAddressLine2(profileData.company_address_line2 || '');
+            setTownCity(profileData.company_town_city || '');
+            setCounty(profileData.company_county || '');
+            setPostcode(profileData.company_postcode || '');
+            setBusinessType(profileData.business_type || '');
+            
+            // Parse directors from the stored JSON if available
+            if (profileData.directors) {
+              try {
+                const parsedDirectors = typeof profileData.directors === 'string' 
+                  ? JSON.parse(profileData.directors) 
+                  : profileData.directors;
+                
+                if (Array.isArray(parsedDirectors) && parsedDirectors.length > 0) {
+                  setDirectors(parsedDirectors);
+                }
+              } catch (e) {
+                console.error('Error parsing directors:', e);
+              }
+            }
+          }
+          
+          setProfileLoaded(true);
+          return;
+        }
+
+        // For production
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        
+        if (userError) {
+          console.error('Error fetching user:', userError);
+          router.push('/sign-up'); // Redirect to sign up if no user
+          return;
+        }
+        
+        if (userData && userData.user) {
+          setUserId(userData.user.id);
+          
+          // Fetch existing profile data for this user
+          const { data: profileData, error: profileError } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('user_id', userData.user.id)
+            .single();
+          
+          if (profileError && profileError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+            console.error('Error fetching profile:', profileError);
+          }
+          
+          if (profileData) {
+            // Pre-fill form with existing company data
+            setCompanyName(profileData.company_name || '');
+            setRegistrationNumber(profileData.company_registration_number || '');
+            setVatNumber(profileData.vat_number || '');
+            setAddressLine1(profileData.company_address_line1 || '');
+            setAddressLine2(profileData.company_address_line2 || '');
+            setTownCity(profileData.company_town_city || '');
+            setCounty(profileData.company_county || '');
+            setPostcode(profileData.company_postcode || '');
+            setBusinessType(profileData.business_type || '');
+            
+            // Parse directors from the stored JSON if available
+            if (profileData.directors) {
+              try {
+                const parsedDirectors = typeof profileData.directors === 'string' 
+                  ? JSON.parse(profileData.directors) 
+                  : profileData.directors;
+                
+                if (Array.isArray(parsedDirectors) && parsedDirectors.length > 0) {
+                  setDirectors(parsedDirectors);
+                }
+              } catch (e) {
+                console.error('Error parsing directors:', e);
+              }
+            }
+          }
+        } else {
+          router.push('/sign-up'); // Redirect to sign up if no user
+        }
+        
+        setProfileLoaded(true);
+      } catch (error) {
+        console.error('Error in getUserAndProfile:', error);
+        router.push('/sign-up'); // Redirect to sign up on error
+      }
+    }
+    
+    getUserAndProfile();
+  }, [router]);
+  
   // Add a new director
   const addDirector = () => {
     const newId = (directors.length + 1).toString();
@@ -80,60 +202,131 @@ export default function CompanyProfile() {
   };
   
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validation
     if (!companyName || !registrationNumber || !addressLine1 || !townCity || !county || !postcode || !businessType) {
-      alert("Please fill in all required fields");
+      setError("Please fill in all required fields");
       return;
     }
     
     if (!validateCompanyNumber(registrationNumber)) {
-      alert("Please enter a valid company registration number (8 digits)");
+      setError("Please enter a valid UK company registration number");
       return;
     }
     
     if (vatNumber && !validateVatNumber(vatNumber)) {
-      alert("Please enter a valid VAT number (format: GB123456789)");
+      setError("Please enter a valid UK VAT number");
       return;
     }
     
     // Validate directors
     const hasEmptyDirector = directors.some(director => !director.name);
     if (hasEmptyDirector) {
-      alert("Please provide a name for each director");
+      setError("Please provide a name for each director");
       return;
     }
     
-    // Submit form and redirect to next step
-    router.push('/onboarding/landlord/tax-information');
+    if (!userId) {
+      setError("User authentication error. Please sign up again.");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setError(null);
+    
+    try {
+      // Save company profile data to Supabase
+      const { error: upsertError } = await supabase
+        .from('user_profiles')
+        .upsert({
+          user_id: userId,
+          company_name: companyName,
+          company_registration_number: registrationNumber,
+          vat_number: vatNumber || null,
+          business_type: businessType,
+          company_address_line1: addressLine1,
+          company_address_line2: addressLine2,
+          company_town_city: townCity,
+          company_county: county,
+          company_postcode: postcode,
+          directors: JSON.stringify(directors),
+          is_company: true,
+          updated_at: new Date().toISOString()
+        });
+      
+      if (upsertError) {
+        throw new Error(`Failed to save company profile: ${upsertError.message}`);
+      }
+      
+      // Redirect to next step
+      router.push('/onboarding/landlord/tax-information');
+    } catch (err) {
+      console.error('Error saving company profile:', err);
+      setError(err instanceof Error ? err.message : 'Failed to save company profile');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
   // Handle save as draft
-  const handleSaveAsDraft = () => {
-    // Save to localStorage
+  const handleSaveAsDraft = async () => {
+    if (!userId) {
+      setError("User authentication error. Please sign up again.");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setError(null);
+    
     try {
-      const companyData = {
-        companyName,
-        registrationNumber,
-        vatNumber,
-        businessType,
-        addressLine1,
-        addressLine2,
-        townCity,
-        county,
-        postcode,
-        directors
-      };
-      localStorage.setItem('companyProfileDraft', JSON.stringify(companyData));
+      // Save to Supabase
+      const { error: upsertError } = await supabase
+        .from('user_profiles')
+        .upsert({
+          user_id: userId,
+          company_name: companyName || null,
+          company_registration_number: registrationNumber || null,
+          vat_number: vatNumber || null,
+          business_type: businessType || null,
+          company_address_line1: addressLine1 || null,
+          company_address_line2: addressLine2 || null,
+          company_town_city: townCity || null,
+          company_county: county || null,
+          company_postcode: postcode || null,
+          directors: directors.some(d => d.name || d.email || d.phone) ? JSON.stringify(directors) : null,
+          is_company: true,
+          updated_at: new Date().toISOString()
+        });
+      
+      if (upsertError) {
+        throw new Error(`Failed to save draft: ${upsertError.message}`);
+      }
+      
       // Navigate to next step
       router.push('/onboarding/landlord/tax-information');
     } catch (error) {
       console.error("Error saving company profile draft data:", error);
-      alert('Failed to save draft. Please try again.');
+      setError(error instanceof Error ? error.message : 'Failed to save draft');
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
+  // Show loading state if profile is not loaded yet
+  if (!profileLoaded) {
+    return (
+      <SidebarLayout 
+        sidebar={<SideboardOnboardingContent />}
+        isOnboarding={true}
+      >
+        <div className="flex items-center justify-center h-full">
+          <p className="text-gray-500">Loading company data...</p>
+        </div>
+      </SidebarLayout>
+    );
+  }
 
   return (
     <SidebarLayout 
@@ -204,6 +397,13 @@ export default function CompanyProfile() {
           </div>
 
           <form className="bg-white border border-gray-300 ring-1 shadow-xs ring-gray-900/5 sm:rounded-xl md:col-span-2" onSubmit={handleSubmit}>
+            {/* Display error message if any */}
+            {error && (
+              <div className="px-4 py-3 bg-red-50 border-l-4 border-red-400 text-red-700 mb-4">
+                <p>{error}</p>
+              </div>
+            )}
+            
             <div className="px-4 py-4 sm:p-6">
               <div className="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8">
                 {/* Company Information */}
@@ -480,7 +680,8 @@ export default function CompanyProfile() {
               <button
                 type="button"
                 onClick={handleSaveAsDraft}
-                className="text-sm/6 font-semibold text-gray-900 hover:text-gray-700"
+                className="text-sm/6 font-semibold text-gray-900"
+                disabled={isSubmitting}
               >
                 Save as Draft
               </button>
@@ -489,14 +690,16 @@ export default function CompanyProfile() {
                   type="button"
                   onClick={() => router.back()}
                   className="text-sm/6 font-semibold text-gray-900"
+                  disabled={isSubmitting}
                 >
                   Back
                 </button>
                 <button
                   type="submit"
-                  className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs hover:bg-[#D9E8FF]/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
+                  className="rounded-md bg-d9e8ff px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs hover:bg-d9e8ff-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff disabled:opacity-50"
+                  disabled={isSubmitting}
                 >
-                  Save and Continue
+                  {isSubmitting ? 'Saving...' : 'Next'}
                 </button>
               </div>
             </div>

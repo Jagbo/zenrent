@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { SidebarLayout } from '../../../components/sidebar-layout';
 import { SideboardOnboardingContent } from '../../../components/sideboard-onboarding-content';
 import { CheckIcon, TableCellsIcon, PlusCircleIcon } from '@heroicons/react/24/outline';
 import { CheckIcon as CheckIconSolid } from '@heroicons/react/24/solid';
 import { ShieldCheckIcon } from '@heroicons/react/24/outline';
+import { supabase } from '@/lib/supabase';
 
 const steps = [
   { id: '01', name: 'Account', href: '/sign-up/account-creation', status: 'complete' },
@@ -44,6 +45,42 @@ const importOptions = [
 export default function PropertyImportOptions() {
   const router = useRouter();
   const [selectedOption, setSelectedOption] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  
+  // Get the current user on component mount
+  useEffect(() => {
+    async function getUser() {
+      try {
+        // In development, use the test user ID
+        if (process.env.NODE_ENV === 'development') {
+          setUserId('00000000-0000-0000-0000-000000000001');
+          return;
+        }
+
+        // For production
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        
+        if (userError) {
+          console.error('Error fetching user:', userError);
+          router.push('/sign-up'); // Redirect to sign up if no user
+          return;
+        }
+        
+        if (userData && userData.user) {
+          setUserId(userData.user.id);
+        } else {
+          router.push('/sign-up'); // Redirect to sign up if no user
+        }
+      } catch (error) {
+        console.error('Error in getUser:', error);
+        router.push('/sign-up'); // Redirect to sign up on error
+      }
+    }
+    
+    getUser();
+  }, [router]);
   
   // Handle option selection
   const handleOptionSelect = (optionId: string) => {
@@ -51,22 +88,64 @@ export default function PropertyImportOptions() {
   };
   
   // Handle continue button click
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!selectedOption) {
-      alert("Please select an import method to continue");
+      setError("Please select an import method to continue");
       return;
     }
     
-    // Redirect based on selected option
-    switch (selectedOption) {
-      case 'manual':
-        router.push('/onboarding/property/add-property');
-        break;
-      case 'spreadsheet':
-        router.push('/onboarding/property/spreadsheet-import');
-        break;
-      default:
-        router.push('/onboarding/property/add-property');
+    if (!userId) {
+      setError("User authentication error. Please sign up again.");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setError(null);
+    
+    try {
+      // Save the selected import option to user profile
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .upsert({
+          user_id: userId,
+          property_import_method: selectedOption,
+          updated_at: new Date().toISOString()
+        });
+      
+      if (profileError) {
+        throw new Error(`Failed to save import preference: ${profileError.message}`);
+      }
+      
+      // Verify that the properties table exists
+      const { data: tablesData, error: tablesError } = await supabase
+        .from('properties')
+        .select('id')
+        .limit(1);
+      
+      if (tablesError && tablesError.code === '42P01') { // Table doesn't exist
+        // Table needs to be created - should be handled by migrations
+        console.error('Properties table not found:', tablesError);
+        setError("Database setup error. Please contact support.");
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Redirect based on selected option
+      switch (selectedOption) {
+        case 'manual':
+          router.push('/onboarding/property/add-property');
+          break;
+        case 'spreadsheet':
+          router.push('/onboarding/property/spreadsheet-import');
+          break;
+        default:
+          router.push('/onboarding/property/add-property');
+      }
+    } catch (err) {
+      console.error('Error saving import preference:', err);
+      setError(err instanceof Error ? err.message : 'Failed to save import preference');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -141,6 +220,13 @@ export default function PropertyImportOptions() {
           </div>
 
           <div className="bg-white border border-gray-300 ring-1 shadow-xs ring-gray-900/5 sm:rounded-xl md:col-span-2">
+            {/* Display error message if any */}
+            {error && (
+              <div className="px-4 py-3 bg-red-50 border-l-4 border-red-400 text-red-700 mb-4">
+                <p>{error}</p>
+              </div>
+            )}
+            
             <div className="px-4 py-4 sm:p-6">
               <div className="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8">
                 {/* Import Options */}
@@ -234,15 +320,17 @@ export default function PropertyImportOptions() {
                 type="button"
                 onClick={() => router.back()}
                 className="text-sm/6 font-semibold text-gray-900"
+                disabled={isSubmitting}
               >
                 Back
               </button>
               <button
                 type="button"
                 onClick={handleContinue}
-                className="rounded-md bg-d9e8ff px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs hover:bg-d9e8ff-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff"
+                className="rounded-md bg-d9e8ff px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs hover:bg-d9e8ff-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff disabled:opacity-50"
+                disabled={isSubmitting}
               >
-                Continue with selected method
+                {isSubmitting ? 'Processing...' : 'Continue with selected method'}
               </button>
             </div>
           </div>

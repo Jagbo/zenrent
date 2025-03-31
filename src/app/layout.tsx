@@ -1,16 +1,22 @@
-"use client";
-
 import "./globals.css";
 import { Inter } from "next/font/google";
 import Script from 'next/script'
-import { AuthProvider } from '../lib/auth';
-import { QueryProvider } from '@/components/providers/QueryProvider';
+import { Providers } from './components/providers';
+import { initSupabaseEnvironment } from '@/lib/supabase-init';
 
 const inter = Inter({
   subsets: ["latin"],
   display: 'swap',
   weight: ['300', '400', '500', '600', '700', '900'],
 });
+
+export const metadata = {
+  title: 'PropBot',
+  description: 'Property Management Made Easy',
+};
+
+// Initialize Supabase environment (sets development mode for RLS)
+initSupabaseEnvironment();
 
 export default function RootLayout({
   children,
@@ -19,18 +25,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-full">
-      <head>
+      <body className={`${inter.className} h-full`} suppressHydrationWarning>
         <Script
           src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"
           strategy="beforeInteractive"
         />
-      </head>
-      <body className={`${inter.className} h-full`} suppressHydrationWarning>
-        <AuthProvider>
-          <QueryProvider>
-            {children}
-          </QueryProvider>
-        </AuthProvider>
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );

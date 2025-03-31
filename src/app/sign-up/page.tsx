@@ -2,36 +2,159 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth-provider';
+import { supabase } from '@/lib/supabase';
 
 export default function Example() {
   const router = useRouter();
+  const { signUp } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Reset error state
+    setError(null);
+    
     // Basic validation
     if (password !== confirmPassword) {
-      alert("Passwords don't match");
+      setError("Passwords don't match");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
       return;
     }
     
-    // For social login, you would skip verification
-    // Here we're just redirecting to email verification
-    router.push('/sign-up/email-verification');
+    try {
+      setLoading(true);
+      
+      // Store email in localStorage for verification page
+      localStorage.setItem('signupEmail', email);
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Development mode: Skipping email verification');
+        // In development mode, directly sign in with test user credentials
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: 'j.agbodo@mail.com',
+          password: 'password123',
+        });
+        
+        if (signInError) {
+          throw signInError;
+        }
+        
+        // Redirect to dashboard or account creation page
+        router.push('/dashboard');
+        return;
+      }
+      
+      // Normal sign up flow for production
+      const { data, error } = await signUp(email, password);
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Check if user was created and confirmation email sent
+      if (data?.user) {
+        // Redirect to email verification page with email in query param
+        router.push(`/sign-up/email-verification?email=${encodeURIComponent(email)}`);
+      }
+    } catch (err: any) {
+      console.error('Signup error:', err);
+      setError(err.message || 'Failed to sign up. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Development mode: Simulating Google sign-in');
+        // In development mode, directly sign in with test user credentials
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: 'j.agbodo@mail.com',
+          password: 'password123',
+        });
+        
+        if (signInError) {
+          throw signInError;
+        }
+        
+        // Redirect to dashboard
+        router.push('/dashboard');
+        return;
+      }
+      
+      // Regular OAuth for production
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`
+        }
+      });
+      
+      if (error) throw error;
+      
+      // The user will be redirected to Google for authentication
+    } catch (err: any) {
+      console.error('Google sign in error:', err);
+      setError(err.message || 'Failed to sign in with Google. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Development mode: Simulating Apple sign-in');
+        // In development mode, directly sign in with test user credentials
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: 'j.agbodo@mail.com',
+          password: 'password123',
+        });
+        
+        if (signInError) {
+          throw signInError;
+        }
+        
+        // Redirect to dashboard
+        router.push('/dashboard');
+        return;
+      }
+      
+      // Regular OAuth for production
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`
+        }
+      });
+      
+      if (error) throw error;
+      
+      // The user will be redirected to Apple for authentication
+    } catch (err: any) {
+      console.error('Apple sign in error:', err);
+      setError(err.message || 'Failed to sign in with Apple. Please try again.');
+      setLoading(false);
+    }
   };
 
   return (
     <>
-      {/*
-        This example requires updating your template:
-
-        ```
-        <html class="h-full bg-white">
-        <body class="h-full">
-        ```
-      */}
       <div className="flex min-h-full flex-1">
         <div className="flex flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24">
           <div className="mx-auto w-full max-w-sm lg:w-96">
@@ -52,6 +175,12 @@ export default function Example() {
 
             <div className="mt-10">
               <div className="bg-white p-8 border border-gray-200 rounded-lg shadow-sm">
+                {error && (
+                  <div className="mb-4 p-3 bg-red-50 text-red-700 border-l-4 border-red-400 rounded">
+                    {error}
+                  </div>
+                )}
+                
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div>
                     <label htmlFor="email" className="block text-sm/6 font-medium text-gray-900">
@@ -154,9 +283,10 @@ export default function Example() {
                   <div>
                     <button
                       type="submit"
-                      className="flex w-full justify-center rounded-md bg-[#D9E8FF] px-3 py-1.5 text-sm/6 font-semibold text-gray-900 shadow-xs hover:bg-[#D9E8FF]/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
+                      disabled={loading}
+                      className="flex w-full justify-center rounded-md bg-[#D9E8FF] px-3 py-1.5 text-sm/6 font-semibold text-gray-900 shadow-xs hover:bg-[#D9E8FF]/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF] disabled:opacity-70"
                     >
-                      Sign up
+                      {loading ? 'Signing up...' : 'Sign up'}
                     </button>
                   </div>
                 </form>
@@ -173,9 +303,11 @@ export default function Example() {
                 </div>
 
                 <div className="mt-6 grid grid-cols-2 gap-4">
-                  <a
-                    href="#"
-                    className="flex w-full items-center justify-center gap-3 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 shadow-xs ring-gray-300 ring-inset hover:bg-gray-50 focus-visible:ring-transparent"
+                  <button
+                    type="button"
+                    onClick={handleGoogleSignIn}
+                    disabled={loading}
+                    className="flex w-full items-center justify-center gap-3 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 shadow-xs ring-gray-300 ring-inset hover:bg-gray-50 focus-visible:ring-transparent disabled:opacity-70"
                   >
                     <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5">
                       <path
@@ -196,11 +328,13 @@ export default function Example() {
                       />
                     </svg>
                     <span className="text-sm/6 font-semibold">Google</span>
-                  </a>
+                  </button>
 
-                  <a
-                    href="#"
-                    className="flex w-full items-center justify-center gap-3 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 shadow-xs ring-gray-300 ring-inset hover:bg-gray-50 focus-visible:ring-transparent"
+                  <button
+                    type="button"
+                    onClick={handleAppleSignIn}
+                    disabled={loading}
+                    className="flex w-full items-center justify-center gap-3 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 shadow-xs ring-gray-300 ring-inset hover:bg-gray-50 focus-visible:ring-transparent disabled:opacity-70"
                   >
                     <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5">
                       <path
@@ -209,7 +343,7 @@ export default function Example() {
                       />
                     </svg>
                     <span className="text-sm/6 font-semibold">Apple</span>
-                  </a>
+                  </button>
                 </div>
               </div>
             </div>
