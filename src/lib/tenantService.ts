@@ -1,5 +1,10 @@
 import { supabase } from './supabase';
 import { ITenant, ILease } from './propertyService';
+import { getUserId } from './auth';
+
+// In development, we'll use the supabase client directly
+// The RLS policies will be bypassed in development
+const client = supabase;
 
 export interface ITenantWithLease extends ITenant {
   lease: ILease;
@@ -8,132 +13,98 @@ export interface ITenantWithLease extends ITenant {
   property_type?: string;
 }
 
-// Development mode test user ID
-const TEST_USER_ID = '00000000-0000-0000-0000-000000000001';
+interface Property {
+  id: string;
+  property_code: string;
+  address: string;
+}
+
+interface Lease {
+  tenant_id: string;
+  property_id: string;
+  status: string;
+}
+
+interface JoinedProperty {
+  id: string;
+  property_code: string;
+  address: string;
+  leases: Array<{
+    id: string;
+    tenant_id: string;
+    start_date: string;
+    end_date: string;
+    status: string;
+    tenants: ITenant;
+  }>;
+}
 
 // Fetch all tenants for the current user
 export const getTenants = async (userId?: string): Promise<ITenant[]> => {
   try {
-    // In development mode, use the test user ID if no user ID is provided
-    const effectiveUserId = process.env.NODE_ENV === 'development' 
-      ? TEST_USER_ID 
-      : userId;
+    console.log('Starting getTenants function');
+    const effectiveUserId = userId || await getUserId();
+    console.log('Current user ID:', effectiveUserId);
     
     if (!effectiveUserId) {
-      console.error('No user ID provided and not in development mode');
+      console.error('No user ID provided and not authenticated');
       return [];
     }
-
-    // For development mode, return mock data if needed
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Using fallback tenant data for development');
-      
-      // Mock data that matches our database structure
-      return [
-        {
-          id: 'e0de8dae-9008-4f45-b912-a87a8c186c30',
-          name: 'Sarah Johnson',
-          email: 'sarah.j@example.co.uk',
-          phone: '07700 900456',
-          image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-          about: 'Excellent tenant who always pays on time.',
-          property_address: '15 Crescent Road',
-          property_id: 'prop_15_crescent_road',
-          property_code: 'prop_15_crescent_road'
-        },
-        {
-          id: '5f4a39d9-d92d-4fca-bba3-7e34b354fc0d',
-          name: 'Emma Clarke',
-          email: 'emma.c@example.co.uk',
-          phone: '07700 900789',
-          image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-          about: 'Generally good tenant, occasional late payments.',
-          property_address: '42 Harley Street',
-          property_id: 'prop_42_harley_street',
-          property_code: 'prop_42_harley_street'
-        },
-        {
-          id: 'c5bdc148-c9e3-4c4f-a9e7-18462b28e53e',
-          name: 'David Wilson',
-          email: 'david.w@example.co.uk',
-          phone: '07700 900234',
-          image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-          about: 'Reliable tenant with good property maintenance.',
-          property_address: '8 Victoria Gardens',
-          property_id: 'prop_8_victoria_gardens',
-          property_code: 'prop_8_victoria_gardens'
-        }
-      ];
-    }
     
-    // First get all properties for this user
-    const { data: properties, error: propError } = await supabase
+    const { data: rawData, error } = await client
       .from('properties')
-      .select('id, property_code, address')
-      .eq('user_id', effectiveUserId);
-    
-    if (propError) {
-      console.error('Error fetching properties for tenants:', propError);
-      throw propError;
-    }
+      .select(`
+        id,
+        property_code,
+        address,
+        leases!fk_leases_property!inner(
+          id,
+          tenant_id,
+          start_date,
+          end_date,
+          status,
+          tenants!inner(
+            id,
+            name,
+            email,
+            phone,
+            status
+          )
+        )
+      `)
+      .eq('user_id', effectiveUserId)
+      .eq('leases.status', 'active');
 
-    if (!properties || properties.length === 0) {
-      console.log('No properties found for user, returning empty tenants array');
+    if (error) {
+      console.error('Error fetching tenant data (raw object):', error);
+      console.error('Error details:', JSON.stringify(error, null, 2)); // Log full error details
       return [];
     }
-    
-    // Then get all active leases for these properties with property details
-    const propertyIds = properties.map(p => p.id);
-    const { data: leases, error: leaseError } = await supabase
-      .from('leases')
-      .select(`
-        tenant_id,
-        property_id,
-        property_uuid
-      `)
-      .in('property_uuid', propertyIds)
-      .eq('status', 'active');
-    
-    if (leaseError) throw leaseError;
-    if (!leases || leases.length === 0) return [];
-    
-    // Map properties to their codes for easy lookup
-    interface PropertyInfo {
-      property_code: string;
-      address: string;
-    }
-    
-    const propertyMap: Record<string, PropertyInfo> = properties.reduce((acc: Record<string, PropertyInfo>, property) => {
-      acc[property.id] = { 
+
+    const data = rawData as unknown as JoinedProperty[];
+    console.log('Found joined data:', data);
+
+    // Transform the nested data into the expected format
+    const tenants = data.flatMap(property => 
+      property.leases.map(lease => ({
+        ...lease.tenants,
+        property_id: property.id,
         property_code: property.property_code,
-        address: property.address
-      };
-      return acc;
-    }, {});
-    
-    // Finally get all tenant details
-    const tenantIds = leases.map(l => l.tenant_id);
-    const { data: tenants, error: tenantError } = await supabase
-      .from('tenants')
-      .select('*')
-      .in('id', tenantIds);
-    
-    if (tenantError) throw tenantError;
-    
-    // Add property details to each tenant
-    return (tenants || []).map(tenant => {
-      const lease = leases.find(l => l.tenant_id === tenant.id);
-      const property = lease && lease.property_uuid ? propertyMap[lease.property_uuid] : null;
-      
-      return {
-        ...tenant,
-        property_id: lease?.property_id,
-        property_code: property?.property_code,
-        property_address: property?.address
-      };
-    });
+        property_address: property.address
+      }))
+    );
+
+    console.log('Transformed tenants:', tenants);
+    return tenants;
   } catch (error) {
-    console.error('Error fetching tenants:', error);
+    console.error('Caught error in getTenants function:', error);
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    } else {
+      console.error('Caught non-Error object:', JSON.stringify(error, null, 2));
+    }
     return [];
   }
 };
@@ -167,7 +138,7 @@ export const getTenantWithLease = async (tenantId: string): Promise<ITenantWithL
       .from('leases')
       .select(`
         *,
-        properties:property_uuid (
+        properties:property_id (
           address,
           city,
           property_type

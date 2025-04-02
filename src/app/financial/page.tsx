@@ -136,10 +136,8 @@ interface Transaction {
 // Update tabs array with current menu items
 const tabs = [
   { name: 'Overview', value: 'overview', current: true },
-  { name: 'Income', value: 'income', current: false },
   { name: 'Expense', value: 'expense', current: false },
   { name: 'Transactions', value: 'transactions', current: false },
-  { name: 'Profitability', value: 'profitability', current: false },
   { name: 'Properties', value: 'properties', current: false },
 ]
 
@@ -417,12 +415,15 @@ export default function Financial() {
       if (selectedPropertyId && selectedPropertyId !== 'all') {
         financesEndpoint += `&propertyId=${selectedPropertyId}`;
       }
-      console.log(`Fetching from endpoint: ${financesEndpoint}`);
+      console.log(`[fetchFinancialData] Fetching from endpoint: ${financesEndpoint}`);
 
       const response = await fetch(financesEndpoint);
       const data = await response.json();
       
+      console.log('[fetchFinancialData] Raw API Response:', data);
+
       if (!response.ok) {
+        console.error('[fetchFinancialData] API Error Response:', data);
         throw new Error(data.error || 'Failed to fetch financial data');
       }
 
@@ -475,32 +476,36 @@ export default function Financial() {
     };
 
     fetchProperties();
-  }, [fetchFinancialData]);
+  }, []);
 
   // Handle property selection
   const handlePropertySelect = (propertyId: string | 'all') => {
-    console.log('Selected property:', propertyId);
+    console.log('[handlePropertySelect] Property selection changed:', propertyId); // Log selection
     setSelectedPropertyId(propertyId);
     setIsPropertyDropdownOpen(false);
   };
 
   // Then, update financial data when selectedPropertyId changes
   useEffect(() => {
-    if (!properties.length) return;
+    console.log('[useEffect - Property Change] Running effect for propertyId:', selectedPropertyId);
+    if (!properties.length) {
+      console.log('[useEffect - Property Change] Skipping fetch because properties list is empty.');
+      return;
+    }
     
     if (selectedPropertyId !== 'all') {
       // Find the property in the cached data
       const selectedProperty = properties.find(p => p.id === selectedPropertyId);
       if (!selectedProperty) {
-        console.error(`Selected property ${selectedPropertyId} not found`);
+        console.error(`[useEffect - Property Change] Selected property ${selectedPropertyId} not found in properties list:`, properties);
         return;
       }
     }
     
     // Fetch financial data with the selected property
-    console.log('Fetching financial data for property:', selectedPropertyId);
+    console.log('[useEffect - Property Change] Calling fetchFinancialData for property:', selectedPropertyId);
     fetchFinancialData();
-  }, [selectedPropertyId, properties, fetchFinancialData]);
+  }, [selectedPropertyId, properties]);
 
   // Transform API data for charts
   const { allIncome, allExpenses } = getCombinedIncomeAndExpenses(financialData);
@@ -1127,56 +1132,6 @@ export default function Financial() {
                 </div>
               </TabsContent>
               
-              <TabsContent value="income">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Income Breakdown</CardTitle>
-                    <CardDescription>{chartDateRangeDescription}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ChartContainer config={incomeBreakdownChartConfig}>
-                      <BarChart accessibilityLayer data={transformedIncomeBreakdownData}>
-                        <CartesianGrid vertical={false} />
-                        <XAxis
-                          dataKey="month"
-                          tickLine={false}
-                          tickMargin={10}
-                          axisLine={false}
-                          tickFormatter={(value) => {
-                              try {
-                                  const [year, monthNum] = value.split('-');
-                                  const date = new Date(parseInt(year), parseInt(monthNum) - 1, 1);
-                                  return date.toLocaleString('default', { month: 'short' });
-                              } catch (e) { return value; }
-                          }}
-                        />
-                        <ChartTooltip
-                          cursor={false}
-                          content={<ChartTooltipContent 
-                            indicator="dashed" 
-                            labelFormatter={(label) => {
-                                try {
-                                    const [year, monthNum] = label.split('-');
-                                    const date = new Date(parseInt(year), parseInt(monthNum) - 1, 1);
-                                    return date.toLocaleString('default', { month: 'short', year: 'numeric' });
-                                } catch (e) { return label; }
-                            }}
-                          />}
-                        />
-                        <Bar dataKey="rent" fill={incomeBreakdownChartConfig.rent.color} radius={4} stackId="a" />
-                        <Bar dataKey="fees" fill={incomeBreakdownChartConfig.fees.color} radius={4} stackId="a" />
-                        <Bar dataKey="other" fill={incomeBreakdownChartConfig.other.color} radius={4} stackId="a" />
-                      </BarChart>
-                    </ChartContainer>
-                  </CardContent>
-                  <CardFooter className="flex-col items-start gap-2 text-sm">
-                    <div className="leading-none text-muted-foreground">
-                      Showing income breakdown for the last 6 months.
-                    </div>
-                  </CardFooter>
-                </Card>
-              </TabsContent>
-              
               <TabsContent value="expense">
                 <Card>
                   <CardHeader>
@@ -1309,174 +1264,59 @@ export default function Financial() {
                 </div>
               </TabsContent>
               
-              <TabsContent value="profitability">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Profitability Metrics</CardTitle>
-                    <CardDescription>Key profitability indicators over time</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ChartContainer config={{
-                      capRate: {
-                        label: "Cap Rate (%)",
-                        color: "#E9823F"
-                      },
-                      cashOnCash: {
-                        label: "Cash on Cash (%)",
-                        color: "#29A3BE"
-                      },
-                      roi: {
-                        label: "ROI (%)",
-                        color: "#4264CB"
-                      }
-                    }}>
-                      <LineChart accessibilityLayer data={[
-                        { month: "January", capRate: 7.5, cashOnCash: 7.2, roi: 8.1 },
-                        { month: "February", capRate: 7.5, cashOnCash: 7.4, roi: 8.3 },
-                        { month: "March", capRate: 7.6, cashOnCash: 7.5, roi: 8.4 },
-                        { month: "April", capRate: 7.7, cashOnCash: 7.6, roi: 8.5 },
-                        { month: "May", capRate: 7.7, cashOnCash: 7.7, roi: 8.6 },
-                        { month: "June", capRate: 7.8, cashOnCash: 7.8, roi: 8.7 }
-                      ]}>
-                        <CartesianGrid vertical={false} />
-                        <XAxis
-                          dataKey="month"
-                          tickLine={false}
-                          tickMargin={10}
-                          axisLine={false}
-                          tickFormatter={(value) => value.slice(0, 3)}
-                        />
-                        <ChartTooltip
-                          cursor={false}
-                          content={<ChartTooltipContent />}
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="capRate" 
-                          name="capRate"
-                          stroke="#E9823F" 
-                          strokeWidth={2} 
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="cashOnCash" 
-                          name="cashOnCash"
-                          stroke="#29A3BE" 
-                          strokeWidth={2} 
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="roi" 
-                          name="roi"
-                          stroke="#4264CB" 
-                          strokeWidth={2} 
-                        />
-                      </LineChart>
-                    </ChartContainer>
-                  </CardContent>
-                  <CardFooter className="flex-col items-start gap-2 text-sm">
-                    <div className="flex gap-2 font-medium leading-none text-green-600">
-                      <TrendingUp className="h-4 w-4" />
-                      <span>All profitability metrics show positive trend</span>
-                    </div>
-                  </CardFooter>
-                </Card>
-              </TabsContent>
-              
               <TabsContent value="properties">
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {/* Property Card 1 */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Sunset Apartments</CardTitle>
-                      <CardDescription>48 Rooms</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-xs text-gray-500">Monthly Revenue</p>
-                          <p className="text-lg font-bold text-gray-900">£58,400</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">Expenses</p>
-                          <p className="text-lg font-bold text-gray-900">£22,100</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">NOI</p>
-                          <p className="text-lg font-bold text-gray-900">£36,300</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">Cap Rate</p>
-                          <p className="text-lg font-bold text-green-600">8.2%</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                    <CardFooter className="border-t pt-4">
-                      <a href="#" className="text-sm text-blue-600 hover:underline">View property details</a>
-                    </CardFooter>
-                  </Card>
-                  
-                  {/* Property Card 2 */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Oakwood Heights</CardTitle>
-                      <CardDescription>36 Rooms</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-xs text-gray-500">Monthly Revenue</p>
-                          <p className="text-lg font-bold text-gray-900">£43,200</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">Expenses</p>
-                          <p className="text-lg font-bold text-gray-900">£18,900</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">NOI</p>
-                          <p className="text-lg font-bold text-gray-900">£24,300</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">Cap Rate</p>
-                          <p className="text-lg font-bold text-green-600">7.5%</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                    <CardFooter className="border-t pt-4">
-                      <a href="#" className="text-sm text-blue-600 hover:underline">View property details</a>
-                    </CardFooter>
-                  </Card>
-                  
-                  {/* Property Card 3 */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Parkview Residences</CardTitle>
-                      <CardDescription>24 Rooms</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-xs text-gray-500">Monthly Revenue</p>
-                          <p className="text-lg font-bold text-gray-900">£28,800</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">Expenses</p>
-                          <p className="text-lg font-bold text-gray-900">£11,600</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">NOI</p>
-                          <p className="text-lg font-bold text-gray-900">£17,200</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">Cap Rate</p>
-                          <p className="text-lg font-bold text-yellow-600">6.9%</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                    <CardFooter className="border-t pt-4">
-                      <a href="#" className="text-sm text-blue-600 hover:underline">View property details</a>
-                    </CardFooter>
-                  </Card>
+                  {financialData?.properties && financialData.properties.length > 0 ? (
+                    financialData.properties.map((property) => (
+                      <Card key={property.property_id}>
+                        <CardHeader>
+                          <CardTitle>{property.property_address || 'Unknown Address'}</CardTitle>
+                          <CardDescription>
+                            {property.property_performance && property.property_performance.length > 0 
+                              ? `${property.property_performance[0].total_units} Units` 
+                              : 'Units N/A'}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-xs text-gray-500">Monthly Revenue</p>
+                              <p className="text-lg font-bold text-gray-900">£{property.total_income?.toLocaleString() || 0}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Expenses</p>
+                              <p className="text-lg font-bold text-gray-900">£{property.total_expenses?.toLocaleString() || 0}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">NOI</p>
+                              <p className="text-lg font-bold text-gray-900">£{property.net_profit?.toLocaleString() || 0}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Cap Rate</p>
+                              <p className={`text-lg font-bold ${
+                                (property.property_performance && property.property_performance.length > 0 && property.property_performance[0].cap_rate >= 8) ? 'text-green-600' :
+                                (property.property_performance && property.property_performance.length > 0 && property.property_performance[0].cap_rate >= 7) ? 'text-yellow-600' :
+                                'text-red-600'
+                              }`}>
+                                {property.property_performance && property.property_performance.length > 0 
+                                  ? `${property.property_performance[0].cap_rate?.toFixed(1)}%` 
+                                  : 'N/A'}
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                        <CardFooter className="border-t pt-4">
+                          <Link href={`/properties/${property.property_id}`} className="text-sm text-blue-600 hover:underline">
+                            View property details
+                          </Link>
+                        </CardFooter>
+                      </Card>
+                    ))
+                  ) : (
+                    <div className="col-span-full text-center text-gray-500 py-8">
+                      {loading ? 'Loading properties...' : 'No property financial data available.'}
+                    </div>
+                  )}
                 </div>
               </TabsContent>
             </Tabs>

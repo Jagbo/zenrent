@@ -67,37 +67,34 @@ export async function GET(request: Request) {
     
     console.log('[FINANCES API] Request parameters:', { propertyId, startDate, endDate });
     
-    // Create Supabase client with service role in development to bypass RLS
-    const supabaseClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NODE_ENV === 'development' 
-        ? process.env.SUPABASE_SERVICE_ROLE_KEY! 
-        : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { 
-        auth: { 
-          persistSession: false 
-        } 
-      }
-    );
+    // Create Supabase client that respects RLS using Auth Helpers
+    const supabase = createRouteHandlerClient({ cookies });
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+    if (sessionError) {
+      console.error('[FINANCES API] Error getting session:', sessionError);
+      return NextResponse.json({ error: 'Failed to get user session' }, { status: 500 });
+    }
+
+    if (!session) {
+      console.warn('[FINANCES API] No user session found');
+      return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
+    }
     
-    // In development mode, use the test user ID
-    const testUserId = '00000000-0000-0000-0000-000000000001';
-    
+    const userId = session.user.id;
+    console.log('[FINANCES API] User ID:', userId);
+
     // If propertyId is provided, fetch data for that specific property
     if (propertyId) {
-      return await getFinancialDataForProperty(supabaseClient, propertyId, startDate, endDate);
+      return await getFinancialDataForProperty(supabase, userId, propertyId, startDate, endDate);
     }
     
     // If no propertyId provided, fetch all properties for the user
-    let propertiesQuery = supabaseClient
+    let propertiesQuery = supabase
       .from('properties')
-      .select('*');
+      .select('*')
+      .eq('user_id', userId); // Filter by the actual user ID
       
-    // In development mode, use test user ID
-    if (process.env.NODE_ENV === 'development') {
-      propertiesQuery = propertiesQuery.eq('user_id', testUserId);
-    }
-    
     const { data: properties, error: propertiesError } = await propertiesQuery;
     
     if (propertiesError) {
@@ -127,8 +124,8 @@ export async function GET(request: Request) {
     const propertiesData = await Promise.all(
       properties.map(async (property) => {
         try {
-          // Get financial data for this property
-          const response = await getFinancialDataForProperty(supabaseClient, property.id, startDate, endDate);
+          // Get financial data for this property using the RLS-enabled client
+          const response = await getFinancialDataForProperty(supabase, userId, property.id, startDate, endDate);
           // Convert response to json
           const data = await response.json();
           // Add property details to the financial data
@@ -189,12 +186,13 @@ export async function GET(request: Request) {
 }
 
 // Helper function to get financial data for a specific property
-async function getFinancialDataForProperty(supabaseClient: SupabaseClient, propertyId: string, startDate: string | null, endDate: string | null) {
-  // Get property for inclusion in response
+async function getFinancialDataForProperty(supabaseClient: SupabaseClient, userId: string, propertyId: string, startDate: string | null, endDate: string | null) {
+  // Get property, ensuring it belongs to the user (RLS should handle this if policies are correct)
   const { data: property, error: propertyError } = await supabaseClient
     .from('properties')
     .select('*')
     .eq('id', propertyId)
+    .eq('user_id', userId) // Explicitly check user_id for safety
     .single();
   
   if (propertyError || !property) {

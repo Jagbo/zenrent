@@ -61,6 +61,7 @@ import { IssueDrawer } from "../components/IssueDrawer"
 import { IssueFormDrawer } from '../components/IssueFormDrawer'
 import { getRecentIssues, createIssue } from '../../lib/issueService'
 import { getDashboardStats } from '../../lib/dashboardService'
+import { supabase } from '../../lib/supabase'
 
 // Icons for navigation items
 function DashboardIcon() {
@@ -318,13 +319,11 @@ type Issue = {
 }
 
 export default function Dashboard() {
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
-  const [isFormDrawerOpen, setIsFormDrawerOpen] = useState(false)
   const [issues, setIssues] = useState<Issue[]>([])
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
   const [selectedTab, setSelectedTab] = useState('overview')
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [isFormDrawerOpen, setIsFormDrawerOpen] = useState(false)
   const [dashboardStats, setDashboardStats] = useState({
     totalProperties: 0,
     expiringContracts: 0,
@@ -343,47 +342,31 @@ export default function Dashboard() {
     setSelectedTab(value)
   }
 
-  // Fetch issues from Supabase when component mounts
+  // Fetch issues and dashboard stats when component mounts
   useEffect(() => {
     const fetchIssues = async () => {
       try {
         console.log('Dashboard: Starting to fetch recent issues');
-        setIsLoading(true);
-        
         const issues = await getRecentIssues(5);
-        console.log('Dashboard: Received issues data:', issues.length, 'issues');
         
-        if (issues.length === 0) {
+        if (!issues || issues.length === 0) {
           console.log('Dashboard: No issues returned from API');
-        } else {
-          console.log('Dashboard: First issue sample:', issues[0]);
+          return;
         }
         
+        console.log('Dashboard: Received issues data:', issues.length, 'issues');
+        console.log('Dashboard: First issue sample:', issues[0]);
         setIssues(issues);
-        setError(null);
       } catch (err) {
         console.error('Dashboard: Error fetching issues:', err);
-        setError('Failed to load issues.');
-      } finally {
-        setIsLoading(false);
       }
     };
 
-    fetchIssues();
-  }, []);
-
-  // Fetch dashboard stats from Supabase
-  useEffect(() => {
     const fetchDashboardStats = async () => {
       try {
         console.log('Dashboard: Starting to fetch dashboard stats');
         
-        // Log environment and process variables to help debug
-        console.log('NODE_ENV:', process.env.NODE_ENV);
-        console.log('TEST_USER_ID:', '00000000-0000-0000-0000-000000000001');
-        
         const stats = await getDashboardStats();
-        console.log('Dashboard: Received stats data:', stats);
         
         // Check if we got meaningful data
         const hasData = Object.values(stats).some(val => val > 0);
@@ -397,6 +380,7 @@ export default function Dashboard() {
       }
     };
 
+    fetchIssues();
     fetchDashboardStats();
   }, []);
 
@@ -939,13 +923,7 @@ export default function Dashboard() {
             </div>
             
             <div className="overflow-x-auto">
-              {isLoading ? (
-                <div className="flex justify-center items-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-                </div>
-              ) : error ? (
-                <div className="text-center py-8 text-red-500">{error}</div>
-              ) : issues.length === 0 ? (
+              {issues.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">No issues found</div>
               ) : (
                 <table className="min-w-full divide-y divide-gray-200">
@@ -1036,73 +1014,32 @@ export default function Dashboard() {
           </div>
         </div>
         
-        {/* Upcoming Meetings */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-cabinet-grotesk-bold text-gray-900">Upcoming Meetings</h3>
-            <p className="text-sm text-gray-500">Schedule and manage your property-related appointments.</p>
-          </div>
-          
-          <div className="divide-y divide-gray-200">
-            <div className="px-6 py-4 flex">
-              <div className="flex-shrink-0 h-12 w-12 rounded-lg bg-purple-100 flex items-center justify-center text-purple-500">
-                <span className="text-sm font-medium">PI</span>
-              </div>
-              <div className="ml-4 flex-1">
-                <h4 className="text-sm font-medium text-gray-900">Plumbing inspection</h4>
-                <div className="mt-1 flex items-center text-sm text-gray-500">
-                  <CalendarIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
-                  <span>January 22, 2022 at 09:00 - 10:30</span>
-                </div>
-                <div className="mt-1 flex items-center text-sm text-gray-500">
-                  <MapPinIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
-                  <span>Sunset Apartments Room 204</span>
-                </div>
-              </div>
-              <div className="ml-4">
-                <button className="text-gray-400 hover:text-gray-500">
-                  <EllipsisVerticalIcon className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-            
-            <div className="px-6 py-4 flex">
-              <div className="flex-shrink-0 h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center text-blue-500">
-                <span className="text-sm font-medium">Ne</span>
-              </div>
-              <div className="ml-4 flex-1">
-                <h4 className="text-sm font-medium text-gray-900">New tenant orientation</h4>
-                <div className="mt-1 flex items-center text-sm text-gray-500">
-                  <CalendarIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
-                  <span>January 22, 2022 at 11:00 - 12:00</span>
-                </div>
-                <div className="mt-1 flex items-center text-sm text-gray-500">
-                  <MapPinIcon className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
-                  <span>Oakwood Heights Room 103</span>
-                </div>
-              </div>
-              <div className="ml-4">
-                <button className="text-gray-400 hover:text-gray-500">
-                  <EllipsisVerticalIcon className="h-5 w-5" />
-                </button>
-              </div>
+        {/* 3x1 Card Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Card 1 */}
+          <div className="divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow-sm border border-gray-200">
+            <div className="px-4 py-5 sm:p-6">{/* Card 1 Content goes here */}</div>
+            <div className="px-4 py-4 sm:px-6">
+              {/* Card 1 Footer content goes here */}
+              <span className="text-sm text-gray-500">Card 1 Footer</span>
             </div>
           </div>
-          
-          <div className="px-6 py-4 border-t border-gray-200">
-            <div className="flex items-center justify-between">
-              <div className="flex">
-                <button className="p-1 rounded-md text-gray-400 hover:text-gray-500">
-                  <ChevronLeftIcon className="h-5 w-5" />
-                </button>
-                <button className="p-1 rounded-md text-gray-400 hover:text-gray-500">
-                  <ChevronRightIcon className="h-5 w-5" />
-                </button>
-              </div>
-              <h4 className="text-sm font-medium text-gray-900">January</h4>
-              <button className="px-4 py-2 bg-[#D9E8FF] rounded-md text-sm font-medium text-black hover:bg-[#C8D7EE]">
-                Add event
-              </button>
+
+          {/* Card 2 */}
+          <div className="divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow-sm border border-gray-200">
+            <div className="px-4 py-5 sm:p-6">{/* Card 2 Content goes here */}</div>
+            <div className="px-4 py-4 sm:px-6">
+              {/* Card 2 Footer content goes here */}
+              <span className="text-sm text-gray-500">Card 2 Footer</span>
+            </div>
+          </div>
+
+          {/* Card 3 */}
+          <div className="divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow-sm border border-gray-200">
+            <div className="px-4 py-5 sm:p-6">{/* Card 3 Content goes here */}</div>
+            <div className="px-4 py-4 sm:px-6">
+              {/* Card 3 Footer content goes here */}
+              <span className="text-sm text-gray-500">Card 3 Footer</span>
             </div>
           </div>
         </div>

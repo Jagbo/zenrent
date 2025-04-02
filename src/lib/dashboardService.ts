@@ -1,457 +1,284 @@
+import { createClient } from '@supabase/supabase-js';
+import getConfig from 'next/config';
 import { supabase } from './supabase';
 
-// Test user ID as defined in the seed data
-const TEST_USER_ID = '00000000-0000-0000-0000-000000000001';
-
-// Log the current environment for debugging
-console.log('DASHBOARD SERVICE: Environment is', process.env.NODE_ENV);
-console.log('DASHBOARD SERVICE: Will use test user ID in development mode:', TEST_USER_ID);
-
-/**
- * Gets the total number of properties for the test user
- */
-export const getTotalProperties = async (userId?: string): Promise<number> => {
-  try {
-    // In development mode, use the test user ID if no user ID is provided
-    const effectiveUserId = process.env.NODE_ENV === 'development' 
-      ? TEST_USER_ID 
-      : userId;
-    
-    if (!effectiveUserId) {
-      console.error('No user ID provided and not in development mode');
-      return 0;
-    }
-
-    const { count, error } = await supabase
-      .from('properties')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', effectiveUserId);
-    
-    if (error) {
-      console.error('Error fetching property count:', error);
-      if (process.env.NODE_ENV === 'development') {
-        return 3; // Fallback to 3 properties for development
-      }
-      return 0;
-    }
-    
-    // If count is 0 in development, use fallback
-    if ((count || 0) === 0 && process.env.NODE_ENV === 'development') {
-      console.log('No properties found, using fallback data for development');
-      return 3;
-    }
-    
-    return count || 0;
-  } catch (error) {
-    console.error('Error in getTotalProperties:', error);
-    if (process.env.NODE_ENV === 'development') {
-      return 3; // Fallback to 3 properties for development
-    }
-    return 0;
-  }
+// Get runtime config
+const { serverRuntimeConfig, publicRuntimeConfig } = getConfig() || {
+  serverRuntimeConfig: {},
+  publicRuntimeConfig: {}
 };
 
-/**
- * Gets the number of contracts expiring in the next 6 months
- */
-export const getExpiringContracts = async (userId?: string): Promise<number> => {
-  try {
-    const effectiveUserId = process.env.NODE_ENV === 'development' 
-      ? TEST_USER_ID 
-      : userId;
-    
-    if (!effectiveUserId) {
-      console.error('No user ID provided and not in development mode');
-      return 0;
-    }
-
-    // First get all properties for the user
-    const { data: properties, error: propError } = await supabase
-      .from('properties')
-      .select('id, property_code')
-      .eq('user_id', effectiveUserId);
-    
-    if (propError || !properties) {
-      console.error('Error fetching properties:', propError);
-      if (process.env.NODE_ENV === 'development') {
-        return 2; // Fallback for development
-      }
-      return 0;
-    }
-
-    // Get both UUID and property_code for matching
-    const propertyIds = properties.map(p => p.id);
-    const propertyCodes = properties.map(p => p.property_code);
-    
-    // Now count leases that are expiring in the next 6 months
-    const sixMonthsFromNow = new Date();
-    sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
-
-    // Try with property_uuid
-    const { count: uuidCount, error: uuidError } = await supabase
-      .from('leases')
-      .select('*', { count: 'exact', head: true })
-      .in('property_uuid', propertyIds)
-      .eq('status', 'active')
-      .lte('end_date', sixMonthsFromNow.toISOString());
-    
-    if (uuidError) {
-      console.error('Error fetching expiring contracts by UUID:', uuidError);
-    }
-    
-    // Also try with property_id (property_code)
-    const { count: codeCount, error: codeError } = await supabase
-      .from('leases')
-      .select('*', { count: 'exact', head: true })
-      .in('property_id', propertyCodes)
-      .eq('status', 'active')
-      .lte('end_date', sixMonthsFromNow.toISOString());
-    
-    if (codeError) {
-      console.error('Error fetching expiring contracts by code:', codeError);
-    }
-    
-    // Determine the result count
-    const resultCount = Math.max((uuidCount || 0), (codeCount || 0));
-    
-    // If count is 0 in development, use fallback
-    if (resultCount === 0 && process.env.NODE_ENV === 'development') {
-      console.log('No expiring contracts found, using fallback data for development');
-      return 2;
-    }
-    
-    return resultCount;
-  } catch (error) {
-    console.error('Error in getExpiringContracts:', error);
-    if (process.env.NODE_ENV === 'development') {
-      return 2; // Fallback for development
-    }
-    return 0;
+// Create a Supabase client that uses service role key
+const getDashboardClient = () => {
+  const supabaseUrl = publicRuntimeConfig.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = serverRuntimeConfig.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseAnonKey = publicRuntimeConfig.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl) {
+    console.error('NEXT_PUBLIC_SUPABASE_URL is not defined!');
   }
+  
+  if (!supabaseServiceKey) {
+    console.error('SUPABASE_SERVICE_ROLE_KEY is not defined in environment variables!');
+    console.log('Make sure SUPABASE_SERVICE_ROLE_KEY is defined in your .env.local file');
+    
+    // Use anon key as fallback
+    console.log('Falling back to anon key instead of service role key');
+    
+    if (!supabaseAnonKey) {
+      console.error('NEXT_PUBLIC_SUPABASE_ANON_KEY is also not defined!');
+      throw new Error('No Supabase key available. Please check your environment variables.');
+    }
+    
+    return createClient(
+      supabaseUrl!,
+      supabaseAnonKey!,
+      { auth: { persistSession: false } }
+    );
+  }
+  
+  return createClient(
+    supabaseUrl!,
+    supabaseServiceKey!,
+    { auth: { persistSession: false } }
+  );
 };
 
-/**
- * Gets the overall occupancy rate for all properties
- */
-export const getOccupancyRate = async (userId?: string): Promise<number> => {
-  try {
-    const effectiveUserId = process.env.NODE_ENV === 'development' 
-      ? TEST_USER_ID 
-      : userId;
-    
-    if (!effectiveUserId) {
-      console.error('No user ID provided and not in development mode');
-      return 0;
-    }
-
-    // For a simple implementation, we'll check active leases against total properties
-    // In a more complex system, we'd factor in property units and potential vacancies
-    
-    // Get total properties
-    const { data: properties, error: propError } = await supabase
-      .from('properties')
-      .select('id, property_code, property_type, bedrooms')
-      .eq('user_id', effectiveUserId);
-    
-    if (propError || !properties || properties.length === 0) {
-      console.error('Error fetching properties:', propError);
-      if (process.env.NODE_ENV === 'development') {
-        return 94; // Fallback for development
-      }
-      return 0;
-    }
-
-    const propertyIds = properties.map(p => p.id);
-    const propertyCodes = properties.map(p => p.property_code);
-    
-    // Count active leases using both UUID and property_code
-    const { count: uuidCount, error: uuidError } = await supabase
-      .from('leases')
-      .select('*', { count: 'exact', head: true })
-      .in('property_uuid', propertyIds)
-      .eq('status', 'active');
-    
-    if (uuidError) {
-      console.error('Error fetching active leases by UUID:', uuidError);
-    }
-    
-    const { count: codeCount, error: codeError } = await supabase
-      .from('leases')
-      .select('*', { count: 'exact', head: true })
-      .in('property_id', propertyCodes)
-      .eq('status', 'active');
-    
-    if (codeError) {
-      console.error('Error fetching active leases by code:', codeError);
-    }
-    
-    // Use the maximum count between the two queries
-    const activeLeaseCount = Math.max((uuidCount || 0), (codeCount || 0));
-
-    // Calculate occupancy rate
-    const occupancyRate = activeLeaseCount / properties.length * 100;
-    
-    // If occupancy rate is 0 in development, use fallback
-    if (occupancyRate === 0 && process.env.NODE_ENV === 'development') {
-      console.log('No occupancy data found, using fallback data for development');
-      return 94;
-    }
-    
-    return Math.round(occupancyRate);
-  } catch (error) {
-    console.error('Error in getOccupancyRate:', error);
-    if (process.env.NODE_ENV === 'development') {
-      return 94; // Fallback for development
-    }
-    return 0;
+// Get the current authenticated user ID
+export const getCurrentUserId = async (): Promise<string> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error('No authenticated user found');
   }
+  
+  return user.id;
 };
 
-/**
- * Gets the total income for the current month
- */
-export const getCurrentMonthIncome = async (userId?: string): Promise<number> => {
-  try {
-    const effectiveUserId = process.env.NODE_ENV === 'development' 
-      ? TEST_USER_ID 
-      : userId;
-    
-    if (!effectiveUserId) {
-      console.error('No user ID provided and not in development mode');
-      return 0;
-    }
-
-    // Get the first and last day of the current month
-    const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-    // Try direct SQL approach first - this should work regardless of field name inconsistencies
-    try {
-      const { data: directIncome, error: directError } = await supabase.rpc(
-        'calculate_total_income_for_user',
-        { 
-          user_uuid: effectiveUserId,
-          start_date: firstDay.toISOString(),
-          end_date: lastDay.toISOString()
-        }
-      );
-      
-      if (!directError && directIncome && directIncome > 0) {
-        console.log('Successfully fetched income via direct SQL:', directIncome);
-        return Math.round(directIncome);
-      } else {
-        console.log('No income via direct SQL, falling back to regular queries');
-      }
-    } catch (sqlError) {
-      console.error('SQL function not available, falling back to regular queries:', sqlError);
-    }
-
-    // Get all properties for the user
-    const { data: properties, error: propError } = await supabase
-      .from('properties')
-      .select('id')
-      .eq('user_id', effectiveUserId);
-    
-    if (propError || !properties) {
-      console.error('Error fetching properties:', propError);
-      return 0;
-    }
-
-    const propertyIds = properties.map(p => p.id);
-    
-    // Since the property_id field in the income table might be using the ID or property_code,
-    // let's try to get income both ways
-    const { data: incomeData, error: incomeError } = await supabase
-      .from('income')
-      .select('amount, date')
-      .in('property_id', propertyIds)
-      .gte('date', firstDay.toISOString())
-      .lte('date', lastDay.toISOString());
-    
-    if (incomeError) {
-      console.error('Error fetching income data by IDs:', incomeError);
-    }
-
-    // If no data and no error, then the field might be using property_code - get those 
-    if (!incomeData || incomeData.length === 0) {
-      console.log('No income data found by property IDs, trying with property codes');
-      const { data: properties, error: propCodeError } = await supabase
-        .from('properties')
-        .select('property_code')
-        .eq('user_id', effectiveUserId);
-
-      if (propCodeError || !properties) {
-        console.error('Error fetching property codes:', propCodeError);
-        return 0;
-      }
-      
-      const propertyCodes = properties.map(p => p.property_code);
-      
-      const { data: codeIncomeData, error: codeIncomeError } = await supabase
-        .from('income')
-        .select('amount, date')
-        .in('property_id', propertyCodes)
-        .gte('date', firstDay.toISOString())
-        .lte('date', lastDay.toISOString());
-      
-      if (codeIncomeError) {
-        console.error('Error fetching income data by codes:', codeIncomeError);
-        return 0;
-      }
-      
-      // Calculate total income from code-based data
-      const totalIncomeByCode = codeIncomeData?.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0) || 0;
-      return Math.round(totalIncomeByCode);
-    }
-
-    // Calculate total income from the first query
-    const totalIncome = incomeData.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0) || 0;
-    
-    // If no actual income found yet, use fallback data for development
-    if (totalIncome === 0 && process.env.NODE_ENV === 'development') {
-      console.log('Using fallback income data for development');
-      return 7500; // Reasonable fallback value for three properties
-    }
-    
-    return Math.round(totalIncome);
-  } catch (error) {
-    console.error('Error in getCurrentMonthIncome:', error);
-    // Return fallback data for development
-    if (process.env.NODE_ENV === 'development') {
-      return 7500;
-    }
-    return 0;
-  }
-};
-
-/**
- * Gets all dashboard statistics in a single object
- */
-export const getDashboardStats = async (userId?: string): Promise<{
+export interface DashboardStats {
   totalProperties: number;
   expiringContracts: number;
   occupancyRate: number;
   currentMonthIncome: number;
-}> => {
+}
+
+export const getTotalProperties = async (userId: string): Promise<number> => {
+  if (!userId) {
+    throw new Error('User ID is required to fetch properties');
+  }
+  
   try {
-    console.log('getDashboardStats called with userId:', userId);
-    console.log('Current NODE_ENV:', process.env.NODE_ENV);
-    
-    // Force development mode for reliable testing
-    const isDev = true; // process.env.NODE_ENV === 'development'
-    console.log('isDev forced to:', isDev);
-    
-    const effectiveUserId = isDev
-      ? TEST_USER_ID 
-      : userId;
-    
-    console.log('Using effectiveUserId:', effectiveUserId);
-    
-    if (!effectiveUserId) {
-      console.error('No user ID provided and not in development mode');
-      return {
-        totalProperties: 0,
-        expiringContracts: 0,
-        occupancyRate: 0,
-        currentMonthIncome: 0
-      };
+    console.log(`Fetching total properties for user: ${userId}`);
+    const { data, error } = await getDashboardClient()
+      .from('properties')
+      .select('id')
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error fetching properties:', error);
+      return 0;
     }
 
-    // For debugging purposes, let's directly check if we can communicate with Supabase
+    console.log(`Retrieved ${data?.length || 0} properties`);
+    return data?.length || 0;
+  } catch (error) {
+    console.error('Error fetching properties:', error);
+    return 0;
+  }
+};
+
+export const getExpiringContracts = async (userId: string): Promise<number> => {
+  if (!userId) {
+    throw new Error('User ID is required to fetch expiring contracts');
+  }
+  
+  try {
+    console.log(`Fetching expiring contracts for user: ${userId}`);
+    
+    // First get property IDs for this user
+    let propertyIds: string[] = [];
+    
     try {
-      console.log('Testing direct Supabase access...');
-      const { data: testData, error: testError } = await supabase
+      const { data: properties } = await getDashboardClient()
         .from('properties')
         .select('id')
-        .limit(1);
+        .eq('user_id', userId);
       
-      if (testError) {
-        console.error('Error accessing Supabase directly:', testError);
+      if (properties && properties.length > 0) {
+        propertyIds = properties.map(p => p.id);
+        console.log(`Found ${propertyIds.length} properties for expiring contracts calculation`);
       } else {
-        console.log('Direct Supabase test successful:', testData);
+        console.log('No properties found for user when fetching expiring contracts');
+        return 0;
       }
-    } catch (testErr) {
-      console.error('Exception during direct Supabase test:', testErr);
+    } catch (err) {
+      console.error('Error fetching properties for expiring contracts:', err);
+      return 0;
+    }
+    
+    if (propertyIds.length === 0) {
+      return 0;
+    }
+    
+    // Now get leases for these properties
+    try {
+      const { data } = await getDashboardClient()
+        .from('leases')
+        .select('id')
+        .in('property_id', propertyIds)
+        .lte('end_date', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString())
+        .gte('end_date', new Date().toISOString());
+
+      console.log(`Found ${data?.length || 0} expiring contracts`);
+      return data?.length || 0;
+    } catch (err) {
+      console.error('Error fetching expiring contracts:', err);
+      return 0;
+    }
+  } catch (error) {
+    console.error('Error in getExpiringContracts:', error);
+    return 0;
+  }
+};
+
+export const getOccupancyRate = async (userId: string): Promise<number> => {
+  if (!userId) {
+    throw new Error('User ID is required to calculate occupancy rate');
+  }
+  
+  try {
+    console.log(`Calculating occupancy rate for user: ${userId}`);
+    
+    // Get all properties for this user
+    const { data: properties, error: propertiesError } = await getDashboardClient()
+      .from('properties')
+      .select('id')
+      .eq('user_id', userId);
+
+    if (propertiesError) {
+      console.error('Error fetching properties for occupancy rate:', propertiesError);
+      return 0;
     }
 
-    // Always use the fallback values in development for now
-    if (isDev) {
-      console.log('Using fallback dashboard stats for development');
-      return {
-        totalProperties: 3,
-        expiringContracts: 2,
-        occupancyRate: 94,
-        currentMonthIncome: 7500
-      };
+    if (!properties?.length) {
+      console.log('No properties found for calculating occupancy rate');
+      return 0;
     }
+
+    // Get active leases for these properties
+    const propertyIds = properties.map(p => p.id);
+    const { data: activeLeases, error: leasesError } = await getDashboardClient()
+      .from('leases')
+      .select('id')
+      .in('property_id', propertyIds)
+      .gte('end_date', new Date().toISOString());
+
+    if (leasesError) {
+      console.error('Error fetching leases for occupancy rate:', leasesError);
+      return 0;
+    }
+
+    const rate = Math.round((activeLeases?.length || 0) / properties.length * 100);
+    console.log(`Calculated occupancy rate: ${rate}%`);
+    return rate;
+  } catch (error) {
+    console.error('Error calculating occupancy rate:', error);
+    return 0;
+  }
+};
+
+export const getCurrentMonthIncome = async (userId: string): Promise<number> => {
+  if (!userId) {
+    throw new Error('User ID is required to calculate current month income');
+  }
+  
+  try {
+    console.log(`Calculating current month income for user: ${userId}`);
     
-    // Try to use the comprehensive SQL function first
+    // Define month range
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const endOfMonth = new Date(startOfMonth);
+    endOfMonth.setMonth(endOfMonth.getMonth() + 1);
+    endOfMonth.setDate(0);
+    endOfMonth.setHours(23, 59, 59, 999);
+    
+    // Get properties for this user
+    let propertyIds: string[] = [];
+    
     try {
-      console.log('Attempting to use the get_dashboard_stats SQL function...');
-      const { data, error } = await supabase.rpc(
-        'get_dashboard_stats',
-        { user_uuid: effectiveUserId }
-      );
+      const { data: properties } = await getDashboardClient()
+        .from('properties')
+        .select('id')
+        .eq('user_id', userId);
       
-      if (error) {
-        console.error('Error from get_dashboard_stats RPC call:', error);
-      }
-      
-      if (!error && data) {
-        console.log('Successfully fetched dashboard stats via SQL function:', data);
-        return {
-          totalProperties: data.totalProperties || 0,
-          expiringContracts: data.expiringContracts || 0,
-          occupancyRate: data.occupancyRate || 0,
-          currentMonthIncome: data.currentMonthIncome || 0
-        };
+      if (properties && properties.length > 0) {
+        propertyIds = properties.map(p => p.id);
+        console.log(`Found ${propertyIds.length} properties for monthly income calculation`);
       } else {
-        console.log('SQL function unavailable or returned no data, falling back to individual queries');
+        console.log('No properties found for user when calculating monthly income');
+        return 0;
       }
-    } catch (sqlError) {
-      console.error('Exception during SQL function call:', sqlError);
+    } catch (err) {
+      console.error('Error fetching properties for monthly income:', err);
+      return 0;
     }
     
-    // If the SQL function isn't available, fall back to individual queries
-    console.log('Falling back to individual queries...');
-    const totalProperties = await getTotalProperties(effectiveUserId);
-    console.log('totalProperties result:', totalProperties);
+    if (propertyIds.length === 0) {
+      return 0;
+    }
     
-    const expiringContracts = await getExpiringContracts(effectiveUserId);
-    console.log('expiringContracts result:', expiringContracts);
+    // Get leases for these properties
+    try {
+      const { data } = await getDashboardClient()
+        .from('leases')
+        .select('rent_amount')
+        .in('property_id', propertyIds)
+        .lte('start_date', endOfMonth.toISOString())
+        .gte('end_date', startOfMonth.toISOString());
+
+      const income = data?.reduce((sum, lease) => sum + (parseFloat(lease.rent_amount) || 0), 0) || 0;
+      console.log(`Calculated current month income: £${income}`);
+      return income;
+    } catch (err) {
+      console.error('Error fetching lease data for monthly income:', err);
+      return 0;
+    }
+  } catch (error) {
+    console.error('Error calculating current month income:', error);
+    return 0;
+  }
+};
+
+export const getDashboardStats = async (userId?: string): Promise<DashboardStats> => {
+  if (!userId) {
+    try {
+      userId = await getCurrentUserId();
+    } catch (error) {
+      console.error('Error getting current user ID:', error);
+      throw new Error('Authentication required: No user ID available');
+    }
+  }
+  
+  console.log(`Getting dashboard stats for user: ${userId}`);
+  
+  try {
+    const response = await fetch(`/api/dashboard?userId=${userId}`);
     
-    const occupancyRate = await getOccupancyRate(effectiveUserId);
-    console.log('occupancyRate result:', occupancyRate);
+    if (!response.ok) {
+      throw new Error('Failed to fetch dashboard stats');
+    }
     
-    const currentMonthIncome = await getCurrentMonthIncome(effectiveUserId);
-    console.log('currentMonthIncome result:', currentMonthIncome);
+    const stats = await response.json();
     
-    const stats = {
-      totalProperties,
-      expiringContracts,
-      occupancyRate,
-      currentMonthIncome
-    };
-    
-    console.log('Dashboard stats calculated via individual queries:', stats);
+    console.log('Dashboard stats retrieved:', stats);
     
     return stats;
   } catch (error) {
     console.error('Error getting dashboard stats:', error);
-    
-    // Return fallback data in development mode
-    const isDev = true; // process.env.NODE_ENV === 'development'
-    if (isDev) {
-      console.log('Error occurred, using fallback dashboard stats for development');
-      return {
-        totalProperties: 3,
-        expiringContracts: 2,
-        occupancyRate: 94,
-        currentMonthIncome: 7500
-      };
-    }
-    
+    // Return default values
     return {
       totalProperties: 0,
       expiringContracts: 0,
@@ -459,4 +286,6 @@ export const getDashboardStats = async (userId?: string): Promise<{
       currentMonthIncome: 0
     };
   }
-}; 
+};
+
+

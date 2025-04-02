@@ -1,0 +1,96 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Supabase Local Environment Configuration
+
+-We are using the local environment for this project
+
+## Environment Variables
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
+```
+
+## Local Development Setup
+
+1. **Start Supabase Local Development**
+   ```bash
+   supabase start
+   ```
+
+2. **Stop Supabase Local Development**
+   ```bash
+   supabase stop
+   ```
+
+3. **Reset Local Database**
+   ```bash
+   supabase db reset
+   ```
+
+## Database Connection Details
+
+- **Database URL**: `postgresql://postgres:postgres@localhost:54322/postgres`
+- **Database Port**: 54322
+- **Studio Port**: 54323
+- **API Port**: 54321
+- **Default User**: postgres
+- **Default Password**: postgres
+
+## Supabase Studio Access
+
+- **Local Studio URL**: http://localhost:54323
+- **Default Credentials**:
+  - Email: admin@admin.com
+  - Password: admin
+
+## Important Notes
+
+1. Always ensure Supabase is running locally before starting the application
+2. The local environment uses different ports than production to avoid conflicts
+3. Database changes should be made through migrations
+4. Local data persists between Supabase restarts but can be reset using `supabase db reset`
+
+## Common Commands
+
+```bash
+# Generate database types
+supabase gen types typescript --local > types/supabase.ts
+
+# Apply migrations
+supabase migration up
+
+# Create new migration
+supabase migration new migration_name
+
+# Check Supabase status
+supabase status
+```
+
+## Security Considerations
+
+1. Never commit the `.env` file containing production keys
+2. Local environment keys are safe to share as they only work locally
+3. Always use Row Level Security (RLS) policies in development
+4. Test RLS policies locally before deploying
+
+## Troubleshooting
+
+1. If Supabase fails to start:
+   ```bash
+   supabase stop
+   supabase start
+   ```
+
+2. If database connection fails:
+   - Check if ports 54321-54323 are available
+   - Ensure Docker is running
+   - Try resetting the database: `supabase db reset`
+
+3. If types are not updating:
+   - Regenerate types after schema changes
+   - Restart the TypeScript server

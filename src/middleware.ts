@@ -6,24 +6,23 @@ export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
   const supabase = createMiddlewareClient({ req, res })
 
-  // If in development, mock the test user session
-  if (process.env.NODE_ENV === 'development') {
-    const mockSession = {
-      user: {
-        id: '00000000-0000-0000-0000-000000000001',
-        email: 'j.agbodo@mail.com',
-        user_metadata: {
-          full_name: 'James Agbodo'
-        }
-      },
-      expires_at: Date.now() + 1000 * 60 * 60 * 24 // 24 hours from now
-    }
+  // Refresh session if expired - required for Server Components
+  await supabase.auth.getSession()
 
-    // Set the mock session in the cookie
-    await supabase.auth.setSession(mockSession as any)
-  }
+  // Public routes that don't require authentication
+  const publicRoutes = ['/login', '/sign-up', '/forgot-password', '/reset-password', '/']
+  const isPublicRoute = publicRoutes.some(route => req.nextUrl.pathname.startsWith(route))
 
+  // Get the current session
   const { data: { session } } = await supabase.auth.getSession()
+
+  // Check if the user is authenticated
+  if (!session && !isPublicRoute) {
+    // If not authenticated and trying to access a protected route, redirect to login
+    const redirectUrl = new URL('/login', req.url)
+    redirectUrl.searchParams.set('redirectedFrom', req.nextUrl.pathname)
+    return NextResponse.redirect(redirectUrl)
+  }
 
   return res
 }
@@ -37,7 +36,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public (public files)
+     * - api (API routes)
      */
-    '/((?!_next/static|_next/image|favicon.ico|public).*)',
+    '/((?!_next/static|_next/image|favicon.ico|public|api).*)',
   ],
 } 

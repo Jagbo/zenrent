@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getCurrentUserId } from './auth-provider';
 
 export interface IProperty {
   id: string;
@@ -62,19 +63,14 @@ export interface IPropertyWithTenants extends IProperty {
   tenants: ITenant[];
 }
 
-// Development mode test user ID
-const TEST_USER_ID = '00000000-0000-0000-0000-000000000001';
-
 // Fetch all properties for a specific user
 export const getProperties = async (userId?: string): Promise<IProperty[]> => {
   try {
-    // In development mode, use the test user ID if no user ID is provided
-    const effectiveUserId = process.env.NODE_ENV === 'development' 
-      ? TEST_USER_ID 
-      : userId;
+    // Get the current user ID if not provided
+    const effectiveUserId = userId || await getCurrentUserId();
     
     if (!effectiveUserId) {
-      console.error('No user ID provided and not in development mode');
+      console.error('No user ID provided and not authenticated');
       return [];
     }
 
@@ -88,13 +84,6 @@ export const getProperties = async (userId?: string): Promise<IProperty[]> => {
     
     if (error) {
       console.error('Error fetching properties from Supabase:', error);
-      
-      // Only use fallback data in development mode when there's an actual error
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Using fallback property data for development due to error');
-        return getDevelopmentFallbackProperties(effectiveUserId);
-      }
-      
       throw error;
     }
     
@@ -115,62 +104,13 @@ export const getProperties = async (userId?: string): Promise<IProperty[]> => {
     // If no data was found in the database, log a warning
     console.warn('No properties found in the database for user:', effectiveUserId);
     
-    // Only use fallback data in development mode when no properties are found
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Using fallback property data for development due to empty result');
-      return getDevelopmentFallbackProperties(effectiveUserId);
-    }
-    
     // In production, return empty array if no properties found
     return [];
     
   } catch (error) {
     console.error('Error in getProperties:', error);
-    
-    // Only use fallback data in development mode
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Using fallback property data for development due to exception');
-      return getDevelopmentFallbackProperties(TEST_USER_ID);
-    }
-    
     return [];
   }
-};
-
-// Helper function to get fallback properties for development
-const getDevelopmentFallbackProperties = (userId: string): IProperty[] => {
-  return [
-    {
-      id: '7a2e1487-f17b-4ceb-b6d1-56934589025b',
-      name: '8 Victoria Gardens',
-      address: '8 Victoria Gardens',
-      city: 'Manchester',
-      property_type: 'flat',
-      status: 'active',
-      user_id: userId,
-      property_code: 'prop_8_victoria_gardens'
-    },
-    {
-      id: 'bd8e3211-2403-47ac-9947-7a4842c5a4e3',
-      name: '15 Crescent Road',
-      address: '15 Crescent Road',
-      city: 'London',
-      property_type: 'flat',
-      status: 'active',
-      user_id: userId,
-      property_code: 'prop_15_crescent_road'
-    },
-    {
-      id: 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8',
-      name: '42 Harley Street',
-      address: '42 Harley Street',
-      city: 'London',
-      property_type: 'house',
-      status: 'active',
-      user_id: userId,
-      property_code: 'prop_42_harley_street'
-    }
-  ];
 };
 
 // Fetch all properties direct (debug)
@@ -203,26 +143,31 @@ export const getPropertyById = async (propertyId: string): Promise<IProperty | n
   try {
     console.log('Fetching property by ID:', propertyId);
     
-    // First, try to get all properties to check if the database is accessible
-    const allProperties = await getAllProperties();
-    console.log(`Total properties in DB: ${allProperties.length}`);
+    const { data, error } = await supabase
+      .from('properties')
+      .select('*')
+      .eq('id', propertyId)
+      .single();
     
-    // Try direct ID match
-    const matchingProperty = allProperties.find(p => p.id === propertyId);
-    if (matchingProperty) {
-      console.log('Found property by direct ID match:', matchingProperty.id);
-      return matchingProperty;
+    if (error) {
+      console.error(`Error fetching property ${propertyId}:`, error);
+      
+      // Try by property code if ID lookup fails
+      const { data: dataByCode, error: errorByCode } = await supabase
+        .from('properties')
+        .select('*')
+        .eq('property_code', propertyId)
+        .single();
+      
+      if (errorByCode) {
+        console.error(`Error fetching property by code ${propertyId}:`, errorByCode);
+        return null;
+      }
+      
+      return dataByCode;
     }
     
-    // Try property code match
-    const matchingByCode = allProperties.find(p => p.property_code === propertyId);
-    if (matchingByCode) {
-      console.log('Found property by property_code match:', matchingByCode.id);
-      return matchingByCode;
-    }
-    
-    console.log('No property found with ID or code:', propertyId);
-    return null;
+    return data;
   } catch (error) {
     console.error(`Error fetching property ${propertyId}:`, error);
     return null;
@@ -243,61 +188,24 @@ export const getPropertyWithTenants = async (propertyId: string): Promise<IPrope
     
     console.log('Found property, fetching tenants for property ID:', property.id);
     
-    // For development mode, create mock tenants if none exist
-    if (process.env.NODE_ENV === 'development') {
-      return {
-        ...property,
-        tenants: [
-          {
-            id: 'e0de8dae-9008-4f45-b912-a87a8c186c30',
-            name: 'Sarah Johnson',
-            email: 'sarah.j@example.co.uk',
-            phone: '07700 900456',
-            image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-            about: 'Excellent tenant who always pays on time.',
-            rent_amount: 1200
-          },
-          {
-            id: '5f4a39d9-d92d-4fca-bba3-7e34b354fc0d',
-            name: 'Emma Clarke',
-            email: 'emma.c@example.co.uk',
-            phone: '07700 900789',
-            image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80',
-            about: 'Generally good tenant, occasional late payments.',
-            rent_amount: 1500
-          }
-        ]
-      };
-    }
+    // Get tenants for this property from the tenants table
+    const { data: tenants, error: tenantsError } = await supabase
+      .from('tenants')
+      .select('*')
+      .eq('property_id', property.id);
     
-    // Then get tenants using the custom function
-    try {
-      const { data: tenants, error } = await supabase
-        .rpc('get_property_tenants', { prop_uuid: property.id });
-      
-      if (error) {
-        console.error('Error fetching tenants from RPC:', error);
-        // Return property with empty tenants array
-        return {
-          ...property,
-          tenants: []
-        };
-      }
-      
-      console.log('Tenants fetched:', tenants?.length || 0);
-      
-      return {
-        ...property,
-        tenants: tenants || []
-      };
-    } catch (rpcError) {
-      console.error('Exception during RPC call:', rpcError);
-      // Return property with empty tenants array as fallback
+    if (tenantsError) {
+      console.error(`Error fetching tenants for property ${property.id}:`, tenantsError);
       return {
         ...property,
         tenants: []
       };
     }
+    
+    return {
+      ...property,
+      tenants: tenants || []
+    };
   } catch (error) {
     console.error(`Error fetching property with tenants ${propertyId}:`, error);
     return null;

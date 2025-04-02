@@ -18,7 +18,7 @@ async function seedData() {
     // Insert test user
     console.log('Inserting test user...');
     const { data: userData, error: userError } = await supabase.auth.admin.createUser({
-      email: 'j.agbodo@mail.com',
+      email: 'j.agbodo@gmail.com',
       password: 'password123',
       email_confirm: true,
       user_metadata: { full_name: 'James Agbodo' },

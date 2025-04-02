@@ -173,7 +173,58 @@ SELECT
 FROM properties p
 LEFT JOIN income i ON i.property_id = p.id
 LEFT JOIN expenses e ON e.property_id = p.id
-WHERE p.user_id = '00000000-0000-0000-0000-000000000001'
+WHERE p.user_id = '53156529-1adc-44f4-805b-19a3b35a3bb3'
 GROUP BY p.id;
+
+-- Update the user ID in the sample data
+UPDATE properties 
+SET user_id = 'b85371f5-2ec6-4ceb-9526-51a60d19fcc2'
+WHERE user_id = '53156529-1adc-44f4-805b-19a3b35a3bb3';
+
+-- Insert sample data for expenses
+INSERT INTO expenses (property_id, date, expense_type, category, description, amount)
+SELECT 
+  p.id,
+  NOW() - INTERVAL '1 month',
+  'maintenance',
+  'repairs',
+  'Boiler repair',
+  250.00
+FROM properties p
+WHERE p.user_id = 'b85371f5-2ec6-4ceb-9526-51a60d19fcc2'
+LIMIT 1;
+
+-- Insert sample data for income
+INSERT INTO income (property_id, date, income_type, category, description, amount)
+SELECT 
+  p.id,
+  NOW() - INTERVAL '1 month',
+  'rent',
+  'monthly',
+  'Monthly rent payment',
+  1000.00
+FROM properties p
+WHERE p.user_id = 'b85371f5-2ec6-4ceb-9526-51a60d19fcc2'
+LIMIT 1;
+
+-- Insert sample financial metrics
+INSERT INTO financial_metrics (
+  property_id,
+  period_start,
+  period_end,
+  roi_percentage,
+  yield_percentage,
+  occupancy_rate
+)
+SELECT 
+  p.id,
+  DATE_TRUNC('month', NOW() - INTERVAL '1 month'),
+  DATE_TRUNC('month', NOW()),
+  5.2,
+  4.8,
+  100.0
+FROM properties p
+WHERE p.user_id = 'b85371f5-2ec6-4ceb-9526-51a60d19fcc2'
+LIMIT 1;
 
 COMMIT; 

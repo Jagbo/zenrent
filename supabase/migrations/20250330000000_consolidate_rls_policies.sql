@@ -1,23 +1,6 @@
 -- Consolidate RLS Policies
 -- This migration ensures all tables have proper RLS policies
 
--- Create helper function to check if we're in development mode
-CREATE OR REPLACE FUNCTION is_development_mode() RETURNS boolean AS $$
-BEGIN
-  RETURN current_setting('app.environment', true)::text = 'development';
-EXCEPTION
-  WHEN others THEN
-    RETURN false;
-END;
-$$ LANGUAGE plpgsql;
-
--- Create function to set app environment 
-CREATE OR REPLACE FUNCTION set_app_environment(env text) RETURNS void AS $$
-BEGIN
-  PERFORM set_config('app.environment', env, false);
-END;
-$$ LANGUAGE plpgsql;
-
 -- Properties table policies
 ALTER TABLE properties ENABLE ROW LEVEL SECURITY;
 
@@ -26,7 +9,6 @@ DROP POLICY IF EXISTS "Users can view their own properties" ON properties;
 DROP POLICY IF EXISTS "Users can insert their own properties" ON properties;
 DROP POLICY IF EXISTS "Users can update their own properties" ON properties;
 DROP POLICY IF EXISTS "Users can delete their own properties" ON properties;
-DROP POLICY IF EXISTS "Test user can access all properties in development" ON properties;
 
 -- Create new policies
 CREATE POLICY "Users can view their own properties" ON properties
@@ -40,9 +22,6 @@ FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
 
 CREATE POLICY "Users can delete their own properties" ON properties
 FOR DELETE USING (user_id = auth.uid());
-
-CREATE POLICY "Test user can access all properties in development" ON properties
-USING (auth.uid() = '00000000-0000-0000-0000-000000000001' AND is_development_mode());
 
 -- Property Units
 ALTER TABLE property_units ENABLE ROW LEVEL SECURITY;
@@ -104,7 +83,6 @@ DROP POLICY IF EXISTS "Users can view their own tenants" ON tenants;
 DROP POLICY IF EXISTS "Users can insert their own tenants" ON tenants;
 DROP POLICY IF EXISTS "Users can update their own tenants" ON tenants;
 DROP POLICY IF EXISTS "Users can delete their own tenants" ON tenants;
-DROP POLICY IF EXISTS "Test user can access all tenant data in development" ON tenants;
 
 -- Create new policies
 CREATE POLICY "Users can view their own tenants" ON tenants
@@ -140,9 +118,6 @@ FOR DELETE USING (
   )
 );
 
-CREATE POLICY "Test user can access all tenant data in development" ON tenants
-USING (auth.uid() = '00000000-0000-0000-0000-000000000001' AND is_development_mode());
-
 -- Leases
 ALTER TABLE leases ENABLE ROW LEVEL SECURITY;
 
@@ -151,7 +126,6 @@ DROP POLICY IF EXISTS "Users can view their own leases" ON leases;
 DROP POLICY IF EXISTS "Users can insert their own leases" ON leases;
 DROP POLICY IF EXISTS "Users can update their own leases" ON leases;
 DROP POLICY IF EXISTS "Users can delete their own leases" ON leases;
-DROP POLICY IF EXISTS "Test user can access all lease data in development" ON leases;
 
 -- Create new policies
 CREATE POLICY "Users can view their own leases" ON leases
@@ -195,9 +169,6 @@ FOR DELETE USING (
     AND p.user_id = auth.uid()
   )
 );
-
-CREATE POLICY "Test user can access all lease data in development" ON leases
-USING (auth.uid() = '00000000-0000-0000-0000-000000000001' AND is_development_mode());
 
 -- Tenant Documents
 ALTER TABLE tenant_documents ENABLE ROW LEVEL SECURITY;
@@ -299,7 +270,6 @@ DROP POLICY IF EXISTS "Users can view their own bank connections" ON bank_connec
 DROP POLICY IF EXISTS "Users can insert their own bank connections" ON bank_connections;
 DROP POLICY IF EXISTS "Users can update their own bank connections" ON bank_connections;
 DROP POLICY IF EXISTS "Users can delete their own bank connections" ON bank_connections;
-DROP POLICY IF EXISTS "Test user can access all bank connections in development" ON bank_connections;
 
 -- Create new policies
 CREATE POLICY "Users can view their own bank connections" ON bank_connections
@@ -344,15 +314,11 @@ FOR DELETE USING (
   )
 );
 
-CREATE POLICY "Test user can access all bank connections in development" ON bank_connections
-USING (auth.uid() = '00000000-0000-0000-0000-000000000001' AND is_development_mode());
-
 -- Bank Transactions
 ALTER TABLE bank_transactions ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing policies
 DROP POLICY IF EXISTS "Users can view their own bank transactions" ON bank_transactions;
-DROP POLICY IF EXISTS "Test user can access all bank transactions in development" ON bank_transactions;
 
 -- Create new policies
 CREATE POLICY "Users can view their own bank transactions" ON bank_transactions
@@ -364,16 +330,12 @@ FOR SELECT USING (
   )
 );
 
-CREATE POLICY "Test user can access all bank transactions in development" ON bank_transactions
-USING (auth.uid() = '00000000-0000-0000-0000-000000000001' AND is_development_mode());
-
 -- Notifications
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing policies
 DROP POLICY IF EXISTS "Users can view their own notifications" ON notifications;
 DROP POLICY IF EXISTS "Users can update their own notifications" ON notifications;
-DROP POLICY IF EXISTS "Test user can access all notifications in development" ON notifications;
 
 -- Create new policies
 CREATE POLICY "Users can view their own notifications" ON notifications
@@ -381,9 +343,6 @@ FOR SELECT USING (user_id = auth.uid());
 
 CREATE POLICY "Users can update their own notifications" ON notifications
 FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
-
-CREATE POLICY "Test user can access all notifications in development" ON notifications
-USING (auth.uid() = '00000000-0000-0000-0000-000000000001' AND is_development_mode());
 
 -- Notification Types
 ALTER TABLE notification_types ENABLE ROW LEVEL SECURITY;
@@ -463,5 +422,4 @@ END$$;
 COMMENT ON SCHEMA public IS 'All tables in this schema have Row Level Security (RLS) enabled.
 - Most tables use user_id = auth.uid() directly or through property ownership.
 - Properties are the foundation table, with user_id directly linked.
-- Other tables link to properties for access control.
-- Test user (00000000-0000-0000-0000-000000000001) has special access in development mode.';
+- Other tables link to properties for access control.';

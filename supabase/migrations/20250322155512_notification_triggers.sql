@@ -594,20 +594,20 @@ DECLARE
 BEGIN
   -- Create a sample rent payment received notification
   _notification_id := create_payment_received_notification(
-    '00000000-0000-0000-0000-000000000001', -- sample user_id
-    '00000000-0000-0000-0000-000000000002', -- sample tenant_id
+    auth.uid(), -- use authenticated user ID
+    gen_random_uuid(), -- generate random UUID for tenant
     'John Doe', -- tenant_name
     'john.doe@example.com', -- tenant_email
     '+44 7700 900000', -- tenant_phone
-    '00000000-0000-0000-0000-000000000003', -- sample property_id
+    gen_random_uuid(), -- generate random UUID for property
     '123 Main Street, London', -- property_address
     NULL, -- unit_id
     750.00, -- payment_amount
-    '00000000-0000-0000-0000-000000000004', -- sample payment_id
+    gen_random_uuid(), -- generate random UUID for payment
     NOW(), -- payment_date
     'Bank Transfer', -- payment_method
     'REF123456789', -- transaction_reference
-    '00000000-0000-0000-0000-000000000005' -- sample bank_account_id
+    gen_random_uuid() -- generate random UUID for bank account
   );
   
   RETURN _notification_id;

@@ -73,14 +73,6 @@ BEGIN
       ON properties
       FOR DELETE
       USING (auth.uid() = user_id);
-    
-    -- In development mode, allow the test user to access all properties
-    CREATE POLICY "Test user can access all properties in development"
-      ON properties
-      USING (
-        user_id = '00000000-0000-0000-0000-000000000001' OR 
-        auth.uid() = '00000000-0000-0000-0000-000000000001'
-      );
   END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER; 

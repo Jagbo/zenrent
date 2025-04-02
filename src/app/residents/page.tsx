@@ -10,7 +10,7 @@ import Image from 'next/image'
 import { BuildingOffice2Icon, PlusIcon } from '@heroicons/react/24/outline'
 import { PaperClipIcon } from '@heroicons/react/20/solid'
 import { ResidentFormDrawer } from '../components/ResidentFormDrawer'
-import { useAuth } from '../../lib/auth'
+import { useAuth } from '../../lib/auth-provider'
 import { getTenants } from '../../lib/tenantService'
 import { ITenant } from '../../lib/propertyService'
 

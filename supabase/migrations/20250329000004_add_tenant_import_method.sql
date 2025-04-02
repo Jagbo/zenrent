@@ -48,66 +48,59 @@ LEFT JOIN
 WHERE 
   l.status = 'active';
 
--- Create functions to handle tenant creation and linking to properties
-CREATE OR REPLACE FUNCTION create_tenant_with_lease(
-  p_user_id UUID,
+-- Create a function to import a tenant
+CREATE OR REPLACE FUNCTION import_tenant(
   p_name TEXT,
   p_email TEXT,
   p_phone TEXT,
-  p_property_code TEXT,
+  p_property_id UUID,
   p_unit_id UUID,
-  p_start_date TIMESTAMP WITH TIME ZONE,
-  p_end_date TIMESTAMP WITH TIME ZONE,
-  p_rent_amount NUMERIC,
-  p_rent_frequency TEXT,
-  p_rent_due_day INTEGER,
-  p_payment_method TEXT,
-  p_deposit_amount NUMERIC,
-  p_deposit_scheme TEXT,
-  p_deposit_ref TEXT,
-  p_deposit_date TIMESTAMP WITH TIME ZONE,
-  p_special_conditions TEXT,
-  p_has_break_clause BOOLEAN,
-  p_break_clause_date TIMESTAMP WITH TIME ZONE,
-  p_break_clause_notice INTEGER
-)
-RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
+  p_rent_amount DECIMAL,
+  p_start_date DATE,
+  p_end_date DATE,
+  p_deposit_amount DECIMAL,
+  p_deposit_scheme TEXT
+) RETURNS UUID AS $$
 DECLARE
   v_tenant_id UUID;
   v_lease_id UUID;
-  v_result JSONB;
 BEGIN
-  -- Create tenant
+  -- Insert tenant
   INSERT INTO tenants (
     id, user_id, name, email, phone, status, created_at, updated_at
   ) VALUES (
-    gen_random_uuid(), p_user_id, p_name, p_email, p_phone, 'active', NOW(), NOW()
+    gen_random_uuid(), 'b85371f5-2ec6-4ceb-9526-51a60d19fcc2', p_name, p_email, p_phone, 'active', NOW(), NOW()
   ) RETURNING id INTO v_tenant_id;
-  
+
   -- Create lease
   INSERT INTO leases (
-    id, tenant_id, property_id, unit_id, start_date, end_date, 
-    rent_amount, rent_frequency, rent_due_day, payment_method,
-    deposit_amount, deposit_protection_scheme, deposit_protection_id, deposit_protected_on,
-    special_conditions, has_break_clause, break_clause_date, break_clause_notice_period,
-    status, created_at, updated_at
+    id,
+    tenant_id,
+    property_uuid,
+    property_unit_id,
+    rent_amount,
+    start_date,
+    end_date,
+    deposit_amount,
+    deposit_scheme,
+    status,
+    created_at,
+    updated_at
   ) VALUES (
-    gen_random_uuid(), v_tenant_id, p_property_code, p_unit_id, p_start_date, p_end_date,
-    p_rent_amount, p_rent_frequency, p_rent_due_day, p_payment_method,
-    p_deposit_amount, p_deposit_scheme, p_deposit_ref, p_deposit_date,
-    p_special_conditions, p_has_break_clause, p_break_clause_date, p_break_clause_notice,
-    'active', NOW(), NOW()
+    gen_random_uuid(),
+    v_tenant_id,
+    p_property_id,
+    p_unit_id,
+    p_rent_amount,
+    p_start_date,
+    p_end_date,
+    p_deposit_amount,
+    p_deposit_scheme,
+    'active',
+    NOW(),
+    NOW()
   ) RETURNING id INTO v_lease_id;
-  
-  -- Return the created IDs
-  v_result := jsonb_build_object(
-    'tenant_id', v_tenant_id,
-    'lease_id', v_lease_id
-  );
-  
-  RETURN v_result;
+
+  RETURN v_tenant_id;
 END;
-$$; 
+$$ LANGUAGE plpgsql; 

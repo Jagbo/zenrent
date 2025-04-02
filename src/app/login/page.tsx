@@ -1,13 +1,83 @@
 'use client';
 
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth-provider';
+import Link from 'next/link';
+
 export default function LoginPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const { signIn, signInWithGoogle, signInWithApple } = useAuth();
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // signIn returns void, it handles errors by throwing them
+      await signIn(email, password);
+      
+      // If we get here, sign in was successful
+      router.push('/dashboard');
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setError(err?.message || 'Failed to sign in. Please check your credentials.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setOauthLoading('google');
+    setError(null);
+    
+    try {
+      const { error } = await signInWithGoogle();
+      
+      if (error) {
+        setError(error.message || 'Failed to sign in with Google.');
+      }
+      // Note: For successful sign-in, the page will be redirected by Supabase OAuth flow
+    } catch (err) {
+      console.error('Google login error:', err);
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setOauthLoading(null);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    setOauthLoading('apple');
+    setError(null);
+    
+    try {
+      const { error } = await signInWithApple();
+      
+      if (error) {
+        setError(error.message || 'Failed to sign in with Apple.');
+      }
+      // Note: For successful sign-in, the page will be redirected by Supabase OAuth flow
+    } catch (err) {
+      console.error('Apple login error:', err);
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setOauthLoading(null);
+    }
+  };
+
   return (
     <>
       <div className="flex min-h-full flex-1 flex-col justify-center py-12 sm:px-6 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
           <img
             alt="ZenRent"
-             src="/images/logo/ZenRent-square-logo.png"
+            src="/images/logo/zenrent-square-logo.png"
             className="mx-auto h-10 w-auto"
           />
           <h2 className="mt-6 text-center text-3xl/9 title-font text-gray-900">
@@ -17,7 +87,12 @@ export default function LoginPage() {
 
         <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-[480px]">
           <div className="bg-white px-6 py-12 shadow-sm sm:rounded-lg sm:px-12 border border-gray-200">
-            <form action="#" method="POST" className="space-y-6">
+            {error && (
+              <div className="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-700">
+                {error}
+              </div>
+            )}
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label htmlFor="email" className="block text-sm/6 font-medium text-gray-900">
                   Email address
@@ -27,6 +102,8 @@ export default function LoginPage() {
                     id="email"
                     name="email"
                     type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     required
                     autoComplete="email"
                     className="block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-base text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-[#D9E8FF] focus:outline-none focus:ring-1 focus:ring-[#D9E8FF] sm:text-sm/6"
@@ -43,6 +120,8 @@ export default function LoginPage() {
                     id="password"
                     name="password"
                     type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     required
                     autoComplete="current-password"
                     className="block w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-base text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-[#D9E8FF] focus:outline-none focus:ring-1 focus:ring-[#D9E8FF] sm:text-sm/6"
@@ -88,18 +167,19 @@ export default function LoginPage() {
                 </div>
 
                 <div className="text-sm/6">
-                  <a href="#" className="font-semibold text-gray-900 hover:text-gray-700">
+                  <Link href="/forgot-password" className="font-semibold text-gray-900 hover:text-gray-700">
                     Forgot password?
-                  </a>
+                  </Link>
                 </div>
               </div>
 
               <div>
                 <button
                   type="submit"
-                  className="flex w-full justify-center rounded-md bg-[#D9E8FF] px-3 py-1.5 text-sm/6 font-semibold text-gray-900 shadow-sm hover:bg-[#D9E8FF]/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
+                  disabled={isLoading}
+                  className="flex w-full justify-center rounded-md bg-[#D9E8FF] px-3 py-1.5 text-sm/6 font-semibold text-gray-900 shadow-sm hover:bg-[#D9E8FF]/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF] disabled:opacity-70"
                 >
-                  Sign in
+                  {isLoading ? 'Signing in...' : 'Sign in'}
                 </button>
               </div>
             </form>
@@ -115,9 +195,11 @@ export default function LoginPage() {
               </div>
 
               <div className="mt-6 grid grid-cols-2 gap-4">
-                <a
-                  href="#"
-                  className="flex w-full items-center justify-center gap-3 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 border border-gray-300 shadow-sm hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  disabled={!!oauthLoading}
+                  className="flex w-full items-center justify-center gap-3 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 border border-gray-300 shadow-sm hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF] disabled:opacity-70"
                 >
                   <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5">
                     <path
@@ -137,12 +219,16 @@ export default function LoginPage() {
                       fill="#34A853"
                     />
                   </svg>
-                  <span className="text-sm/6 font-semibold">Google</span>
-                </a>
+                  <span className="text-sm/6 font-semibold">
+                    {oauthLoading === 'google' ? 'Signing in...' : 'Google'}
+                  </span>
+                </button>
 
-                <a
-                  href="#"
-                  className="flex w-full items-center justify-center gap-3 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 border border-gray-300 shadow-sm hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
+                <button
+                  type="button"
+                  onClick={handleAppleSignIn}
+                  disabled={!!oauthLoading}
+                  className="flex w-full items-center justify-center gap-3 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 border border-gray-300 shadow-sm hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF] disabled:opacity-70"
                 >
                   <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5">
                     <path
@@ -150,17 +236,19 @@ export default function LoginPage() {
                       fill="#000000"
                     />
                   </svg>
-                  <span className="text-sm/6 font-semibold">Apple</span>
-                </a>
+                  <span className="text-sm/6 font-semibold">
+                    {oauthLoading === 'apple' ? 'Signing in...' : 'Apple'}
+                  </span>
+                </button>
               </div>
             </div>
           </div>
 
           <p className="mt-10 text-center text-sm/6 text-gray-500">
             Not a member?{' '}
-            <a href="#" className="font-semibold text-gray-900 hover:text-gray-700">
+            <Link href="/sign-up" className="font-semibold text-gray-900 hover:text-gray-700">
               Start a 14 day free trial
-            </a>
+            </Link>
           </p>
         </div>
       </div>

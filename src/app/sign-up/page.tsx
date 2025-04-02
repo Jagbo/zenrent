@@ -36,24 +36,7 @@ export default function Example() {
       // Store email in localStorage for verification page
       localStorage.setItem('signupEmail', email);
       
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Development mode: Skipping email verification');
-        // In development mode, directly sign in with test user credentials
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email: 'j.agbodo@mail.com',
-          password: 'password123',
-        });
-        
-        if (signInError) {
-          throw signInError;
-        }
-        
-        // Redirect to dashboard or account creation page
-        router.push('/dashboard');
-        return;
-      }
-      
-      // Normal sign up flow for production
+      // Normal sign up flow
       const { data, error } = await signUp(email, password);
       
       if (error) {
@@ -78,23 +61,6 @@ export default function Example() {
       setLoading(true);
       setError(null);
       
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Development mode: Simulating Google sign-in');
-        // In development mode, directly sign in with test user credentials
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email: 'j.agbodo@mail.com',
-          password: 'password123',
-        });
-        
-        if (signInError) {
-          throw signInError;
-        }
-        
-        // Redirect to dashboard
-        router.push('/dashboard');
-        return;
-      }
-      
       // Regular OAuth for production
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -117,23 +83,6 @@ export default function Example() {
     try {
       setLoading(true);
       setError(null);
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Development mode: Simulating Apple sign-in');
-        // In development mode, directly sign in with test user credentials
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email: 'j.agbodo@mail.com',
-          password: 'password123',
-        });
-        
-        if (signInError) {
-          throw signInError;
-        }
-        
-        // Redirect to dashboard
-        router.push('/dashboard');
-        return;
-      }
       
       // Regular OAuth for production
       const { data, error } = await supabase.auth.signInWithOAuth({

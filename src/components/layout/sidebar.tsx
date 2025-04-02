@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   LayoutDashboard,
@@ -24,9 +24,8 @@ import {
   DropdownButton, 
   DropdownMenu, 
   DropdownItem, 
-  DropdownDivider, 
-  DropdownLabel 
 } from "../../app/components/dropdown";
+import { useAuth } from "@/lib/auth-provider";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -41,6 +40,17 @@ const navigation = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { signOut, user } = useAuth();
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      router.push('/login');
+    } catch (error) {
+      console.error('Failed to sign out:', error);
+    }
+  };
 
   return (
     <div className="flex h-full flex-col bg-white dark:bg-zinc-900">
@@ -85,7 +95,7 @@ export function Sidebar() {
       </div>
       <div className="border-t border-gray-200 p-4 dark:border-white/10">
         <Dropdown>
-          <DropdownButton as="button" className="flex w-full items-center gap-3">
+          <DropdownButton className="flex w-full items-center gap-3">
             <span className="flex min-w-0 items-center gap-3">
               <Image
                 src="/profile-photo.jpg"
@@ -96,37 +106,37 @@ export function Sidebar() {
               />
               <span className="min-w-0">
                 <span className="block truncate text-sm font-medium text-gray-900 dark:text-white">
-                  Erica
+                  {user?.user_metadata?.full_name || 'User'}
                 </span>
                 <span className="block truncate text-xs text-gray-500 dark:text-zinc-400">
-                  erica@example.com
+                  {user?.email || 'email@example.com'}
                 </span>
               </span>
             </span>
             <ChevronUp className="ml-auto h-5 w-5 text-gray-400" />
           </DropdownButton>
-          <DropdownMenu className="min-w-64" anchor="top start">
+          <DropdownMenu className="min-w-64">
             <DropdownItem href="/my-profile">
               <User className="h-5 w-5" data-slot="icon" />
-              <DropdownLabel>My profile</DropdownLabel>
+              My profile
             </DropdownItem>
             <DropdownItem href="/settings">
               <Cog className="h-5 w-5" data-slot="icon" />
-              <DropdownLabel>Settings</DropdownLabel>
+              Settings
             </DropdownItem>
-            <DropdownDivider />
+            <hr className="my-1 border-gray-200 dark:border-white/10" />
             <DropdownItem href="/privacy-policy">
               <ShieldCheck className="h-5 w-5" data-slot="icon" />
-              <DropdownLabel>Privacy policy</DropdownLabel>
+              Privacy policy
             </DropdownItem>
             <DropdownItem href="/share-feedback">
               <Lightbulb className="h-5 w-5" data-slot="icon" />
-              <DropdownLabel>Share feedback</DropdownLabel>
+              Share feedback
             </DropdownItem>
-            <DropdownDivider />
-            <DropdownItem href="/logout">
+            <hr className="my-1 border-gray-200 dark:border-white/10" />
+            <DropdownItem onClick={handleSignOut}>
               <LogOut className="h-5 w-5" data-slot="icon" />
-              <DropdownLabel>Sign out</DropdownLabel>
+              Sign out
             </DropdownItem>
           </DropdownMenu>
         </Dropdown>

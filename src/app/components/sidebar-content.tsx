@@ -13,7 +13,7 @@ import {
   Cog6ToothIcon,
 } from '@heroicons/react/24/outline'
 import { getProperties, IProperty } from '../../lib/propertyService'
-import { useAuth } from '../../lib/auth'
+import { useAuth } from '../../lib/auth-provider'
 
 // Define navigation items
 const navigation = [
@@ -48,7 +48,15 @@ export function SidebarContent({ currentPath }: { currentPath: string }) {
     const fetchProperties = async () => {
       try {
         setLoading(true);
-        const propertiesData = await getProperties(user?.id);
+        
+        // Check for authenticated user
+        if (!user) {
+          console.log('No authenticated user found, waiting for authentication...');
+          setProperties([]);
+          return;
+        }
+        
+        const propertiesData = await getProperties(user.id);
         
         if (propertiesData && propertiesData.length > 0) {
           // Map Supabase properties to the format needed for sidebar
@@ -59,26 +67,37 @@ export function SidebarContent({ currentPath }: { currentPath: string }) {
           }));
           setProperties(formattedProperties);
         } else {
-          // Use fallback if no properties found
-          setProperties(fallbackProperties);
+          // Only use fallback in development mode
+          if (process.env.NODE_ENV === 'development') {
+            console.log('No properties found in development mode, using fallback properties');
+            setProperties(fallbackProperties);
+          } else {
+            setProperties([]);
+          }
         }
       } catch (error) {
         console.error('Error fetching properties for sidebar:', error);
-        setProperties(fallbackProperties);
+        // Only use fallback in development mode
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Error in development mode, using fallback properties');
+          setProperties(fallbackProperties);
+        } else {
+          setProperties([]);
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchProperties();
-  }, [user?.id]);
+  }, [user]);
 
   return (
     <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-200 bg-white px-6 pb-4">
       <div className="flex h-16 shrink-0 items-center">
         <img
           alt="ZenRent"
-          src="/images/logo/ZenRent-logo.png"
+          src="/images/logo/zenrent-logo.png"
           className="h-8 w-auto"
         />
         

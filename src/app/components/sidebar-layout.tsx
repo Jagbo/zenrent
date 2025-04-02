@@ -17,6 +17,10 @@ import {
 } from '@heroicons/react/24/outline'
 import { ChevronDownIcon } from '@heroicons/react/20/solid'
 import { SearchAutocomplete } from './search-autocomplete'
+import { useUserProfile } from '../hooks/useUserProfile'
+import { UserAvatar } from './user-avatar'
+import { useAuth } from '@/lib/auth-provider'
+import { useRouter } from 'next/navigation'
 
 function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ')
@@ -35,7 +39,10 @@ export function SidebarLayout({
   isOnboarding?: boolean;
 }>) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { profile, loading } = useUserProfile()
   const [localSearchValue, setLocalSearchValue] = useState('')
+  const { signOut } = useAuth()
+  const router = useRouter()
 
   // Use provided search value and handler if available, otherwise use local state
   const searchText = onSearchChange ? searchValue : localSearchValue
@@ -46,6 +53,15 @@ export function SidebarLayout({
       setLocalSearchValue(value)
     }
   }
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      router.push('/login');
+    } catch (error) {
+      console.error('Failed to sign out:', error);
+    }
+  };
 
   return (
     <>
@@ -106,20 +122,19 @@ export function SidebarLayout({
               
               {!isOnboarding && (
                 <div className="flex items-center gap-x-4 lg:gap-x-6">
-                  {/* Notification button removed */}
-
                   {/* Profile dropdown */}
                   <Menu as="div" className="relative">
                     <MenuButton className="-m-1.5 flex items-center p-1.5">
                       <span className="sr-only">Open user menu</span>
-                      <img
-                        alt=""
-                        src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-                        className="size-8 rounded-full bg-gray-50"
+                      <UserAvatar
+                        src={profile?.profile_photo_url}
+                        firstName={profile?.first_name}
+                        lastName={profile?.last_name}
+                        className="size-8"
                       />
                       <span className="hidden lg:flex lg:items-center">
                         <span aria-hidden="true" className="ml-4 text-sm/6 font-semibold text-gray-900">
-                          Alex Morgan
+                          {profile ? `${profile.first_name} ${profile.last_name}` : 'Loading...'}
                         </span>
                         <ChevronDownIcon aria-hidden="true" className="ml-2 size-5 text-gray-400" />
                       </span>
@@ -137,12 +152,12 @@ export function SidebarLayout({
                         </a>
                       </MenuItem>
                       <MenuItem>
-                        <a
-                          href="#"
-                          className="block px-3 py-1 text-sm/6 text-gray-900 data-focus:bg-gray-50 data-focus:outline-hidden"
+                        <button
+                          onClick={handleSignOut} 
+                          className={'block w-full text-left px-3 py-1 text-sm/6 text-gray-900 data-focus:bg-gray-50 data-focus:outline-hidden'}
                         >
                           Sign out
-                        </a>
+                        </button>
                       </MenuItem>
                     </MenuItems>
                   </Menu>
@@ -155,6 +170,23 @@ export function SidebarLayout({
             <div className="px-4 sm:px-8 lg:px-8">{children}</div>
           </main>
         </div>
+      </div>
+
+      <div className="sticky top-0 z-40 flex items-center gap-x-6 bg-white px-4 py-4 shadow-sm sm:px-6 lg:hidden">
+        <button type="button" onClick={() => setSidebarOpen(true)} className="-m-2.5 p-2.5 text-chardonnay-700 lg:hidden">
+          <span className="sr-only">Open sidebar</span>
+          <Bars3Icon aria-hidden="true" className="size-6" />
+        </button>
+        <div className="flex-1 text-sm font-semibold leading-6 text-gray-900">Dashboard</div>
+        <a href="/profile">
+          <span className="sr-only">Your profile</span>
+          <UserAvatar
+            src={profile?.profile_photo_url}
+            firstName={profile?.first_name}
+            lastName={profile?.last_name}
+            className="size-8"
+          />
+        </a>
       </div>
     </>
   )

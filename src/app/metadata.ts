@@ -6,19 +6,19 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: '/favicon.ico',
+        url: '/images/favicon.ico',
         sizes: '32x32',
         type: 'image/x-icon',
       },
       {
-        url: '/icon.png',
+        url: '/images/icon.png',
         sizes: '192x192',
         type: 'image/png',
       },
     ],
     apple: [
       {
-        url: '/apple-icon.png',
+        url: '/images/apple-icon.png',
         sizes: '180x180',
         type: 'image/png',
       },
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     other: [
       {
         rel: 'mask-icon',
-        url: '/safari-pinned-tab.svg',
+        url: '/images/safari-pinned-tab.svg',
         color: '#D9E8FF',
       },
     ],

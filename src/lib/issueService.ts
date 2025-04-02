@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getCurrentUserId } from './auth-provider';
 
 // Issue type definitions
 export interface IIssue {
@@ -84,19 +85,14 @@ export interface IIssueWithDetails extends IIssue {
   work_orders?: IWorkOrder[];
 }
 
-// Development mode test user ID
-const TEST_USER_ID = '00000000-0000-0000-0000-000000000001';
-
 // Get all issues for a user
 export const getUserIssues = async (userId?: string): Promise<IIssue[]> => {
   try {
-    // In development mode, use the test user ID if no user ID is provided
-    const effectiveUserId = process.env.NODE_ENV === 'development' 
-      ? TEST_USER_ID 
-      : userId;
+    // Get the current user ID if not provided
+    const effectiveUserId = userId || await getCurrentUserId();
     
     if (!effectiveUserId) {
-      console.error('No user ID provided and not in development mode');
+      console.error('No user ID provided and not authenticated');
       return [];
     }
 
@@ -144,121 +140,6 @@ export const getPropertyIssues = async (propertyId: string): Promise<IIssue[]> =
   try {
     console.log('Fetching issues for property:', propertyId);
     
-    // In development mode, return sample data directly
-    if (process.env.NODE_ENV === 'development') {
-      console.log('In development mode, returning sample data directly for property:', propertyId);
-      
-      // Get sample property code/name from the propertyId
-      let propertyName = 'Unknown Property';
-      let propertyCode = '';
-      
-      // Extract property name from UUID or use property_code directly
-      if (propertyId.includes('-')) {
-        // It's a UUID, get corresponding property_code
-        if (propertyId === 'bd8e3211-2403-47ac-9947-7a4842c5a4e3') {
-          propertyName = '15 Crescent Road';
-          propertyCode = 'prop_15_crescent_road';
-        } else if (propertyId === 'dfe98af6-7b35-4eb1-a75d-b9cb279d86d8') {
-          propertyName = '42 Harley Street';
-          propertyCode = 'prop_42_harley_street';
-        } else if (propertyId === '7a2e1487-f17b-4ceb-b6d1-56934589025b') {
-          propertyName = '8 Victoria Gardens';
-          propertyCode = 'prop_8_victoria_gardens';
-        }
-      } else {
-        // It's already a property_code
-        propertyCode = propertyId;
-        propertyName = propertyId.replace('prop_', '').split('_').map(
-          word => word.charAt(0).toUpperCase() + word.slice(1)
-        ).join(' ');
-      }
-      
-      console.log(`Using property name: ${propertyName}, code: ${propertyCode}`);
-      
-      // Generate sample issues for this property
-      const now = new Date().toISOString();
-      
-      // Return different issues based on the property
-      if (propertyCode === 'prop_15_crescent_road') {
-        return [
-          {
-            id: "b7f456e8-240c-48d8-b9b4-26f22254f91b",
-            title: "Water leak in bathroom ceiling",
-            description: "Water dripping from the bathroom ceiling, possibly from upstairs plumbing.",
-            property_id: propertyCode,
-            status: "Todo",
-            priority: "High",
-            type: "Bug",
-            reported_date: now,
-            created_at: now,
-            updated_at: now,
-            is_emergency: true
-          },
-          {
-            id: "89799523-7143-4ac0-ade5-72c897e126d2",
-            title: "Mailbox key replacement",
-            description: "Tenant lost mailbox key and needs a replacement.",
-            property_id: propertyCode,
-            status: "Todo",
-            priority: "Low",
-            type: "Feature",
-            reported_date: now,
-            created_at: now,
-            updated_at: now,
-            is_emergency: false
-          }
-        ];
-      } else if (propertyCode === 'prop_42_harley_street') {
-        return [
-          {
-            id: "e934d52a-45aa-441c-8c78-725dfceb2468",
-            title: "Broken heating system",
-            description: "Heating not working throughout the property. Thermostat shows error code E4.",
-            property_id: propertyCode,
-            status: "In Progress",
-            priority: "High",
-            type: "Bug",
-            reported_date: now,
-            created_at: now,
-            updated_at: now,
-            is_emergency: false
-          },
-          {
-            id: "bffbeca2-3d5b-44ac-a1fd-3a23a263a853",
-            title: "Parking spot dispute",
-            description: "Tenant claims another resident is using their assigned parking spot regularly.",
-            property_id: propertyCode,
-            status: "Done",
-            priority: "Medium",
-            type: "Documentation",
-            reported_date: now,
-            created_at: now,
-            updated_at: now,
-            is_emergency: false
-          }
-        ];
-      } else if (propertyCode === 'prop_8_victoria_gardens') {
-        return [
-          {
-            id: "a3aa8cc2-12da-4ad5-a0f1-fbafc0480c6b",
-            title: "Noisy neighbors complaint",
-            description: "Tenant in unit 305 complaining about excessive noise from unit 306 during night hours.",
-            property_id: propertyCode,
-            status: "Todo",
-            priority: "Medium",
-            type: "Bug",
-            reported_date: now,
-            created_at: now,
-            updated_at: now,
-            is_emergency: false
-          }
-        ];
-      }
-      
-      // Default sample issues if property not matched
-      return getSampleIssuesAsIIssue(propertyCode);
-    }
-    
     // First determine if we're looking at a UUID or a property_code
     let isUUID = false;
     try {
@@ -269,15 +150,15 @@ export const getPropertyIssues = async (propertyId: string): Promise<IIssue[]> =
       isUUID = false;
     }
     
-    let propertyCode = propertyId;
+    let effectivePropertyId = propertyId;
     
-    // If this is a UUID, we need to get the property_code first
-    if (isUUID) {
-      console.log('Property ID is a UUID, fetching property_code');
+    // If this is a property_code, we need to get the UUID first
+    if (!isUUID) {
+      console.log('Property ID is a property_code, fetching UUID');
       const { data: property, error: propertyError } = await supabase
         .from('properties')
-        .select('property_code')
-        .eq('id', propertyId)
+        .select('id')
+        .eq('property_code', propertyId)
         .single();
       
       if (propertyError) {
@@ -285,31 +166,28 @@ export const getPropertyIssues = async (propertyId: string): Promise<IIssue[]> =
         throw propertyError;
       }
       
-      if (property && property.property_code) {
-        propertyCode = property.property_code;
-        console.log('Using property_code:', propertyCode);
+      if (!property) {
+        console.error('Property not found');
+        return [];
       }
+      
+      effectivePropertyId = property.id;
     }
     
-    // Now fetch issues with the property_code
+    // Now get all issues for this property using the UUID
     const { data, error } = await supabase
       .from('issues')
       .select('*')
-      .eq('property_id', propertyCode)
-      .order('reported_date', { ascending: false });
+      .eq('property_id', effectivePropertyId);
     
     if (error) {
-      console.error('Error fetching property issues:', error);
+      console.error('Error fetching issues:', error);
       throw error;
     }
     
     return data || [];
   } catch (error) {
-    console.error(`Error fetching issues for property ${propertyId}:`, error);
-    // Return sample data for development if we can't connect to the database
-    if (process.env.NODE_ENV === 'development') {
-      return getSampleIssuesAsIIssue(propertyId);
-    }
+    console.error('Error fetching issues:', error);
     return [];
   }
 };
@@ -614,131 +492,108 @@ export const getIssueCategories = async (): Promise<IIssueCategory[]> => {
   }
 };
 
-// Converts a database issue to the format used in UI components
-export const convertToUIIssue = (dbIssue: IIssue): any => {
-  // Extract property name from property_id if possible
-  let propertyText = dbIssue.property_id;
-  
-  // If property_id is in format "prop_X_Y_Z", convert to readable format
-  if (propertyText && propertyText.startsWith('prop_')) {
-    propertyText = propertyText
-      .replace('prop_', '')
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
+// Convert a database issue to the UI format
+const convertToUIIssue = (issue: any, properties?: any[]) => {
+  // If properties are provided, try to find the matching property and use its address
+  let propertyDisplay = issue.property_id;
+  if (properties && properties.length > 0) {
+    const matchingProperty = properties.find(p => p.id === issue.property_id);
+    if (matchingProperty) {
+      propertyDisplay = matchingProperty.address;
+    }
   }
   
   return {
-    id: dbIssue.id,
-    title: dbIssue.title,
-    type: dbIssue.type,
-    status: dbIssue.status,
-    priority: dbIssue.priority,
-    property: propertyText, // Now provides a more readable property name
-    reported: new Date(dbIssue.reported_date).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}),
-    assignedTo: dbIssue.assigned_to || '',
-    description: dbIssue.description || '',
-    is_emergency: dbIssue.is_emergency
+    id: issue.id,
+    title: issue.title,
+    type: issue.type,
+    status: issue.status,
+    priority: issue.priority,
+    property: propertyDisplay,
+    reported: new Date(issue.reported_date).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    }),
+    assignedTo: issue.assigned_to,
+    description: issue.description,
+    is_emergency: issue.is_emergency
   };
 };
 
 // Get all issues for the issues page
 export const getAllIssues = async (): Promise<any[]> => {
   try {
-    console.log('Fetching all issues');
+    console.log('Fetching all issues - start');
     
-    // In development mode, skip Supabase and return sample data directly for testing
+    // Try to get the current user first
+    const userId = await getCurrentUserId();
+    console.log('Current user ID:', userId);
+    
+    // If we're in development mode and no user is found, return sample data
     if (process.env.NODE_ENV === 'development') {
-      console.log('In development mode, returning sample data directly');
+      console.log('Running in development mode');
+      if (!userId) {
+        console.log('No authenticated user found in development mode, returning sample data');
+        return getSampleIssues();
+      }
+      console.log('User found in development mode, attempting to fetch real data');
+    }
+    
+    // If we have a user, get their properties first
+    if (userId) {
+      console.log('Fetching properties for user:', userId);
+      const { data: properties, error: propertiesError } = await supabase
+        .from('properties')
+        .select('id, address, city, postcode, property_code')
+        .eq('user_id', userId);
       
-      // Create sample issues with current timestamp
-      const now = new Date().toISOString();
-      return [
-        {
-          id: "b7f456e8-240c-48d8-b9b4-26f22254f91b",
-          title: "Water leak in bathroom ceiling",
-          description: "Water dripping from the bathroom ceiling, possibly from upstairs plumbing.",
-          status: "Todo",
-          priority: "High",
-          type: "Bug",
-          property: "15 Crescent Road",
-          reported: new Date(now).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}),
-          assignedTo: "Unassigned",
-          is_emergency: true
-        },
-        {
-          id: "e934d52a-45aa-441c-8c78-725dfceb2468", 
-          title: "Broken heating system",
-          description: "Heating not working throughout the property. Thermostat shows error code E4.",
-          status: "In Progress",
-          priority: "High",
-          type: "Bug",
-          property: "42 Harley Street",
-          reported: new Date(now).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}),
-          assignedTo: "John Smith",
-          is_emergency: false
-        },
-        {
-          id: "89799523-7143-4ac0-ade5-72c897e126d2",
-          title: "Mailbox key replacement",
-          description: "Tenant lost mailbox key and needs a replacement.",
-          status: "Todo",
-          priority: "Low",
-          type: "Feature",
-          property: "15 Crescent Road",
-          reported: new Date(now).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}),
-          assignedTo: "Unassigned",
-          is_emergency: false
-        },
-        {
-          id: "a3aa8cc2-12da-4ad5-a0f1-fbafc0480c6b",
-          title: "Noisy neighbors complaint",
-          description: "Tenant in unit 305 complaining about excessive noise from unit 306 during night hours.",
-          status: "Todo",
-          priority: "Medium",
-          type: "Bug",
-          property: "8 Victoria Gardens",
-          reported: new Date(now).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}),
-          assignedTo: "Unassigned",
-          is_emergency: false
-        },
-        {
-          id: "bffbeca2-3d5b-44ac-a1fd-3a23a263a853",
-          title: "Parking spot dispute",
-          description: "Tenant claims another resident is using their assigned parking spot regularly.",
-          status: "Done",
-          priority: "Medium",
-          type: "Documentation",
-          property: "42 Harley Street",
-          reported: new Date(now).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}),
-          assignedTo: "Jane Doe",
-          is_emergency: false
+      if (propertiesError) {
+        console.error('Error fetching properties:', propertiesError);
+        throw propertiesError;
+      }
+      
+      console.log('Found properties:', properties);
+      
+      if (!properties || properties.length === 0) {
+        console.log('No properties found for user');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Development mode: returning sample data due to no properties');
+          return getSampleIssues();
         }
-      ];
+        return [];
+      }
+      
+      // Get property IDs as an array
+      const propertyIds = properties.map(p => p.id);
+      console.log('Property IDs:', propertyIds);
+      
+      // Now get all issues for these properties
+      const { data, error } = await supabase
+        .from('issues')
+        .select('*')
+        .in('property_id', propertyIds)
+        .order('reported_date', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching all issues:', error);
+        throw error;
+      }
+      
+      console.log('Found issues:', data);
+      
+      // Convert to the format used in the UI
+      return (data || []).map(issue => convertToUIIssue(issue, properties));
     }
     
-    // For production, respect RLS
-    const { data, error } = await supabase
-      .from('issues')
-      .select('*')
-      .order('reported_date', { ascending: false });
-    
-    if (error) {
-      console.error('Error fetching all issues:', error);
-      throw error;
-    }
-    
-    // If we get 0 results due to RLS, but we know issues exist, log it
-    if (!data || data.length === 0) {
-      console.log('No issues found, possibly due to RLS. This may be normal if the user has no issues.');
-    }
-    
-    // Convert to the format used in the UI
-    return (data || []).map(convertToUIIssue);
+    // If no user and not in development mode, return empty array
+    console.log('No authenticated user found in production mode');
+    return [];
   } catch (error) {
     console.error('Error fetching all issues:', error);
-    // Return sample data for development if we can't connect to the database
+    // Only return sample data in development mode
     if (process.env.NODE_ENV === 'development') {
+      console.log('Error in development mode, returning sample data');
       return getSampleIssues();
     }
     return [];
@@ -750,101 +605,65 @@ export const getRecentIssues = async (limit: number = 5): Promise<any[]> => {
   try {
     console.log('Fetching recent issues, limit:', limit);
     
-    // In development mode, skip Supabase and return sample data directly for testing
-    if (process.env.NODE_ENV === 'development') {
-      console.log('In development mode, returning sample data directly');
-      
-      // Create sample issues with current timestamp
-      const now = new Date().toISOString();
-      const sampleIssues = [
-        {
-          id: "b7f456e8-240c-48d8-b9b4-26f22254f91b",
-          title: "Water leak in bathroom ceiling",
-          description: "Water dripping from the bathroom ceiling, possibly from upstairs plumbing.",
-          status: "Todo",
-          priority: "High",
-          type: "Bug",
-          property: "15 Crescent Road",
-          reported: new Date(now).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}),
-          assignedTo: "Unassigned",
-          is_emergency: true
-        },
-        {
-          id: "e934d52a-45aa-441c-8c78-725dfceb2468", 
-          title: "Broken heating system",
-          description: "Heating not working throughout the property. Thermostat shows error code E4.",
-          status: "In Progress",
-          priority: "High",
-          type: "Bug",
-          property: "42 Harley Street",
-          reported: new Date(now).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}),
-          assignedTo: "John Smith",
-          is_emergency: false
-        },
-        {
-          id: "89799523-7143-4ac0-ade5-72c897e126d2",
-          title: "Mailbox key replacement",
-          description: "Tenant lost mailbox key and needs a replacement.",
-          status: "Todo",
-          priority: "Low",
-          type: "Feature",
-          property: "15 Crescent Road",
-          reported: new Date(now).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}),
-          assignedTo: "Unassigned",
-          is_emergency: false
-        },
-        {
-          id: "a3aa8cc2-12da-4ad5-a0f1-fbafc0480c6b",
-          title: "Noisy neighbors complaint",
-          description: "Tenant in unit 305 complaining about excessive noise from unit 306 during night hours.",
-          status: "Todo",
-          priority: "Medium",
-          type: "Bug",
-          property: "8 Victoria Gardens",
-          reported: new Date(now).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}),
-          assignedTo: "Unassigned",
-          is_emergency: false
-        },
-        {
-          id: "bffbeca2-3d5b-44ac-a1fd-3a23a263a853",
-          title: "Parking spot dispute",
-          description: "Tenant claims another resident is using their assigned parking spot regularly.",
-          status: "Done",
-          priority: "Medium",
-          type: "Documentation",
-          property: "42 Harley Street",
-          reported: new Date(now).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}),
-          assignedTo: "Jane Doe",
-          is_emergency: false
-        }
-      ];
+    // Try to get the current user first
+    const userId = await getCurrentUserId();
+    
+    // If we're in development mode and no user is found, return sample data
+    if (process.env.NODE_ENV === 'development' && !userId) {
+      console.log('No authenticated user found in development mode, returning sample data');
+      const sampleIssues = getSampleIssues();
       return sampleIssues.slice(0, limit);
     }
     
-    // For production, respect RLS
-    const { data, error } = await supabase
-      .from('issues')
-      .select('*')
-      .order('reported_date', { ascending: false })
-      .limit(limit);
-    
-    if (error) {
-      console.error('Error fetching recent issues:', error);
-      throw error;
+    // If we have a user, get their properties first
+    if (userId) {
+      console.log('Fetching properties for user:', userId);
+      const { data: properties, error: propertiesError } = await supabase
+        .from('properties')
+        .select('id, address, city, postcode, property_code')
+        .eq('user_id', userId);
+      
+      if (propertiesError) {
+        console.error('Error fetching properties:', propertiesError);
+        throw propertiesError;
+      }
+      
+      if (!properties || properties.length === 0) {
+        console.log('No properties found for user');
+        return [];
+      }
+      
+      // Get property IDs as an array
+      const propertyIds = properties.map(p => p.id);
+      console.log('Property IDs:', propertyIds);
+      
+      // Now get all issues for these properties
+      const { data, error } = await supabase
+        .from('issues')
+        .select('*')
+        .in('property_id', propertyIds)
+        .order('reported_date', { ascending: false })
+        .limit(limit);
+      
+      if (error) {
+        console.error('Error fetching recent issues:', error);
+        throw error;
+      }
+      
+      // Convert to the format used in the UI, passing the properties for address lookup
+      return (data || []).map(issue => convertToUIIssue(issue, properties));
     }
     
-    // If we get 0 results due to RLS, but we know issues exist, log it
-    if (!data || data.length === 0) {
-      console.log('No recent issues found, possibly due to RLS. This may be normal if the user has no issues.');
-    }
-    
-    // Convert to the format used in the UI
-    return (data || []).map(convertToUIIssue);
+    // If no user and not in development mode, return empty array
+    console.log('No authenticated user found in production mode');
+    return [];
   } catch (error) {
     console.error('Error fetching recent issues:', error);
-    // Return sample data for development if we can't connect to the database
+    // Only return sample data in development mode
     if (process.env.NODE_ENV === 'development') {
-      return getSampleIssues().slice(0, limit);
+      console.log('Error in development mode, returning sample data');
+      const sampleIssues = getSampleIssues();
+      return sampleIssues.slice(0, limit);
     }
     return [];
   }

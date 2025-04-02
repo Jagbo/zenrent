@@ -55,7 +55,7 @@ CREATE TABLE issues (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title VARCHAR(255) NOT NULL,
   description TEXT,
-  property_id TEXT NOT NULL,
+  property_id UUID NOT NULL,
   unit_id UUID REFERENCES property_units(id),
   category_id UUID REFERENCES issue_categories(id),
   status VARCHAR(50) NOT NULL DEFAULT 'Todo', -- Todo, In Progress, Backlog, Done
@@ -228,7 +228,7 @@ LEFT JOIN tenants t ON i.tenant_id = t.id
 LEFT JOIN work_orders wo ON i.id = wo.issue_id;
 
 -- Function to get all issues for a property
-CREATE OR REPLACE FUNCTION get_property_issues(prop_id TEXT)
+CREATE OR REPLACE FUNCTION get_property_issues(prop_id UUID)
 RETURNS TABLE (
   id UUID,
   title VARCHAR(255),
@@ -283,86 +283,43 @@ ALTER TABLE issue_status_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contractors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE work_orders ENABLE ROW LEVEL SECURITY;
 
--- Create RLS policies for issues
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view their own issues" ON issues;
+DROP POLICY IF EXISTS "Users can insert their own issues" ON issues;
+DROP POLICY IF EXISTS "Users can update their own issues" ON issues;
+DROP POLICY IF EXISTS "Users can delete their own issues" ON issues;
+
+-- Create RLS policies for issues using property_code
 CREATE POLICY "Users can view their own issues" ON issues
   FOR SELECT USING (
     EXISTS (
-      SELECT 1 FROM properties p 
-      WHERE p.id::text = issues.property_id AND p.user_id = auth.uid()
+      SELECT 1 FROM properties p
+      WHERE p.id = issues.property_id AND p.user_id = auth.uid()
     )
   );
 
 CREATE POLICY "Users can insert their own issues" ON issues
   FOR INSERT WITH CHECK (
     EXISTS (
-      SELECT 1 FROM properties p 
-      WHERE p.id::text = issues.property_id AND p.user_id = auth.uid()
+      SELECT 1 FROM properties p
+      WHERE p.id = issues.property_id AND p.user_id = auth.uid()
     )
   );
 
 CREATE POLICY "Users can update their own issues" ON issues
   FOR UPDATE USING (
     EXISTS (
-      SELECT 1 FROM properties p 
-      WHERE p.id::text = issues.property_id AND p.user_id = auth.uid()
+      SELECT 1 FROM properties p
+      WHERE p.id = issues.property_id AND p.user_id = auth.uid()
     )
   );
 
 CREATE POLICY "Users can delete their own issues" ON issues
   FOR DELETE USING (
     EXISTS (
-      SELECT 1 FROM properties p 
-      WHERE p.id::text = issues.property_id AND p.user_id = auth.uid()
+      SELECT 1 FROM properties p
+      WHERE p.id = issues.property_id AND p.user_id = auth.uid()
     )
   );
 
--- Sample issue data for testing
-INSERT INTO issues (
-  title,
-  description,
-  property_id,
-  status,
-  priority,
-  type,
-  is_emergency
-) VALUES
-('Water leak in bathroom ceiling', 
- 'Water dripping from the bathroom ceiling, possibly from upstairs plumbing.',
- 'prop_15_crescent_road',
- 'Todo',
- 'High',
- 'Bug',
- true
-),
-('Broken heating system',
- 'Heating not working throughout the property. Thermostat shows error code E4.',
- 'prop_42_harley_street',
- 'In Progress',
- 'High',
- 'Bug',
- false
-),
-('Mailbox key replacement',
- 'Tenant lost mailbox key and needs a replacement.',
- 'prop_15_crescent_road',
- 'Todo',
- 'Low',
- 'Feature',
- false
-),
-('Noisy neighbors complaint',
- 'Tenant in unit 305 complaining about excessive noise from unit 306 during night hours.',
- 'prop_8_victoria_gardens',
- 'Todo',
- 'Medium',
- 'Bug',
- false
-),
-('Parking spot dispute',
- 'Tenant claims another resident is using their assigned parking spot regularly.',
- 'prop_42_harley_street',
- 'Done',
- 'Medium',
- 'Documentation',
- false
-); 
+-- Note: Sample data should be added through the seed file instead of migrations 

@@ -13,7 +13,7 @@ import { MagnifyingGlassIcon, PencilIcon, ArrowLeftOnRectangleIcon, Squares2X2Ic
 import { PropertyFormDrawer } from '../components/PropertyFormDrawer'
 import { EditPropertyDrawer } from '../components/EditPropertyDrawer'
 import { AdvertisePropertyDrawer } from '../components/AdvertisePropertyDrawer'
-import { useAuth } from '../../lib/auth'
+import { useAuth } from '../../lib/auth-provider'
 import { getProperties, IProperty } from '../../lib/propertyService'
 
 // Helper function for class names

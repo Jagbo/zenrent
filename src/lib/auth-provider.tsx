@@ -1,108 +1,113 @@
 'use client';
 
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
-import { supabase } from './supabase';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Session, User } from '@supabase/supabase-js';
 
-type AuthContextType = {
+export async function getCurrentUserId(): Promise<string | null> {
+  const supabase = createClientComponentClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.user?.id || null;
+}
+
+interface AuthContextType {
   session: Session | null;
   user: User | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   signUp: (email: string, password: string) => Promise<{ error: any, data: any }>;
-};
+  signInWithGoogle: () => Promise<{ error: any }>;
+  signInWithApple: () => Promise<{ error: any }>;
+}
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// Test user for development mode
-const TEST_USER_EMAIL = 'j.agbodo@mail.com';
-const TEST_USER_PASSWORD = 'password123';
+const AuthContext = createContext<AuthContextType>({
+  session: null,
+  user: null,
+  loading: true,
+  signIn: async () => {},
+  signOut: async () => {},
+  signUp: async () => ({ error: null, data: null }),
+  signInWithGoogle: async () => ({ error: null }),
+  signInWithApple: async () => ({ error: null }),
+});
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const supabase = createClientComponentClient();
 
   useEffect(() => {
-    // Check for active session on mount
-    const getSession = async () => {
-      try {
-        setLoading(true);
-        
-        // In development, try to sign in with test user automatically
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Development mode: Attempting to use test user account');
-          
-          // Try to sign in with test credentials
-          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            email: TEST_USER_EMAIL,
-            password: TEST_USER_PASSWORD,
-          });
-          
-          if (!signInError && signInData.session) {
-            console.log('Signed in as test user');
-            setSession(signInData.session);
-            setUser(signInData.user);
-            setLoading(false);
-            return;
-          } else {
-            console.log('Could not sign in as test user, falling back to normal session check');
-          }
-        }
-        
-        // Normal session check for production or if development login fails
-        const { data, error } = await supabase.auth.getSession();
-        
-        if (error) throw error;
-        
-        setSession(data.session);
-        setUser(data.session?.user || null);
-      } catch (error) {
-        console.error('Error getting session:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
-    getSession();
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
-    // Subscribe to auth changes
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setUser(session?.user || null);
-        setLoading(false);
-      }
-    );
-
-    return () => {
-      authListener?.subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
-  // Sign in with email and password
   const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) throw error;
+  };
+
+  const signOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  };
+
+  // Sign in with Google
+  const signInWithGoogle = async () => {
     try {
-      // In development, always use test user
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Development mode: Using test user for sign in');
-        const { error } = await supabase.auth.signInWithPassword({
-          email: TEST_USER_EMAIL,
-          password: TEST_USER_PASSWORD,
-        });
-        return { error };
-      }
-      
-      // Normal sign in for production
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        }
       });
       
       return { error };
     } catch (error) {
-      console.error('Error signing in:', error);
+      console.error('Error signing in with Google:', error);
+      return { error };
+    }
+  };
+
+  // Sign in with Apple
+  const signInWithApple = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`,
+          queryParams: {
+            response_mode: 'query',
+          },
+        }
+      });
+      
+      return { error };
+    } catch (error) {
+      console.error('Error signing in with Apple:', error);
       return { error };
     }
   };
@@ -110,52 +115,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Sign up with email and password
   const signUp = async (email: string, password: string) => {
     try {
-      // In development, use test user
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Development mode: Using test user for sign up');
-        // Simulate a successful sign up by signing in with test user
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: TEST_USER_EMAIL,
-          password: TEST_USER_PASSWORD,
-        });
-        
-        return { 
-          data: { 
-            user: data?.user || null, 
-            session: data?.session || null
-          }, 
-          error 
-        };
-      }
-      
-      // Normal sign up for production
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/sign-up/account-creation`,
+          emailRedirectTo: `${window.location.origin}/sign-up/email-verification`,
         },
       });
       
       return { data, error };
     } catch (error) {
-      console.error('Error signing up:', error);
-      return { data: null, error };
-    }
-  };
-
-  // Sign out
-  const signOut = async () => {
-    try {
-      // In development, just clear local state but don't actually sign out
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Development mode: Simulating sign out');
-        return;
-      }
-      
-      await supabase.auth.signOut();
-    } catch (error) {
-      console.error('Error signing out:', error);
+      console.error('Error during sign up:', error);
+      return { error, data: null };
     }
   };
 
@@ -166,16 +137,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signIn,
     signOut,
     signUp,
+    signInWithGoogle,
+    signInWithApple,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-// Custom hook to use auth context
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  return useContext(AuthContext);
 } 

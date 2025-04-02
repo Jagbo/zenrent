@@ -1,7 +1,7 @@
 -- Create the user_profiles table if it doesn't exist
 CREATE TABLE IF NOT EXISTS user_profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
   title TEXT,
   first_name TEXT,
   last_name TEXT,
@@ -31,6 +31,9 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   company_county TEXT,
   company_postcode TEXT,
   directors JSONB,
+  
+  -- Additional metadata
+  metadata JSONB,
   
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -72,14 +75,6 @@ CREATE POLICY "Users can update their own profiles"
   ON user_profiles
   FOR UPDATE
   USING (auth.uid() = user_id);
-
--- In development mode, allow the test user to access profiles
-CREATE POLICY "Test user can access all profiles in development"
-  ON user_profiles
-  USING (
-    user_id = '00000000-0000-0000-0000-000000000001' OR 
-    auth.uid() = '00000000-0000-0000-0000-000000000001'
-  );
 
 -- Create a stored procedure to create the user_profiles table if it doesn't exist
 -- This is used by the client when the table doesn't exist yet
