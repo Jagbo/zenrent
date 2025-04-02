@@ -1,5 +1,9 @@
-import { useState } from 'react';
+'use client';
+
+import { useState, useEffect } from 'react';
 import { BaseDrawer } from './BaseDrawer';
+import { supabase } from '@/lib/supabase';
+import { getIssueCategories } from '@/lib/issueService';
 
 // Define property options for the form
 const properties = [
@@ -19,11 +23,25 @@ const assignees = [
   { id: 'MA', name: 'Michael Adams' }
 ];
 
+interface Property {
+  id: string;
+  address: string;
+}
+
+interface Contractor {
+  id: string;
+  name: string;
+}
+
+interface IssueCategory {
+  id: string;
+  name: string;
+}
+
 interface IssueFormData {
   title: string;
   description: string;
   propertyId: string;
-  unitNumber: string;
   category: string;
   priority: string;
   reportedBy: string;
@@ -57,8 +75,7 @@ export const IssueFormDrawer: React.FC<IssueFormDrawerProps> = ({
     title: initialData.title || '',
     description: initialData.description || '',
     propertyId: preSelectedPropertyId || initialData.propertyId || '',
-    unitNumber: initialData.unitNumber || '',
-    category: initialData.category || 'maintenance',
+    category: initialData.category || '',
     priority: initialData.priority || 'medium',
     reportedBy: initialData.reportedBy || '',
     assignedTo: initialData.assignedTo || '',
@@ -66,20 +83,62 @@ export const IssueFormDrawer: React.FC<IssueFormDrawerProps> = ({
     attachments: initialData.attachments || []
   });
   const [files, setFiles] = useState<File[]>([]);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [contractors, setContractors] = useState<Contractor[]>([]);
+  const [categories, setCategories] = useState<IssueCategory[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+
+        // Fetch properties
+        const { data: propertiesData, error: propertiesError } = await supabase
+          .from('properties')
+          .select('id, address');
+        
+        if (propertiesError) throw propertiesError;
+        setProperties(propertiesData || []);
+
+        // Fetch contractors
+        const { data: contractorsData, error: contractorsError } = await supabase
+          .from('contractors')
+          .select('id, name')
+          .order('name');
+        
+        if (contractorsError) throw contractorsError;
+        setContractors(contractorsData || []);
+
+        // Fetch issue categories
+        const categoriesData = await getIssueCategories();
+        setCategories(categoriesData);
+
+      } catch (error) {
+        console.error('Error fetching form data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (isOpen) {
+      fetchData();
+    }
+  }, [isOpen]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev: IssueFormData) => ({
       ...prev,
       [name]: value
     }));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
-      setFiles(prev => [...prev, ...newFiles]);
-      setFormData(prev => ({
+      setFiles((prev: File[]) => [...prev, ...newFiles]);
+      setFormData((prev: IssueFormData) => ({
         ...prev,
         attachments: [...(prev.attachments || []), ...newFiles]
       }));
@@ -87,17 +146,27 @@ export const IssueFormDrawer: React.FC<IssueFormDrawerProps> = ({
   };
 
   const removeFile = (index: number) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
-    setFormData(prev => ({
+    setFiles((prev: File[]) => prev.filter((_: File, i: number) => i !== index));
+    setFormData((prev: IssueFormData) => ({
       ...prev,
-      attachments: prev.attachments?.filter((_, i) => i !== index) || []
+      attachments: prev.attachments?.filter((_: File, i: number) => i !== index) || []
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
   };
+
+  if (isLoading) {
+    return (
+      <BaseDrawer isOpen={isOpen} onClose={onClose} title={drawerTitle}>
+        <div className="flex items-center justify-center h-full">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        </div>
+      </BaseDrawer>
+    );
+  }
 
   return (
     <BaseDrawer
@@ -152,27 +221,12 @@ export const IssueFormDrawer: React.FC<IssueFormDrawerProps> = ({
             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
           >
             <option value="" disabled>Select a property</option>
-            {properties.map(property => (
+            {properties.map((property: Property) => (
               <option key={property.id} value={property.id}>
-                {property.name}
+                {property.address}
               </option>
             ))}
           </select>
-        </div>
-
-        <div>
-          <label htmlFor="unitNumber" className="block text-sm font-medium text-gray-900">
-            Unit/Room Number
-          </label>
-          <input
-            type="text"
-            name="unitNumber"
-            id="unitNumber"
-            value={formData.unitNumber}
-            onChange={handleInputChange}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
-            placeholder="e.g., Apartment 101"
-          />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -188,12 +242,12 @@ export const IssueFormDrawer: React.FC<IssueFormDrawerProps> = ({
               onChange={handleInputChange}
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
             >
-              <option value="maintenance">Maintenance</option>
-              <option value="plumbing">Plumbing</option>
-              <option value="electrical">Electrical</option>
-              <option value="hvac">HVAC</option>
-              <option value="appliance">Appliance</option>
-              <option value="other">Other</option>
+              <option value="" disabled>Select a category</option>
+              {categories.map((category: IssueCategory) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
             </select>
           </div>
           <div>
@@ -242,9 +296,9 @@ export const IssueFormDrawer: React.FC<IssueFormDrawerProps> = ({
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
             >
               <option value="">Unassigned</option>
-              {assignees.map(assignee => (
-                <option key={assignee.id} value={assignee.id}>
-                  {assignee.name} ({assignee.id})
+              {contractors.map((contractor: Contractor) => (
+                <option key={contractor.id} value={contractor.id}>
+                  {contractor.name}
                 </option>
               ))}
             </select>
@@ -287,7 +341,7 @@ export const IssueFormDrawer: React.FC<IssueFormDrawerProps> = ({
           </div>
           {files.length > 0 && (
             <ul className="mt-2 space-y-2">
-              {files.map((file, index) => (
+              {files.map((file: File, index: number) => (
                 <li key={index} className="flex items-center justify-between rounded-md border border-gray-200 py-2 px-3">
                   <span className="text-sm truncate">{file.name}</span>
                   <button

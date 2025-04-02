@@ -44,21 +44,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SidebarContent } from '../components/sidebar-content'
 import { IssuesBoard } from "@/components/issues/IssuesBoard"
 import { IssueDrawer } from "../components/IssueDrawer"
-import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
+import { Menu } from '@headlessui/react'
+import { MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 import { IssueFormDrawer } from '../components/IssueFormDrawer'
-import { getAllIssues, createIssue } from '../../lib/issueService'
+import { getAllIssues, createIssue, uploadIssueMedia } from '../../lib/issueService'
 import { cn } from '@/lib/utils'
+import { Issue } from '@/types/issue'
+import { type NextPage } from 'next'
 
 // Define Issue type
-type Issue = {
-  id: string;
+interface NewIssue {
   title: string;
-  type: "Bug" | "Documentation" | "Feature";
-  status: "Todo" | "In Progress" | "Backlog" | "Done";
-  priority: "Low" | "Medium" | "High";
-  property?: string;
-  reported?: string;
-  assignedTo?: string;
+  description: string;
+  propertyId: string;
+  category: string;
+  priority: string;
+  reportedBy: string;
+  assignedTo: string;
+  dueDate: string;
 }
 
 // Define filter options
@@ -99,7 +102,11 @@ function IntegrationsIcon() {
   return <CodeBracketIcon className="w-5 h-5" />
 }
 
-export default function Issues() {
+interface IssuePageProps {
+  // Add any props if needed
+}
+
+const Issues: NextPage<IssuePageProps> = () => {
   // State for the selected issue and drawer open state
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -108,12 +115,11 @@ export default function Issues() {
   const [issuesData, setIssuesData] = useState<Issue[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [newIssue, setNewIssue] = useState({
+  const [newIssue, setNewIssue] = useState<NewIssue>({
     title: '',
     description: '',
     propertyId: '',
-    unitNumber: '',
-    category: 'maintenance',
+    category: '',
     priority: 'medium',
     reportedBy: '',
     assignedTo: '',
@@ -175,7 +181,7 @@ export default function Issues() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setNewIssue(prev => ({
+    setNewIssue((prev: NewIssue) => ({
       ...prev,
       [name]: value
     }));
@@ -188,41 +194,39 @@ export default function Issues() {
         title: formData.title,
         description: formData.description || '',
         property_id: formData.propertyId,
-        unit_id: formData.unitNumber || null,
         status: 'Todo' as const,
-        priority: formData.priority as 'Low' | 'Medium' | 'High',
+        priority: (formData.priority || 'Medium').toLowerCase() as 'Low' | 'Medium' | 'High',
         type: 'Bug' as const,
         assigned_to: formData.assignedTo || null,
         due_date: formData.dueDate || null,
-        is_emergency: formData.priority === 'High'
+        is_emergency: formData.priority?.toLowerCase() === 'high',
+        category_id: formData.category || null,
+        reported_by: formData.reportedBy || null,
+        reported_date: new Date().toISOString()
       };
       
+      console.log('Submitting issue with data:', issueData);
       const newIssueResult = await createIssue(issueData);
       
-      if (newIssueResult) {
-        // Add the new issue to the UI state
-        setIssuesData(prev => [newIssueResult, ...prev]);
-      } else {
-        console.error('Failed to create issue, but no error was thrown');
+      if (!newIssueResult) {
+        throw new Error('Failed to create issue - no data returned');
       }
-    } catch (err) {
-      console.error('Error creating issue:', err);
-      // Fallback for development - create a mock issue
-      if (process.env.NODE_ENV === 'development') {
-        const newMockIssue: Issue = {
-          id: `${Math.floor(Math.random() * 1000)}`,
-          title: formData.title,
-          type: "Bug" as const,
-          status: "Todo" as const,
-          priority: formData.priority as any,
-          property: `${formData.propertyId} ${formData.unitNumber}`.trim(),
-          reported: new Date().toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}),
-          assignedTo: formData.assignedTo
-        };
+      
+      console.log('Issue created successfully:', newIssueResult);
+      
+      // Upload attachments if any
+      if (formData.attachments && formData.attachments.length > 0) {
+        const uploadPromises = formData.attachments.map((file: File) => 
+          uploadIssueMedia(newIssueResult.id, file)
+        );
         
-        setIssuesData(prev => [newMockIssue, ...prev]);
+        await Promise.all(uploadPromises);
       }
-    } finally {
+
+      // Add the new issue to the UI state
+      setIssuesData((prev: Issue[]) => [newIssueResult, ...prev]);
+      
+      // Close the form drawer
       setIsFormDrawerOpen(false);
       
       // Reset form data
@@ -230,13 +234,38 @@ export default function Issues() {
         title: '',
         description: '',
         propertyId: '',
-        unitNumber: '',
-        category: 'maintenance',
+        category: '',
         priority: 'medium',
         reportedBy: '',
         assignedTo: '',
         dueDate: ''
       });
+      
+      // Show success message
+      setError(null);
+    } catch (err) {
+      console.error('Error creating issue:', err);
+      
+      // Set error message for user
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create issue';
+      setError(errorMessage);
+      
+      // In development mode, create a mock issue
+      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+        const newMockIssue: Issue = {
+          id: `${Math.floor(Math.random() * 1000)}`,
+          title: formData.title,
+          type: "Bug",
+          status: "Todo",
+          priority: formData.priority as "Low" | "Medium" | "High",
+          property_id: formData.propertyId,
+          reported_date: new Date().toISOString(),
+          assigned_to: formData.assignedTo
+        };
+        
+        setIssuesData((prev: Issue[]) => [newMockIssue, ...prev]);
+        setIsFormDrawerOpen(false);
+      }
     }
   };
 
@@ -268,6 +297,63 @@ export default function Issues() {
   // Function to handle tab change
   const handleTabChange = (value: string) => {
     setSelectedTab(value);
+  };
+
+  const renderIssueCard = (issue: Issue) => {
+    return (
+      <Card key={issue.id} className="mb-4">
+        <CardHeader>
+          <CardTitle>{issue.title}</CardTitle>
+          <CardDescription>
+            {issue.property_id}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col space-y-2">
+            <div className="flex items-center justify-between">
+              <Text>Status: {issue.status}</Text>
+              <Text>Priority: {issue.priority}</Text>
+            </div>
+            <div className="flex items-center justify-between">
+              <Text>Reported: {issue.reported_date}</Text>
+              <Text>Assigned to: {issue.assigned_to || 'Unassigned'}</Text>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const renderIssueList = (issues: Issue[]) => {
+    return issues.map((issue: Issue) => (
+      <div key={issue.id} className="mb-4">
+        <button
+          onClick={() => openDrawer(issue)}
+          className="w-full text-left"
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle>{issue.title}</CardTitle>
+              <CardDescription>
+                Property: {issue.property_id}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col space-y-2">
+                <div className="flex items-center justify-between">
+                  <Text>Status: {issue.status}</Text>
+                  <Text>Priority: {issue.priority}</Text>
+                </div>
+                <div className="flex items-center justify-between">
+                  <Text>Reported: {issue.reported_date}</Text>
+                  <Text>Assigned to: {issue.assigned_to || 'Unassigned'}</Text>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </button>
+      </div>
+    ));
   };
 
   return (
@@ -751,4 +837,6 @@ export default function Issues() {
       />
     </SidebarLayout>
   );
-} 
+}
+
+export default Issues; 

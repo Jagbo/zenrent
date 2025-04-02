@@ -307,40 +307,55 @@ export const getIssueDetails = async (issueId: string): Promise<IIssueWithDetail
 // Create a new issue
 export const createIssue = async (issue: Partial<IIssue>): Promise<IIssue | null> => {
   try {
-    // Check if property_id is a UUID and convert to property_code if needed
-    if (issue.property_id) {
-      const propertyId = issue.property_id;
-      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      const isUUID = uuidPattern.test(propertyId);
+    console.log('Creating issue with data:', issue);
+    
+    // Check if property_id is provided
+    if (!issue.property_id) {
+      throw new Error('property_id is required');
+    }
+
+    // Check if property_id is a UUID
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const isUUID = uuidPattern.test(issue.property_id);
+    
+    let propertyId = issue.property_id;
+    
+    // If it's not a UUID, try to get the UUID from property_code
+    if (!isUUID) {
+      console.log('Property ID is not a UUID, fetching by property_code');
+      const { data: property, error: propertyError } = await supabase
+        .from('properties')
+        .select('id')
+        .eq('property_code', issue.property_id)
+        .single();
       
-      if (isUUID) {
-        console.log('Property ID is a UUID, fetching property_code for creating issue');
-        const { data: property, error: propertyError } = await supabase
-          .from('properties')
-          .select('property_code')
-          .eq('id', propertyId)
-          .single();
-        
-        if (propertyError) {
-          console.error('Error fetching property:', propertyError);
-          throw propertyError;
-        }
-        
-        if (property && property.property_code) {
-          issue.property_id = property.property_code;
-          console.log('Using property_code for issue creation:', issue.property_id);
-        }
+      if (propertyError) {
+        console.error('Error fetching property:', propertyError);
+        throw propertyError;
       }
+      
+      if (!property) {
+        throw new Error(`Property not found with code: ${issue.property_id}`);
+      }
+      
+      propertyId = property.id;
     }
     
-    // Set reported_date if not provided
-    if (!issue.reported_date) {
-      issue.reported_date = new Date().toISOString();
-    }
+    // Use the property's UUID for the issue
+    const issueData = {
+      ...issue,
+      property_id: propertyId,
+      reported_date: issue.reported_date || new Date().toISOString(),
+      status: issue.status || 'Todo',
+      type: issue.type || 'Bug',
+      priority: issue.priority || 'Medium'
+    };
+    
+    console.log('Creating issue with processed data:', issueData);
     
     const { data, error } = await supabase
       .from('issues')
-      .insert([issue])
+      .insert([issueData])
       .select()
       .single();
     
@@ -349,10 +364,15 @@ export const createIssue = async (issue: Partial<IIssue>): Promise<IIssue | null
       throw error;
     }
     
+    if (!data) {
+      throw new Error('Issue was created but no data was returned');
+    }
+    
+    console.log('Issue created successfully:', data);
     return data;
   } catch (error) {
     console.error('Error creating issue:', error);
-    return null;
+    throw error; // Re-throw the error to be handled by the caller
   }
 };
 
