@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { BaseDrawer } from './BaseDrawer';
+import { CalendarEvent } from '@/lib/calendar-utils';
 
 interface CalendarEventFormState {
   title: string;
@@ -7,7 +8,7 @@ interface CalendarEventFormState {
   startTime: string;
   endTime: string;
   location: string;
-  type: 'inspection' | 'payment' | 'maintenance' | 'meeting' | 'showing' | 'contract' | 'admin';
+  event_type: 'inspection' | 'payment' | 'maintenance' | 'meeting' | 'showing' | 'contract' | 'admin';
   description: string;
 }
 
@@ -17,7 +18,7 @@ interface CalendarEventFormDrawerProps {
   onSubmit: (data: CalendarEventFormState) => void;
   initialData?: Partial<CalendarEventFormState>;
   title?: string;
-  selectedEvent?: any; // For viewing mode
+  selectedEvent?: CalendarEvent | null;
 }
 
 export const CalendarEventFormDrawer: React.FC<CalendarEventFormDrawerProps> = ({
@@ -29,18 +30,18 @@ export const CalendarEventFormDrawer: React.FC<CalendarEventFormDrawerProps> = (
   selectedEvent = null
 }) => {
   const [formData, setFormData] = useState<CalendarEventFormState>({
-    title: initialData.title || '',
-    date: initialData.date || '',
-    startTime: initialData.startTime || '',
-    endTime: initialData.endTime || '',
-    location: initialData.location || '',
-    type: initialData.type || 'meeting',
-    description: initialData.description || ''
+    title: initialData?.title || '',
+    date: initialData?.date || '',
+    startTime: initialData?.startTime || '',
+    endTime: initialData?.endTime || '',
+    location: initialData?.location || '',
+    event_type: initialData?.event_type || 'meeting',
+    description: initialData?.description || ''
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev: CalendarEventFormState) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -72,8 +73,8 @@ export const CalendarEventFormDrawer: React.FC<CalendarEventFormDrawerProps> = (
       {selectedEvent ? (
         // Event details view
         <div className="py-6">
-          <div className={`${getEventColor(selectedEvent.type)} px-3 py-1 inline-block rounded-full text-sm font-medium mb-4`}>
-            {selectedEvent.type.charAt(0).toUpperCase() + selectedEvent.type.slice(1)}
+          <div className={`${getEventColor(selectedEvent.event_type)} px-3 py-1 inline-block rounded-full text-sm font-medium mb-4`}>
+            {selectedEvent.event_type.charAt(0).toUpperCase() + selectedEvent.event_type.slice(1)}
           </div>
           
           <div className="space-y-4">
@@ -196,15 +197,15 @@ export const CalendarEventFormDrawer: React.FC<CalendarEventFormDrawerProps> = (
           </div>
 
           <div>
-            <label htmlFor="type" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="event_type" className="block text-sm font-medium text-gray-700">
               Event Type
             </label>
             <select
-              name="type"
-              id="type"
+              name="event_type"
+              id="event_type"
               required
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
-              value={formData.type}
+              value={formData.event_type}
               onChange={handleChange}
             >
               <option value="inspection">Inspection</option>

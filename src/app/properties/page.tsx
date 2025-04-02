@@ -15,6 +15,11 @@ import { EditPropertyDrawer } from '../components/EditPropertyDrawer'
 import { AdvertisePropertyDrawer } from '../components/AdvertisePropertyDrawer'
 import { useAuth } from '../../lib/auth-provider'
 import { getProperties, IProperty } from '../../lib/propertyService'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { v4 as uuidv4 } from 'uuid'
+import { useRouter } from 'next/navigation'
+import { PropertyFormState } from '../components/PropertyFormDrawer'
+import { toast } from 'react-hot-toast'
 
 // Helper function for class names
 function classNames(...classes: string[]) {
@@ -43,25 +48,6 @@ interface PropertyForUI {
   occupancyRate: number;
   monthlyRevenue: number;
   image: string;
-}
-
-// Define the PropertyFormState interface
-interface PropertyFormState {
-  name: string;
-  address: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  type: string;
-  status: string;
-  bedrooms: string;
-  bathrooms: string;
-  squareFeet: string;
-  rentAmount: string;
-  description: string;
-  amenities: string;
-  yearBuilt: string;
-  parkingSpots: string;
 }
 
 // Status colors based on occupancy rate
@@ -299,6 +285,7 @@ export default function Properties() {
     parkingSpots: ''
   });
   const [searchTerm, setSearchTerm] = useState('');
+  const router = useRouter();
 
   // Fetch properties when the component mounts
   useEffect(() => {
@@ -359,9 +346,57 @@ export default function Properties() {
     }));
   };
 
-  const handleSubmit = (formData: PropertyFormState) => {
-    console.log('New property data:', formData);
-    setIsDrawerOpen(false);
+  const handleSubmit = async (formData: PropertyFormState) => {
+    try {
+      const supabase = createClientComponentClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        toast.error('Please sign in to add a property');
+        return;
+      }
+
+      // Generate a unique property code
+      const propertyCode = uuidv4().slice(0, 8).toUpperCase();
+
+      const { data, error } = await supabase
+        .from('properties')
+        .insert([
+          {
+            user_id: user.id,
+            property_code: propertyCode,
+            address: formData.address,
+            city: formData.city,
+            postcode: formData.postcode,
+            property_type: formData.property_type,
+            bedrooms: parseInt(formData.bedrooms),
+            bathrooms: parseInt(formData.bathrooms),
+            description: formData.description,
+            is_furnished: formData.is_furnished,
+            has_garden: formData.has_garden,
+            has_parking: formData.has_parking,
+            energy_rating: formData.energy_rating,
+            council_tax_band: formData.council_tax_band,
+            notes: formData.notes,
+            status: 'available'
+          }
+        ])
+        .select();
+
+      if (error) {
+        toast.error('Failed to save property. Please try again.');
+        console.error('Error saving property:', error);
+        return;
+      }
+
+      toast.success('Property added successfully!');
+      setIsDrawerOpen(false);
+      // Refresh the properties list
+      router.refresh();
+    } catch (error) {
+      toast.error('An unexpected error occurred. Please try again.');
+      console.error('Error saving property:', error);
+    }
   };
 
   const handleEditSubmit = (e: React.FormEvent) => {
@@ -383,6 +418,30 @@ export default function Properties() {
   const handleEditSave = (updatedProperty: any) => {
     console.log('Updated property:', updatedProperty);
     setIsEditDrawerOpen(false);
+  };
+
+  const handleDeleteProperty = async (property: PropertyForUI) => {
+    try {
+      const supabase = createClientComponentClient();
+      
+      const { error } = await supabase
+        .from('properties')
+        .delete()
+        .eq('id', property.id);
+
+      if (error) {
+        toast.error('Failed to delete property. Please try again.');
+        console.error('Error deleting property:', error);
+        return;
+      }
+
+      toast.success('Property deleted successfully!');
+      // Refresh the properties list
+      router.refresh();
+    } catch (error) {
+      toast.error('An unexpected error occurred. Please try again.');
+      console.error('Error deleting property:', error);
+    }
   };
 
   return (
@@ -505,7 +564,7 @@ export default function Properties() {
                         </MenuButton>
                         <MenuItems
                           transition
-                          className="absolute right-0 z-10 mt-0.5 w-32 origin-top-right rounded-md bg-white py-2 ring-1 shadow-lg ring-gray-900/5 transition focus:outline-hidden data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
+                          className="absolute right-0 z-50 mt-0.5 w-32 origin-top-right rounded-md bg-white py-2 ring-1 shadow-lg ring-gray-900/5 transition focus:outline-hidden data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
                         >
                           <MenuItem>
                             <Link
@@ -537,6 +596,20 @@ export default function Properties() {
                               className="block px-3 py-1 text-sm/6 text-gray-900 data-focus:bg-gray-50 data-focus:outline-hidden"
                             >
                               Advertise<span className="sr-only">, {property.name}</span>
+                            </a>
+                          </MenuItem>
+                          <MenuItem>
+                            <a
+                              href="#"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                if (window.confirm('Are you sure you want to delete this property? This action cannot be undone.')) {
+                                  handleDeleteProperty(property);
+                                }
+                              }}
+                              className="block px-3 py-1 text-sm/6 text-red-600 data-focus:bg-gray-50 data-focus:outline-hidden"
+                            >
+                              Delete<span className="sr-only">, {property.name}</span>
                             </a>
                           </MenuItem>
                         </MenuItems>

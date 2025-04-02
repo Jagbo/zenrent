@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import type { ReactElement } from 'react'
 import {
   HomeIcon,
   BuildingOfficeIcon,
@@ -12,8 +13,8 @@ import {
   CodeBracketIcon,
   Cog6ToothIcon,
 } from '@heroicons/react/24/outline'
-import { getProperties, IProperty } from '../../lib/propertyService'
-import { useAuth } from '../../lib/auth-provider'
+import { getProperties, IProperty } from '@/lib/propertyService'
+import { useAuth } from '@/lib/auth-provider'
 
 // Define navigation items
 const navigation = [
@@ -27,63 +28,40 @@ const navigation = [
   { name: 'Integrations', path: '/integrations', icon: CodeBracketIcon },
 ]
 
-// Fallback properties in case API fails
-const fallbackProperties = [
-  { id: '123-main', name: '123 Main Street', path: '/properties/123-main' },
-  { id: '456-park', name: '456 Park Avenue', path: '/properties/456-park' },
-  { id: '789-ocean', name: '789 Ocean Drive', path: '/properties/789-ocean' },
-]
-
-function classNames(...classes: string[]) {
+function classNames(...classes: string[]): string {
   return classes.filter(Boolean).join(' ')
 }
 
-export function SidebarContent({ currentPath }: { currentPath: string }) {
+export function SidebarContent({ currentPath }: { currentPath: string }): ReactElement {
   const { user } = useAuth();
   const [properties, setProperties] = useState<Array<{ id: string; name: string; path: string; }>>([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch properties when the component mounts
   useEffect(() => {
     const fetchProperties = async () => {
+      if (!user?.id) {
+        setLoading(false);
+        setProperties([]);
+        return;
+      }
+
       try {
         setLoading(true);
-        
-        // Check for authenticated user
-        if (!user) {
-          console.log('No authenticated user found, waiting for authentication...');
-          setProperties([]);
-          return;
-        }
-        
         const propertiesData = await getProperties(user.id);
         
         if (propertiesData && propertiesData.length > 0) {
-          // Map Supabase properties to the format needed for sidebar
           const formattedProperties = propertiesData.map((property: IProperty) => ({
             id: property.id,
-            name: property.name || property.address,
+            name: property.address || property.property_code,
             path: `/properties/${property.id}`
           }));
           setProperties(formattedProperties);
         } else {
-          // Only use fallback in development mode
-          if (process.env.NODE_ENV === 'development') {
-            console.log('No properties found in development mode, using fallback properties');
-            setProperties(fallbackProperties);
-          } else {
-            setProperties([]);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching properties for sidebar:', error);
-        // Only use fallback in development mode
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Error in development mode, using fallback properties');
-          setProperties(fallbackProperties);
-        } else {
           setProperties([]);
         }
+      } catch (error) {
+        console.error('Error fetching properties:', error);
+        setProperties([]);
       } finally {
         setLoading(false);
       }
@@ -100,7 +78,6 @@ export function SidebarContent({ currentPath }: { currentPath: string }) {
           src="/images/logo/zenrent-logo.png"
           className="h-8 w-auto"
         />
-        
       </div>
       <nav className="flex flex-1 flex-col">
         <ul role="list" className="flex flex-1 flex-col gap-y-7">
@@ -136,12 +113,14 @@ export function SidebarContent({ currentPath }: { currentPath: string }) {
           <li>
             <div className="text-xs/6 font-semibold text-gray-400">Your properties</div>
             <ul role="list" className="-mx-2 mt-2 space-y-1">
-              {loading ? (
+              {!user ? (
+                <li className="px-2 py-1 text-sm text-gray-500">Sign in to view properties</li>
+              ) : loading ? (
                 <li className="px-2 py-1 text-sm text-gray-500">Loading properties...</li>
               ) : properties.length === 0 ? (
                 <li className="px-2 py-1 text-sm text-gray-500">No properties found</li>
               ) : (
-                properties.map((property, index) => (
+                properties.map((property: { id: string; name: string; path: string }, index: number) => (
                   <li key={property.id}>
                     <a
                       href={property.path}

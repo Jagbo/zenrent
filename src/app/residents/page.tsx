@@ -30,17 +30,23 @@ interface TenantAttachment {
 interface TenantWithUI extends ITenant {
   unit?: string;
   leaseEnd?: string;
-  attachments: TenantAttachment[];
-  property_name?: string;
+  attachments: Array<{ name: string; size: string; }>;
+  property_name: string;
   property_address?: string;
   property_id?: string;
   property_code?: string;
+  image: string;
 }
 
 // Define property type for UI
 interface PropertyListItem {
   id: string;
   name: string;
+}
+
+interface Attachment {
+  name: string;
+  size: string;
 }
 
 export default function Residents() {
@@ -61,14 +67,10 @@ export default function Residents() {
         
         if (user?.id) {
           fetchedTenants = await getTenants(user.id);
-        } else if (process.env.NODE_ENV === 'development') {
-          // In development mode, try to get tenants without user ID
-          console.log('No user ID available in development mode, trying to fetch tenants anyway');
-          fetchedTenants = await getTenants();
         }
         
         // Transform tenants for UI display
-        const tenantsWithUI = fetchedTenants.map(tenant => ({
+        const tenantsWithUI = fetchedTenants.map((tenant: ITenant) => ({
           ...tenant,
           image: tenant.image || getInitialsAvatar(tenant.name),
           attachments: [
@@ -84,7 +86,7 @@ export default function Residents() {
         const propertySet = new Set<string>();
         const propertyList: PropertyListItem[] = [];
         
-        tenantsWithUI.forEach(tenant => {
+        tenantsWithUI.forEach((tenant: TenantWithUI) => {
           if (tenant.property_address && !propertySet.has(tenant.property_address)) {
             propertySet.add(tenant.property_address);
             propertyList.push({
@@ -97,7 +99,8 @@ export default function Residents() {
         setProperties(propertyList);
       } catch (error) {
         console.error('Error fetching tenants:', error);
-        // Show error state or toast message if needed
+        setTenants([]);
+        setProperties([]);
       } finally {
         setLoading(false);
       }
@@ -115,12 +118,12 @@ export default function Residents() {
   // Filter tenants by selected property
   const filteredTenants = selectedPropertyId === 'all'
     ? tenants
-    : tenants.filter(t => t.property_address === selectedPropertyId);
+    : tenants.filter((t: TenantWithUI) => t.property_address === selectedPropertyId);
 
   // Group tenants by property
   const tenantsByProperty: Record<string, TenantWithUI[]> = {};
   
-  filteredTenants.forEach(tenant => {
+  filteredTenants.forEach((tenant: TenantWithUI) => {
     const propertyName = tenant.property_address || 'Unassigned';
     if (!tenantsByProperty[propertyName]) {
       tenantsByProperty[propertyName] = [];
@@ -209,7 +212,7 @@ export default function Residents() {
                 >
                   All
                 </button>
-                {properties.map((property) => (
+                {properties.map((property: PropertyListItem) => (
                   <button
                     key={property.id}
                     onClick={() => setSelectedPropertyId(property.id)}
@@ -226,12 +229,12 @@ export default function Residents() {
 
               {/* Tenant List */}
               <div className="divide-y divide-gray-200">
-                {Object.entries(tenantsByProperty).map(([propertyName, propertyTenants]) => (
+                {Object.entries(tenantsByProperty).map(([propertyName, propertyTenants]: [string, TenantWithUI[]]) => (
                   <div key={propertyName}>
                     <div className="px-4 py-3 bg-gray-50">
                       <h3 className="text-sm font-cabinet-grotesk-bold text-gray-900">{propertyName}</h3>
                     </div>
-                    {propertyTenants.map((tenant) => (
+                    {propertyTenants.map((tenant: TenantWithUI) => (
                       <button
                         key={tenant.id}
                         onClick={() => setSelectedTenant(tenant)}
@@ -314,7 +317,7 @@ export default function Residents() {
                         <dt className="text-sm/6 font-medium text-gray-900">Attachments</dt>
                         <dd className="mt-2 text-sm text-gray-900 sm:col-span-2 sm:mt-0">
                           <ul role="list" className="divide-y divide-gray-100 rounded-md border border-gray-200">
-                            {selectedTenant.attachments.map((attachment, index) => (
+                            {selectedTenant.attachments.map((attachment: Attachment, index: number) => (
                               <li key={index} className="flex items-center justify-between py-4 pr-5 pl-4 text-sm/6">
                                 <div className="flex w-0 flex-1 items-center">
                                   <PaperClipIcon className="size-5 shrink-0 text-gray-400" aria-hidden="true" />

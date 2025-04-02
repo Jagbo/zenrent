@@ -1,25 +1,19 @@
 export interface Issue {
   id: string;
   title: string;
-  description: string | null;
-  property_id: string;
-  unit_id: string | null;
-  category_id: string | null;
-  status: 'Todo' | 'In Progress' | 'Backlog' | 'Done';
-  priority: 'Low' | 'Medium' | 'High';
-  type: 'Bug' | 'Documentation' | 'Feature';
-  reported_by: string | null;
-  assigned_to: string | null;
-  tenant_id: string | null;
-  reported_date: string;
-  due_date: string | null;
-  resolution_date: string | null;
-  resolution_notes: string | null;
-  estimated_cost: number | null;
-  actual_cost: number | null;
-  is_emergency: boolean;
-  created_at: string;
-  updated_at: string;
+  description?: string;
+  type: "Bug" | "Documentation" | "Feature";
+  status: "Todo" | "In Progress" | "Backlog" | "Done";
+  priority: "Low" | "Medium" | "High";
+  property_id?: string;
+  unit_id?: string;
+  reported_date?: string;
+  reported_by?: string;
+  assigned_to?: string;
+  due_date?: string;
+  is_emergency?: boolean;
+  category_id?: string;
+  attachments?: string[];
 }
 
 export interface IssueCategory {

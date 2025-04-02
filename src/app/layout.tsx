@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import Script from 'next/script'
 import { Providers } from './components/providers';
 import { initSupabaseEnvironment } from '@/lib/supabase-init';
+import { Toaster } from 'react-hot-toast';
 
 const inter = Inter({
   subsets: ["latin"],
@@ -33,6 +34,7 @@ export default function RootLayout({
         <Providers>
           {children}
         </Providers>
+        <Toaster position="top-right" />
       </body>
     </html>
   );

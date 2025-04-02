@@ -3,16 +3,16 @@ import { getCurrentUserId } from './auth-provider';
 
 export interface IProperty {
   id: string;
-  name: string;
+  name?: string;
   address: string;
   city: string;
   state?: string;
   zipCode?: string;
-  postcode?: string;
+  postcode: string;
   property_type: string;
   status?: string;
-  bedrooms?: number;
-  bathrooms?: number;
+  bedrooms: number;
+  bathrooms: number;
   squareFeet?: number;
   rentAmount?: number;
   description?: string;
@@ -24,9 +24,10 @@ export interface IProperty {
   user_id: string;
   image?: string;
   photo_url?: string;
-  property_code?: string;
+  property_code: string;
   has_garden?: boolean;
   has_parking?: boolean;
+  is_furnished?: boolean;
   metadata?: {
     amenities?: string[];
     year_built?: number;
@@ -128,7 +129,7 @@ export const getAllProperties = async (): Promise<IProperty[]> => {
     
     console.log('All properties fetched:', data?.length || 0);
     if (data && data.length > 0) {
-      console.log('Property IDs:', data.map(p => p.id));
+      console.log('Property IDs:', data.map((p: IProperty) => p.id));
     }
     
     return data || [];
@@ -174,6 +175,31 @@ export const getPropertyById = async (propertyId: string): Promise<IProperty | n
   }
 };
 
+// Helper function to generate UI Avatar URL
+const getAvatarUrl = (name: string) => {
+  const encodedName = encodeURIComponent(name);
+  return `https://ui-avatars.com/api/?name=${encodedName}&background=random`;
+};
+
+// Helper function to validate image URL
+const isValidImageUrl = (url?: string): boolean => {
+  if (!url) return false;
+  
+  // List of allowed domains from next.config.js
+  const allowedDomains = [
+    'images.unsplash.com',
+    'picsum.photos',
+    'ui-avatars.com'
+  ];
+  
+  try {
+    const urlObj = new URL(url);
+    return allowedDomains.includes(urlObj.hostname);
+  } catch {
+    return false;
+  }
+};
+
 // Fetch a property with its tenants
 export const getPropertyWithTenants = async (propertyId: string): Promise<IPropertyWithTenants | null> => {
   try {
@@ -188,11 +214,34 @@ export const getPropertyWithTenants = async (propertyId: string): Promise<IPrope
     
     console.log('Found property, fetching tenants for property ID:', property.id);
     
-    // Get tenants for this property from the tenants table
-    const { data: tenants, error: tenantsError } = await supabase
-      .from('tenants')
-      .select('*')
-      .eq('property_id', property.id);
+    interface LeaseWithTenant {
+      tenant_id: string;
+      tenants: {
+        id: string;
+        name: string;
+        email: string;
+        phone?: string;
+        photo_url?: string;
+        status?: string;
+      };
+    }
+    
+    // Get tenants for this property by joining through the leases table
+    const { data: tenantData, error: tenantsError } = await supabase
+      .from('leases')
+      .select(`
+        tenant_id,
+        tenants:tenant_id (
+          id,
+          name,
+          email,
+          phone,
+          photo_url,
+          status
+        )
+      `)
+      .eq('property_id', property.id)
+      .eq('status', 'active');
     
     if (tenantsError) {
       console.error(`Error fetching tenants for property ${property.id}:`, tenantsError);
@@ -202,9 +251,27 @@ export const getPropertyWithTenants = async (propertyId: string): Promise<IPrope
       };
     }
     
+    // Transform the joined data to match ITenant interface
+    const tenants = (tenantData as LeaseWithTenant[] | null)?.map(lease => {
+      const photoUrl = lease.tenants.photo_url;
+      const validatedImage = isValidImageUrl(photoUrl) ? photoUrl : getAvatarUrl(lease.tenants.name);
+      
+      return {
+        id: lease.tenants.id,
+        name: lease.tenants.name,
+        email: lease.tenants.email,
+        phone: lease.tenants.phone,
+        image: validatedImage,
+        status: lease.tenants.status,
+        property_id: property.id,
+        property_address: property.address,
+        property_code: property.property_code
+      };
+    }) || [];
+
     return {
       ...property,
-      tenants: tenants || []
+      tenants: tenants
     };
   } catch (error) {
     console.error(`Error fetching property with tenants ${propertyId}:`, error);

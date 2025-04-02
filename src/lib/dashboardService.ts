@@ -171,6 +171,7 @@ export const getOccupancyRate = async (userId: string): Promise<number> => {
       .from('leases')
       .select('id')
       .in('property_id', propertyIds)
+      .lte('start_date', new Date().toISOString())
       .gte('end_date', new Date().toISOString());
 
     if (leasesError) {
