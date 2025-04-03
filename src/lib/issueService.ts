@@ -628,63 +628,50 @@ export const getRecentIssues = async (limit: number = 5): Promise<any[]> => {
     // Try to get the current user first
     const userId = await getCurrentUserId();
     
-    // If we're in development mode and no user is found, return sample data
-    if (process.env.NODE_ENV === 'development' && !userId) {
-      console.log('No authenticated user found in development mode, returning sample data');
-      const sampleIssues = getSampleIssues();
-      return sampleIssues.slice(0, limit);
+    // If we don't have a user, return empty array
+    if (!userId) {
+      console.log('No authenticated user found');
+      return [];
     }
     
-    // If we have a user, get their properties first
-    if (userId) {
-      console.log('Fetching properties for user:', userId);
-      const { data: properties, error: propertiesError } = await supabase
-        .from('properties')
-        .select('id, address, city, postcode, property_code')
-        .eq('user_id', userId);
-      
-      if (propertiesError) {
-        console.error('Error fetching properties:', propertiesError);
-        throw propertiesError;
-      }
-      
-      if (!properties || properties.length === 0) {
-        console.log('No properties found for user');
-        return [];
-      }
-      
-      // Get property IDs as an array
-      const propertyIds = properties.map(p => p.id);
-      console.log('Property IDs:', propertyIds);
-      
-      // Now get all issues for these properties
-      const { data, error } = await supabase
-        .from('issues')
-        .select('*')
-        .in('property_id', propertyIds)
-        .order('reported_date', { ascending: false })
-        .limit(limit);
-      
-      if (error) {
-        console.error('Error fetching recent issues:', error);
-        throw error;
-      }
-      
-      // Convert to the format used in the UI, passing the properties for address lookup
-      return (data || []).map(issue => convertToUIIssue(issue, properties));
+    // Get user's properties first
+    console.log('Fetching properties for user:', userId);
+    const { data: properties, error: propertiesError } = await supabase
+      .from('properties')
+      .select('id, address, city, postcode, property_code')
+      .eq('user_id', userId);
+    
+    if (propertiesError) {
+      console.error('Error fetching properties:', propertiesError);
+      throw propertiesError;
     }
     
-    // If no user and not in development mode, return empty array
-    console.log('No authenticated user found in production mode');
-    return [];
+    if (!properties || properties.length === 0) {
+      console.log('No properties found for user');
+      return [];
+    }
+    
+    // Get property IDs as an array
+    const propertyIds = properties.map(p => p.id);
+    console.log('Property IDs:', propertyIds);
+    
+    // Now get all issues for these properties
+    const { data, error } = await supabase
+      .from('issues')
+      .select('*')
+      .in('property_id', propertyIds)
+      .order('reported_date', { ascending: false })
+      .limit(limit);
+    
+    if (error) {
+      console.error('Error fetching recent issues:', error);
+      throw error;
+    }
+    
+    // Convert to the format used in the UI, passing the properties for address lookup
+    return (data || []).map(issue => convertToUIIssue(issue, properties));
   } catch (error) {
-    console.error('Error fetching recent issues:', error);
-    // Only return sample data in development mode
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Error in development mode, returning sample data');
-      const sampleIssues = getSampleIssues();
-      return sampleIssues.slice(0, limit);
-    }
+    console.error('Error in getRecentIssues:', error);
     return [];
   }
 };

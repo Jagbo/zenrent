@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid'
 
 export interface PlaidTransaction {
   id: number;
@@ -19,6 +20,19 @@ interface TransactionOptions {
   limit?: number;
   offset?: number;
 }
+
+// Initialize configuration
+const configuration = new Configuration({
+  basePath: PlaidEnvironments[process.env.NEXT_PUBLIC_PLAID_ENV || 'sandbox'],
+  baseOptions: {
+    headers: {
+      'PLAID-CLIENT-ID': process.env.NEXT_PUBLIC_PLAID_CLIENT_ID,
+      'PLAID-SECRET': process.env.PLAID_SECRET,
+    },
+  },
+})
+
+export const plaidClient = new PlaidApi(configuration)
 
 /**
  * Get transactions for a specific property

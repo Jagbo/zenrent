@@ -48,8 +48,9 @@ import { Button } from "@/components/ui/button"
 import { SidebarContent } from '../components/sidebar-content'
 import { classNames } from '@/utils/classNames'
 import { WhatsAppBusinessDrawer } from '../components/WhatsAppBusinessDrawer'
-import { BankAccountDrawer } from '../components/BankAccountDrawer'
+import { BankAccountDrawer } from './components/BankAccountDrawer'
 import { AccountingSoftwareDrawer } from '../components/AccountingSoftwareDrawer'
+import { Wallet } from 'lucide-react'
 
 interface IntegrationOptionProps {
   logo: string
@@ -135,6 +136,7 @@ export default function Integrations() {
   const [isWhatsAppDrawerOpen, setIsWhatsAppDrawerOpen] = useState(false)
   const [isBankAccountDrawerOpen, setIsBankAccountDrawerOpen] = useState(false)
   const [isAccountingDrawerOpen, setIsAccountingDrawerOpen] = useState(false)
+  const [isBankDrawerOpen, setIsBankDrawerOpen] = useState(false)
   
   return (
     <SidebarLayout
@@ -208,7 +210,7 @@ export default function Integrations() {
           </Card>
 
           {/* Bank Account */}
-          <Card className="cursor-pointer hover:border-blue-200 transition-colors" onClick={() => setIsBankAccountDrawerOpen(true)}>
+          <Card className="cursor-pointer hover:border-blue-200 transition-colors" onClick={() => setIsBankDrawerOpen(true)}>
             <CardHeader className="pb-3">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                 <CardTitle className="text-xl">Bank Account</CardTitle>
@@ -244,8 +246,8 @@ export default function Integrations() {
 
           {/* Bank Account Drawer */}
           <BankAccountDrawer 
-            isOpen={isBankAccountDrawerOpen}
-            onClose={() => setIsBankAccountDrawerOpen(false)}
+            isOpen={isBankDrawerOpen}
+            onClose={() => setIsBankDrawerOpen(false)}
           />
 
           {/* Accounting Software Drawer */}

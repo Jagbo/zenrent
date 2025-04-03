@@ -957,10 +957,9 @@ export default function Dashboard() {
                   </tbody>
                 </table>
               )}
-            </div>
-            
-            <div className="px-6 py-4 border-t border-gray-200">
-              <Link href="/issues" className="text-sm text-gray-900 hover:text-indigo-900">View all issues →</Link>
+              <div className="px-6 py-4 border-t border-gray-200">
+                <Link href="/issues" className="text-sm text-gray-900 hover:text-indigo-900">View all issues →</Link>
+              </div>
             </div>
           </div>
           

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import type { ReactElement } from 'react'
 import { SidebarLayout } from '../../components/sidebar-layout'
 import { SidebarContent } from '../../components/sidebar-content'
 import { Heading } from '../../components/heading'
@@ -18,12 +19,18 @@ interface Transaction {
   property: string;
   amount: number;
   status: string;
+  receipt_url?: string;
 }
 
+// Add type for property
 interface Property {
   id: string;
-  address: string;
-  property_code: string;
+  name: string;
+}
+
+// Add type for counts
+interface PropertyCounts {
+  [key: string]: number;
 }
 
 // Add the FinancialData interface like in the main financial page
@@ -84,12 +91,13 @@ const getCategories = (transactions: Transaction[]) => ['All', ...new Set(transa
 const getPropertyNames = (transactions: Transaction[]) => ['All', ...new Set(transactions.map(t => t.property))];
 const getStatuses = (transactions: Transaction[]) => ['All', ...new Set(transactions.map(t => t.status))];
 
-export default function Transactions() {
+export default function Transactions(): ReactElement {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | 'all'>('all');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('All');
   const [categoryFilter, setCategoryFilter] = useState('All');
@@ -97,6 +105,8 @@ export default function Transactions() {
   const [statusFilter, setStatusFilter] = useState('All');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -205,6 +215,71 @@ export default function Transactions() {
     setIsDrawerOpen(true);
   }
 
+  const handleCategoryChange = async (transactionId: string, newCategory: string) => {
+    try {
+      const response = await fetch(`/api/transactions/${transactionId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ category: newCategory }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update category');
+      }
+
+      // Update local state
+      setTransactions(prevTransactions =>
+        prevTransactions.map(t =>
+          t.id === transactionId ? { ...t, category: newCategory } : t
+        )
+      );
+      setEditingCategory(null);
+    } catch (error) {
+      console.error('Error updating category:', error);
+      // You might want to show an error toast here
+    }
+  };
+
+  // Add receipt upload handler
+  const handleReceiptUpload = async (transactionId: string, file: File) => {
+    try {
+      setUploadingReceipt(true);
+      setUploadError(null);
+
+      const formData = new FormData();
+      formData.append('receipt', file);
+
+      const response = await fetch(`/api/transactions/${transactionId}/receipt`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload receipt');
+      }
+
+      const data = await response.json();
+
+      // Update local state with new receipt URL
+      setTransactions(prevTransactions =>
+        prevTransactions.map(t =>
+          t.id === transactionId ? { ...t, receipt_url: data.receipt_url } : t
+        )
+      );
+
+      if (selectedTransaction?.id === transactionId) {
+        setSelectedTransaction(prev => prev ? { ...prev, receipt_url: data.receipt_url } : null);
+      }
+    } catch (error) {
+      console.error('Error uploading receipt:', error);
+      setUploadError(error instanceof Error ? error.message : 'Failed to upload receipt');
+    } finally {
+      setUploadingReceipt(false);
+    }
+  };
+
   const filteredTransactions = transactions.filter(transaction => {
     // Apply search term filter
     if (searchTerm && !Object.values(transaction).some(value => 
@@ -244,12 +319,12 @@ export default function Transactions() {
     categoryFilter,
     propertyFilter,
     statusFilter,
-    uniqueProperties: [...new Set(transactions.map(t => t.property))],
+    uniqueProperties: [...new Set(transactions.map((t: Transaction) => t.property))],
     // Count transactions by property
-    propertyCounts: transactions.reduce((counts, t) => {
+    propertyCounts: transactions.reduce((counts: PropertyCounts, t: Transaction) => {
       counts[t.property] = (counts[t.property] || 0) + 1;
       return counts;
-    }, {} as Record<string, number>)
+    }, {} as PropertyCounts)
   });
 
   // Format currency
@@ -336,7 +411,7 @@ export default function Transactions() {
                 >
                   <option value="all">All Properties</option>
                   {properties.map(property => (
-                    <option key={property.id} value={property.id}>{property.address}</option>
+                    <option key={property.id} value={property.id}>{property.name}</option>
                   ))}
                 </select>
               </div>
@@ -380,8 +455,9 @@ export default function Transactions() {
                   value={propertyFilter}
                   onChange={(e) => setPropertyFilter(e.target.value)}
                 >
-                  {propertyNames.map(propertyName => (
-                    <option key={propertyName} value={propertyName}>{propertyName}</option>
+                  <option value="All">All Properties</option>
+                  {properties.map((property: Property) => (
+                    <option key={property.id} value={property.id}>{property.name}</option>
                   ))}
                 </select>
                 <select
@@ -412,40 +488,88 @@ export default function Transactions() {
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property</th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredTransactions.map((transaction) => (
-                    <tr key={transaction.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(transaction.date)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{transaction.type}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{transaction.category}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{transaction.description}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{transaction.property}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  {filteredTransactions.map((transaction: Transaction) => (
+                    <tr 
+                      key={transaction.id} 
+                      className="hover:bg-gray-50 transition-colors"
+                    >
+                      <td 
+                        className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 cursor-pointer"
+                        onClick={() => handleViewTransaction(transaction)}
+                      >
+                        {formatDate(transaction.date)}
+                      </td>
+                      <td 
+                        className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 cursor-pointer"
+                        onClick={() => handleViewTransaction(transaction)}
+                      >
+                        {transaction.type}
+                      </td>
+                      <td 
+                        className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingCategory(transaction.id);
+                        }}
+                      >
+                        {editingCategory === transaction.id ? (
+                          <select
+                            className="form-select rounded-md border-gray-300 py-1 pl-2 pr-8 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            value={transaction.category}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              handleCategoryChange(transaction.id, e.target.value);
+                            }}
+                            onBlur={() => setEditingCategory(null)}
+                            autoFocus
+                          >
+                            {categories.filter(cat => cat !== 'All').map(category => (
+                              <option key={category} value={category}>
+                                {category}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="flex items-center justify-between cursor-pointer hover:text-blue-600">
+                            <span>{transaction.category}</span>
+                            <svg className="h-4 w-4 text-gray-400 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                          </div>
+                        )}
+                      </td>
+                      <td 
+                        className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 cursor-pointer"
+                        onClick={() => handleViewTransaction(transaction)}
+                      >
+                        {transaction.description}
+                      </td>
+                      <td 
+                        className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 cursor-pointer"
+                        onClick={() => handleViewTransaction(transaction)}
+                      >
+                        {transaction.property}
+                      </td>
+                      <td 
+                        className="px-6 py-4 whitespace-nowrap text-sm cursor-pointer"
+                        onClick={() => handleViewTransaction(transaction)}
+                      >
                         <span className={transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'}>
                           {formatCurrency(transaction.amount)}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td 
+                        className="px-6 py-4 whitespace-nowrap cursor-pointer"
+                        onClick={() => handleViewTransaction(transaction)}
+                      >
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                           transaction.status === 'Completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
                         }`}>
                           {transaction.status}
                         </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <a 
-                          href="#" 
-                          className="text-blue-600 hover:text-blue-900"
-                          onClick={(e) => {
-                            e.preventDefault()
-                            handleViewTransaction(transaction)
-                          }}
-                        >
-                          View
-                        </a>
                       </td>
                     </tr>
                   ))}
@@ -511,10 +635,13 @@ export default function Transactions() {
         {isDrawerOpen && selectedTransaction && (
           <div className="fixed inset-0 overflow-hidden z-50">
             <div className="absolute inset-0 overflow-hidden">
-              <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={() => setIsDrawerOpen(false)} />
+              <div 
+                className="fixed inset-0 bg-black/30 backdrop-blur-sm transition-opacity" 
+                onClick={() => setIsDrawerOpen(false)} 
+              />
               <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
-                <div className="pointer-events-auto w-screen max-w-md">
-                  <div className="flex h-full flex-col bg-white shadow-xl">
+                <div className="pointer-events-auto w-screen max-w-md transform transition ease-in-out duration-300">
+                  <div className="flex h-full flex-col overflow-y-auto bg-white shadow-xl">
                     <div className="flex-1 overflow-y-auto py-6">
                       <div className="px-4 sm:px-6">
                         <div className="flex items-start justify-between">
@@ -540,7 +667,35 @@ export default function Transactions() {
                           </div>
                           <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
                             <dt className="text-sm font-medium text-gray-500">Category</dt>
-                            <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">{selectedTransaction.category}</dd>
+                            <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">
+                              {editingCategory === selectedTransaction.id ? (
+                                <select
+                                  className="form-select w-full rounded-md border-gray-300 py-1 pl-2 pr-8 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                  value={selectedTransaction.category}
+                                  onChange={(e) => {
+                                    handleCategoryChange(selectedTransaction.id, e.target.value);
+                                  }}
+                                  onBlur={() => setEditingCategory(null)}
+                                  autoFocus
+                                >
+                                  {categories.filter(cat => cat !== 'All').map(category => (
+                                    <option key={category} value={category}>
+                                      {category}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <div 
+                                  className="flex items-center justify-between cursor-pointer hover:text-blue-600"
+                                  onClick={() => setEditingCategory(selectedTransaction.id)}
+                                >
+                                  <span>{selectedTransaction.category}</span>
+                                  <svg className="h-4 w-4 text-gray-400 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                  </svg>
+                                </div>
+                              )}
+                            </dd>
                           </div>
                           <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
                             <dt className="text-sm font-medium text-gray-500">Description</dt>
@@ -569,6 +724,89 @@ export default function Transactions() {
                           <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
                             <dt className="text-sm font-medium text-gray-500">ID</dt>
                             <dd className="mt-1 text-sm text-gray-500 sm:col-span-2 sm:mt-0">{selectedTransaction.id}</dd>
+                          </div>
+                          {/* Receipt Upload Section */}
+                          <div className="py-4">
+                            <dt className="text-sm font-medium text-gray-500 mb-2">Receipt</dt>
+                            <dd className="mt-1">
+                              {selectedTransaction.receipt_url ? (
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <a 
+                                      href={selectedTransaction.receipt_url} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-sm text-blue-600 hover:text-blue-800 flex items-center space-x-1"
+                                    >
+                                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                      </svg>
+                                      <span>View Receipt</span>
+                                    </a>
+                                    <button
+                                      type="button"
+                                      className="text-sm text-red-600 hover:text-red-800"
+                                      onClick={() => {
+                                        // Add delete receipt functionality here
+                                        console.log('Delete receipt');
+                                      }}
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                  <div className="border rounded-lg p-2 bg-gray-50">
+                                    <img 
+                                      src={selectedTransaction.receipt_url} 
+                                      alt="Receipt thumbnail" 
+                                      className="w-full h-32 object-cover rounded"
+                                    />
+                                  </div>
+                                </div>
+                              ) : (
+                                <div>
+                                  <div className="flex items-center justify-center w-full">
+                                    <label
+                                      htmlFor="receipt-upload"
+                                      className={`flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 ${
+                                        uploadingReceipt ? 'opacity-50 cursor-not-allowed' : ''
+                                      }`}
+                                    >
+                                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                        <svg className="w-8 h-8 mb-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                        </svg>
+                                        {uploadingReceipt ? (
+                                          <p className="text-sm text-gray-500">Uploading...</p>
+                                        ) : (
+                                          <>
+                                            <p className="mb-2 text-sm text-gray-500">
+                                              <span className="font-semibold">Click to upload</span> or drag and drop
+                                            </p>
+                                            <p className="text-xs text-gray-500">PNG, JPG or PDF (max. 10MB)</p>
+                                          </>
+                                        )}
+                                      </div>
+                                      <input
+                                        id="receipt-upload"
+                                        type="file"
+                                        className="hidden"
+                                        accept=".png,.jpg,.jpeg,.pdf"
+                                        onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (file) {
+                                            handleReceiptUpload(selectedTransaction.id, file);
+                                          }
+                                        }}
+                                        disabled={uploadingReceipt}
+                                      />
+                                    </label>
+                                  </div>
+                                  {uploadError && (
+                                    <p className="mt-2 text-sm text-red-600">{uploadError}</p>
+                                  )}
+                                </div>
+                              )}
+                            </dd>
                           </div>
                         </dl>
                       </div>

@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "regions": ["lhr1"],
+  "env": {
+    "NEXT_PUBLIC_SUPABASE_URL": "@next_public_supabase_url",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@next_public_supabase_anon_key",
+    "SUPABASE_SERVICE_ROLE_KEY": "@supabase_service_role_key",
+    "NEXT_PUBLIC_FB_APP_ID": "953206047023164",
+    "NEXT_PUBLIC_FB_CONFIG_ID": "@next_public_fb_config_id",
+    "FB_APP_SECRET": "@fb_app_secret",
+    "WHATSAPP_VERIFY_TOKEN": "@whatsapp_verify_token"
+  }
+} 

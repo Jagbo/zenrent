@@ -7,7 +7,7 @@ import { SideboardOnboardingContent } from '../../components/sideboard-onboardin
 import { UserCircleIcon, PhoneIcon } from '@heroicons/react/24/outline';
 import { BuildingOfficeIcon, HomeIcon } from '@heroicons/react/24/solid';
 import { CheckIcon } from '@heroicons/react/24/solid';
-import { supabase } from '@/lib/supabase';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 const steps = [
   { id: '01', name: 'Account', href: '/sign-up/account-creation', status: 'current' },
@@ -32,13 +32,14 @@ export default function AccountCreation() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [mobile, setMobile] = useState('');
-  const [title, setTitle] = useState(''); // Add title state
+  const [title, setTitle] = useState('');
   const [accountType, setAccountType] = useState('individual');
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const supabase = createClientComponentClient();
 
   // Get the current user on component mount
   useEffect(() => {
@@ -51,27 +52,29 @@ export default function AccountCreation() {
           return;
         }
 
-        const { data, error } = await supabase.auth.getUser();
+        const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('Error fetching user:', error);
-          router.push('/sign-up'); // Redirect to sign up if no user
+          console.error('Error fetching session:', error);
+          router.push('/sign-up');
           return;
         }
         
-        if (data && data.user) {
-          setUserId(data.user.id);
-        } else {
-          router.push('/sign-up'); // Redirect to sign up if no user
+        if (!session) {
+          console.log('No active session found');
+          router.push('/sign-up');
+          return;
         }
+        
+        setUserId(session.user.id);
       } catch (error) {
         console.error('Error in getUser:', error);
-        router.push('/sign-up'); // Redirect to sign up on error
+        router.push('/sign-up');
       }
     }
     
     getUser();
-  }, [router]);
+  }, [router, supabase.auth]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,6 +116,13 @@ export default function AccountCreation() {
         if (createTableError) {
           throw new Error(`Failed to create user_profiles table: ${createTableError.message}`);
         }
+      }
+      
+      // Get current session to ensure we're authenticated
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        throw new Error('Authentication error: No active session');
       }
       
       // Insert profile data

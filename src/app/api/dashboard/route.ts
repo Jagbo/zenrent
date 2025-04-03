@@ -32,22 +32,6 @@ export async function GET(request: Request) {
 
     console.log('Dashboard API: Fetching data for user:', userId);
 
-    // DEVELOPMENT MODE: Return hard-coded values for testing
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Dashboard API: Using development mode with hard-coded values');
-      
-      // These values match what we expect based on the database content
-      const response = {
-        totalProperties: 3,
-        expiringContracts: 2,
-        occupancyRate: 67,
-        currentMonthIncome: 2700
-      };
-      
-      console.log('Dashboard API: Returning development response:', response);
-      return NextResponse.json(response);
-    }
-
     // Original code continues below for production
     const { data: properties, error: propertiesError } = await getDashboardClient()
       .from('properties')
@@ -62,63 +46,112 @@ export async function GET(request: Request) {
     const totalProperties = properties?.length || 0;
     console.log('Dashboard API: Total properties found:', totalProperties);
     
-    // Extract property IDs - we need to prepare an array for the query
-    // NOTE: The issue is that property_id in leases table might be storing the property_code, not the UUID
-    // So we check both possibilities
-    const propertyUuids = properties?.map(p => p.id) || [];
-    const propertyCodes = properties?.map(p => p.property_code) || [];
+    // Extract property IDs
+    const propertyIds = properties?.map(p => p.id) || [];
+    console.log('Dashboard API: Property IDs:', propertyIds);
     
-    // Combine all possible property identifiers
-    const allPropertyIdentifiers = [...propertyUuids, ...propertyCodes];
-    console.log('Dashboard API: All possible property identifiers:', allPropertyIdentifiers);
-    
-    // Get expiring contracts using all property identifiers
+    // Get expiring contracts using property IDs
     let expiringContracts = 0;
     let occupancyRate = 0;
     let currentMonthIncome = 0;
     
-    if (allPropertyIdentifiers.length > 0) {
+    if (propertyIds.length > 0) {
       console.log('Dashboard API: Checking all leases for properties');
       
-      // Get all leases for these properties (with no additional filters)
+      // Get all leases for these properties
       const { data: allLeases, error: allLeasesError } = await getDashboardClient()
         .from('leases')
-        .select('id, property_id, status, end_date, rent_amount')
-        .in('property_id', allPropertyIdentifiers)
-        .or(`property_uuid.in.(${propertyUuids.map(id => `"${id}"`).join(',')})`);
+        .select(`
+          id,
+          property_id,
+          status,
+          end_date,
+          rent_amount
+        `)
+        .eq('status', 'active')
+        .in('property_id', propertyIds);
 
       if (allLeasesError) {
         console.error('Dashboard API: Error fetching all leases:', allLeasesError);
-      } else {
-        console.log('Dashboard API: All leases found:', allLeases);
-        
-        // Filter for active leases
-        const activeLeases = allLeases?.filter(lease => 
-          lease.status === 'active' && new Date(lease.end_date) >= new Date()
-        ) || [];
-        
-        // Calculate expiring contracts (active leases ending in next 30 days)
-        const today = new Date();
-        const thirtyDaysLater = new Date(today);
-        thirtyDaysLater.setDate(today.getDate() + 30);
-        
-        const expiringLeases = activeLeases.filter(lease => 
-          new Date(lease.end_date) <= thirtyDaysLater
-        );
-        
-        // Calculate metrics
-        expiringContracts = expiringLeases.length;
-        occupancyRate = totalProperties > 0 ? Math.round((activeLeases.length / totalProperties) * 100) : 0;
-        currentMonthIncome = activeLeases.reduce((sum, lease) => 
-          sum + (parseFloat(lease.rent_amount) || 0), 0);
-        
-        console.log('Dashboard API: Calculated from raw lease data:', {
-          activeLeases: activeLeases.length,
-          expiringLeases: expiringLeases.length,
-          occupancyRate,
-          currentMonthIncome
+        console.error('Dashboard API: Query details:', {
+          propertyIds
         });
+      } else {
+        console.log('Dashboard API: Raw leases data:', allLeases);
+        
+        if (!allLeases || allLeases.length === 0) {
+          console.log('Dashboard API: No active leases found for properties');
+        } else {
+          // Filter for active leases that haven't ended
+          const today = new Date();
+          const activeLeases = allLeases.filter(lease => {
+            const endDate = new Date(lease.end_date);
+            const isActive = endDate >= today;
+            console.log('Dashboard API: Lease check:', {
+              leaseId: lease.id,
+              endDate: lease.end_date,
+              isActive,
+              rentAmount: lease.rent_amount
+            });
+            return isActive;
+          });
+          
+          console.log('Dashboard API: Active leases:', activeLeases.length);
+          
+          // Calculate expiring contracts (active leases ending in next 30 days)
+          const thirtyDaysLater = new Date(today);
+          thirtyDaysLater.setDate(today.getDate() + 30);
+          
+          const expiringLeases = activeLeases.filter(lease => {
+            const endDate = new Date(lease.end_date);
+            return endDate <= thirtyDaysLater;
+          });
+          
+          // Calculate metrics
+          expiringContracts = expiringLeases.length;
+          
+          // Calculate occupancy rate based on properties with active leases
+          const uniquePropertiesWithLeases = new Set(
+            activeLeases.map(lease => lease.property_id)
+          );
+          
+          occupancyRate = totalProperties > 0 
+            ? Math.round((uniquePropertiesWithLeases.size / totalProperties) * 100) 
+            : 0;
+          
+          // Calculate current month income from active leases
+          currentMonthIncome = activeLeases.reduce((sum, lease) => {
+            const amount = typeof lease.rent_amount === 'string' 
+              ? parseFloat(lease.rent_amount) 
+              : (lease.rent_amount || 0);
+            
+            console.log('Dashboard API: Processing rent amount:', {
+              leaseId: lease.id,
+              originalAmount: lease.rent_amount,
+              parsedAmount: amount
+            });
+            
+            return sum + amount;
+          }, 0);
+          
+          console.log('Dashboard API: Final calculations:', {
+            totalProperties,
+            uniquePropertiesWithLeases: Array.from(uniquePropertiesWithLeases),
+            activeLeases: activeLeases.length,
+            expiringLeases: expiringLeases.length,
+            occupancyRate,
+            currentMonthIncome,
+            leaseDetails: activeLeases.map(l => ({
+              id: l.id,
+              property_id: l.property_id,
+              rent_amount: l.rent_amount,
+              end_date: l.end_date
+            }))
+          });
+        }
       }
+    } else {
+      console.log('Dashboard API: No properties found to check leases for');
     }
 
     const response = {

@@ -5,7 +5,7 @@ const configuration = new Configuration({
   basePath: PlaidEnvironments[process.env.NEXT_PUBLIC_PLAID_ENV as keyof typeof PlaidEnvironments || 'sandbox'],
   baseOptions: {
     headers: {
-      'PLAID-CLIENT-ID': process.env.PLAID_CLIENT_ID!,
+      'PLAID-CLIENT-ID': process.env.NEXT_PUBLIC_PLAID_CLIENT_ID!,
       'PLAID-SECRET': process.env.PLAID_SECRET!,
       'Plaid-Version': '2020-09-14',
     },
@@ -18,13 +18,21 @@ export async function POST(request: Request) {
   try {
     const { country_codes, language } = await request.json();
 
+    // Log configuration for debugging
+    console.log('Plaid Configuration:', {
+      env: process.env.NEXT_PUBLIC_PLAID_ENV,
+      clientId: process.env.NEXT_PUBLIC_PLAID_CLIENT_ID?.slice(0, 8) + '...',
+      hasSecret: !!process.env.PLAID_SECRET,
+      webhookUrl: process.env.PLAID_WEBHOOK_URL,
+    });
+
     const createTokenResponse = await plaidClient.linkTokenCreate({
-      user: { client_user_id: 'user-id' }, // Replace with actual user ID
+      user: { client_user_id: Date.now().toString() },
       client_name: 'ZenRent',
-      products: [Products.Transactions],
+      products: [Products.Auth, Products.Transactions],
       country_codes: country_codes,
       language: language,
-      webhook: process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}/api/plaid/webhook` : 'http://localhost:3000/api/plaid/webhook',
+      webhook: process.env.PLAID_WEBHOOK_URL,
     });
 
     return NextResponse.json({ link_token: createTokenResponse.data.link_token });

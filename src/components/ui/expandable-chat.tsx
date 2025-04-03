@@ -4,6 +4,7 @@ import React, { useRef, useState } from "react";
 import { X, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { cva } from "class-variance-authority";
 
 export type ChatPosition = "bottom-right" | "bottom-left";
 export type ChatSize = "sm" | "md" | "lg" | "xl" | "full";
@@ -36,6 +37,29 @@ interface ExpandableChatProps extends React.HTMLAttributes<HTMLDivElement> {
   size?: ChatSize;
   icon?: React.ReactNode;
 }
+
+const expandableChatVariants = cva(
+  "fixed flex flex-col rounded-lg bg-background shadow-lg transition-all duration-200",
+  {
+    variants: {
+      size: {
+        sm: "w-[320px] h-[480px]",
+        md: "w-[380px] h-[520px]",
+        lg: "w-[440px] h-[600px]",
+        xl: "w-[500px] h-[680px]",
+        full: "w-screen h-screen",
+      },
+      position: {
+        "bottom-right": "bottom-4 right-4",
+        "bottom-left": "bottom-4 left-4",
+      },
+    },
+    defaultVariants: {
+      size: "md",
+      position: "bottom-right",
+    },
+  }
+);
 
 const ExpandableChat: React.FC<ExpandableChatProps> = ({
   className,

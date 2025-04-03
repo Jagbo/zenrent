@@ -4,6 +4,7 @@ import Script from 'next/script'
 import { Providers } from './components/providers';
 import { initSupabaseEnvironment } from '@/lib/supabase-init';
 import { Toaster } from 'react-hot-toast';
+import { ZenAgentProvider } from "@/components/zen-agent-provider"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -31,9 +32,11 @@ export default function RootLayout({
           src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"
           strategy="beforeInteractive"
         />
-        <Providers>
-          {children}
-        </Providers>
+        <ZenAgentProvider>
+          <Providers>
+            {children}
+          </Providers>
+        </ZenAgentProvider>
         <Toaster position="top-right" />
       </body>
     </html>
