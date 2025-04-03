@@ -1,40 +1,28 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import axios from 'axios';
 
-// Mock data for demo purposes
-// In a real implementation, you'd use the WhatsApp Business API
-const mockMessages: Record<string, any[]> = {
-  '+44 7123 456789': [
-    {
-      id: '1',
-      from: 'business',
-      text: 'Hello! How can I help you today?',
-      timestamp: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-    },
-    {
-      id: '2',
-      from: 'user',
-      text: 'I have a question about my lease renewal.',
-      timestamp: new Date(Date.now() - 3500000).toISOString(),
-    },
-    {
-      id: '3',
-      from: 'business',
-      text: 'Of course, I\'d be happy to discuss your lease renewal. Your current lease ends on 8/15/2024. Would you like to extend it for another year?',
-      timestamp: new Date(Date.now() - 3400000).toISOString(),
-    },
-    {
-      id: '4',
-      from: 'user',
-      text: 'Yes, I\'m interested in extending. Will the rent stay the same?',
-      timestamp: new Date(Date.now() - 3300000).toISOString(),
-    },
-    {
-      id: '5',
-      from: 'business',
-      text: 'There will be a small increase of about 3% in line with market rates. I can send you the new lease agreement for review if you\'d like.',
-      timestamp: new Date(Date.now() - 3200000).toISOString(),
-    },
-  ],
+// Initialize Supabase client with local environment values
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Facebook Graph API configuration
+const GRAPH_API_VERSION = 'v18.0';
+const GRAPH_API_URL = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
+const APP_ID = process.env.FB_APP_ID || '953206047023164';
+const APP_SECRET = process.env.FB_APP_SECRET || '76e16d5ea4d3dd0dbb21c41703947995';
+
+// For real implementation, use proper auth with Supabase
+// This is a placeholder, replace with actual auth logic
+const getUserId = async (request: Request) => {
+  // In a real implementation, you would:
+  // 1. Extract the user token from the request
+  // 2. Validate it against your auth system
+  // 3. Return the authenticated user ID
+  
+  // For now, we'll use a test user for demonstration
+  return 'auth-user-id-123';
 };
 
 export async function GET(request: Request) {
@@ -45,13 +33,48 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Phone number is required' }, { status: 400 });
   }
 
-  // In production, verify that the phone number belongs to a tenant
-  // and that the business has permission to access this conversation
-
-  // For demo, just return mock messages
-  const messages = mockMessages[phoneNumber] || [];
-
-  return NextResponse.json({ messages });
+  try {
+    // Get the authenticated user
+    const userId = await getUserId(request);
+    
+    // Get the user's WhatsApp account
+    const { data: accountData, error: accountError } = await supabase
+      .from('whatsapp_accounts')
+      .select('*')
+      .eq('user_id', userId)
+      .order('connected_at', { ascending: false })
+      .limit(1);
+    
+    if (accountError || !accountData || accountData.length === 0) {
+      return NextResponse.json({ error: 'No WhatsApp account found' }, { status: 404 });
+    }
+    
+    // Get messages for this conversation
+    const { data: messagesData, error: messagesError } = await supabase
+      .from('whatsapp_messages')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('from_phone', phoneNumber)
+      .order('timestamp', { ascending: true });
+      
+    if (messagesError) {
+      return NextResponse.json({ error: 'Failed to retrieve messages' }, { status: 500 });
+    }
+    
+    // Format messages for the frontend
+    const messages = messagesData.map(msg => ({
+      id: msg.message_id,
+      from: msg.direction === 'inbound' ? 'user' : 'business',
+      text: msg.message_content,
+      timestamp: msg.timestamp,
+      status: msg.status
+    }));
+    
+    return NextResponse.json({ messages });
+  } catch (error) {
+    console.error('Error retrieving messages:', error);
+    return NextResponse.json({ error: 'Failed to retrieve messages' }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
@@ -61,24 +84,94 @@ export async function POST(request: Request) {
     if (!to || !message) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
-
-    // In production, you'd use the WhatsApp Business API to send the message
-    // For now, we'll just add it to our mock data
     
-    if (!mockMessages[to]) {
-      mockMessages[to] = [];
+    // Get the authenticated user
+    const userId = await getUserId(request);
+    
+    // Get the user's WhatsApp account
+    const { data: accountData, error: accountError } = await supabase
+      .from('whatsapp_accounts')
+      .select('*')
+      .eq('user_id', userId)
+      .order('connected_at', { ascending: false })
+      .limit(1);
+    
+    if (accountError || !accountData || accountData.length === 0) {
+      return NextResponse.json({ error: 'No WhatsApp account found' }, { status: 404 });
     }
     
-    const newMessage = {
-      id: `${mockMessages[to].length + 1}`,
+    const account = accountData[0];
+    const phoneNumberId = account.phone_number_id;
+    
+    let messageId = '';
+    
+    // Send the WhatsApp message via Cloud API
+    try {
+      // Get system user token (simplified here - in production use a stored token)
+      const tokenResponse = await axios.get(
+        `${GRAPH_API_URL}/oauth/access_token?grant_type=client_credentials&client_id=${process.env.FB_APP_ID || APP_ID}&client_secret=${process.env.FB_APP_SECRET || APP_SECRET}`
+      );
+      const accessToken = tokenResponse.data.access_token;
+      
+      // Send the message using WhatsApp Cloud API
+      const response = await axios.post(
+        `${GRAPH_API_URL}/${phoneNumberId}/messages`,
+        {
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: to,
+          type: "text",
+          text: { body: message }
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+          }
+        }
+      );
+      
+      // Extract the message ID from the response
+      messageId = response.data.messages[0].id;
+    } catch (error) {
+      console.error('Error sending WhatsApp message:', error);
+      return NextResponse.json({ error: 'Failed to send WhatsApp message' }, { status: 500 });
+    }
+    
+    // Store the message in the database
+    const { data: msgData, error: msgError } = await supabase
+      .from('whatsapp_messages')
+      .insert({
+        user_id: userId,
+        waba_id: account.waba_id,
+        phone_number_id: phoneNumberId,
+        from_phone: account.phone_number,
+        to_phone: to,
+        message_id: messageId,
+        message_type: 'text',
+        message_content: message,
+        timestamp: new Date().toISOString(),
+        direction: 'outbound',
+        status: 'sent'
+      })
+      .select()
+      .single();
+    
+    if (msgError) {
+      console.error('Error storing message:', msgError);
+      return NextResponse.json({ error: 'Failed to store message' }, { status: 500 });
+    }
+    
+    // Format the sent message for the frontend
+    const sentMessage = {
+      id: messageId,
       from: 'business',
       text: message,
       timestamp: new Date().toISOString(),
+      status: 'sent'
     };
-    
-    mockMessages[to].push(newMessage);
 
-    return NextResponse.json({ success: true, message: newMessage });
+    return NextResponse.json({ success: true, message: sentMessage });
   } catch (error) {
     console.error('Error sending message:', error);
     return NextResponse.json({ error: 'Failed to send message' }, { status: 500 });

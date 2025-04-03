@@ -12,6 +12,8 @@ import {
   ShoppingBagIcon,
   CodeBracketIcon,
   Cog6ToothIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
 } from '@heroicons/react/24/outline'
 import { getProperties, IProperty } from '@/lib/propertyService'
 import { useAuth } from '@/lib/auth-provider'
@@ -20,10 +22,26 @@ import { useAuth } from '@/lib/auth-provider'
 const navigation = [
   { name: 'Dashboard', path: '/dashboard', icon: HomeIcon },
   { name: 'Properties', path: '/properties', icon: BuildingOfficeIcon },
-  { name: 'Residents', path: '/residents', icon: UsersIcon },
+  { 
+    name: 'Residents', 
+    path: '/residents', 
+    icon: UsersIcon,
+    subItems: [
+      { name: 'All Residents', path: '/residents' },
+      { name: 'Messages', path: '/residents/messages' }
+    ]
+  },
   { name: 'Calendar', path: '/calendar', icon: CalendarIcon },
   { name: 'Issues', path: '/issues', icon: ExclamationCircleIcon },
-  { name: 'Financial', path: '/financial', icon: BanknotesIcon },
+  { 
+    name: 'Financial', 
+    path: '/financial', 
+    icon: BanknotesIcon,
+    subItems: [
+      { name: 'Overview', path: '/financial' },
+      { name: 'Transactions', path: '/financial/transactions' }
+    ]
+  },
   { name: 'Suppliers', path: '/suppliers', icon: ShoppingBagIcon },
   { name: 'Integrations', path: '/integrations', icon: CodeBracketIcon },
 ]
@@ -36,6 +54,23 @@ export function SidebarContent({ currentPath }: { currentPath: string }): ReactE
   const { user } = useAuth();
   const [properties, setProperties] = useState<Array<{ id: string; name: string; path: string; }>>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({});
+
+  // Initialize expanded state - auto-expand if the current path is in the submenu
+  useEffect(() => {
+    const initialExpandedState: Record<string, boolean> = {};
+    
+    navigation.forEach(item => {
+      if (item.subItems) {
+        // Auto-expand if the current path is a submenu item or the parent path
+        const shouldExpand = currentPath === item.path || 
+                           item.subItems.some(subItem => currentPath === subItem.path);
+        initialExpandedState[item.name] = shouldExpand;
+      }
+    });
+    
+    setExpandedMenus(initialExpandedState);
+  }, [currentPath]);
 
   useEffect(() => {
     const fetchProperties = async () => {
@@ -70,6 +105,15 @@ export function SidebarContent({ currentPath }: { currentPath: string }): ReactE
     fetchProperties();
   }, [user]);
 
+  // Toggle menu expansion
+  const toggleMenu = (menuName: string, event: React.MouseEvent) => {
+    event.preventDefault();
+    setExpandedMenus(prev => ({
+      ...prev,
+      [menuName]: !prev[menuName]
+    }));
+  };
+
   return (
     <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-200 bg-white px-6 pb-4">
       <div className="flex h-16 shrink-0 items-center">
@@ -86,24 +130,65 @@ export function SidebarContent({ currentPath }: { currentPath: string }): ReactE
             <ul role="list" className="-mx-2 space-y-1">
               {navigation.map((item) => (
                 <li key={item.name}>
-                  <a
-                    href={item.path}
-                    className={classNames(
-                      currentPath === item.path
-                        ? 'bg-[#F9F7F7] text-[#330015]'
-                        : 'text-gray-700 hover:bg-[#F9F7F7] hover:text-[#330015]',
-                      'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold',
-                    )}
-                  >
-                    <item.icon
-                      aria-hidden="true"
+                  <div className="relative">
+                    <a
+                      href={item.path}
                       className={classNames(
-                        currentPath === item.path ? 'text-[#330015]' : 'text-gray-400 group-hover:text-[#330015]',
-                        'size-6 shrink-0',
+                        (currentPath === item.path || (item.subItems && item.subItems.some(subItem => currentPath === subItem.path)))
+                          ? 'bg-[#F9F7F7] text-[#330015]'
+                          : 'text-gray-700 hover:bg-[#F9F7F7] hover:text-[#330015]',
+                        'group flex items-center gap-x-3 rounded-md p-2 text-sm/6 font-semibold',
+                        item.subItems ? 'pr-8' : '' // Add padding for the arrow
                       )}
-                    />
-                    {item.name}
-                  </a>
+                    >
+                      <item.icon
+                        aria-hidden="true"
+                        className={classNames(
+                          (currentPath === item.path || (item.subItems && item.subItems.some(subItem => currentPath === subItem.path)))
+                            ? 'text-[#330015]'
+                            : 'text-gray-400 group-hover:text-[#330015]',
+                          'size-6 shrink-0',
+                        )}
+                      />
+                      {item.name}
+                    </a>
+                    
+                    {/* Collapsible arrow */}
+                    {item.subItems && (
+                      <button
+                        onClick={(e) => toggleMenu(item.name, e)}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-[#F9F7F7] transition-colors"
+                        aria-label={expandedMenus[item.name] ? 'Collapse menu' : 'Expand menu'}
+                      >
+                        {expandedMenus[item.name] ? (
+                          <ChevronDownIcon className="size-4 text-gray-400" />
+                        ) : (
+                          <ChevronRightIcon className="size-4 text-gray-400" />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Render sub-items if they exist and menu is expanded */}
+                  {item.subItems && expandedMenus[item.name] && (
+                    <ul className="mt-1 pl-8 space-y-1">
+                      {item.subItems.map((subItem) => (
+                        <li key={subItem.name}>
+                          <a
+                            href={subItem.path}
+                            className={classNames(
+                              currentPath === subItem.path
+                                ? 'bg-[#F9F7F7] text-[#330015] font-medium'
+                                : 'text-gray-600 hover:bg-[#F9F7F7] hover:text-[#330015]',
+                              'block rounded-md py-1 px-2 text-sm'
+                            )}
+                          >
+                            {subItem.name}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </li>
               ))}
             </ul>
