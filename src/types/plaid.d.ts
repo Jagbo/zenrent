@@ -6,9 +6,9 @@ interface PlaidLinkHandler {
 
 interface PlaidLinkOptions {
   token: string;
-  onSuccess: (public_token: string, metadata: any) => void;
+  onSuccess: (public_token: string, metadata: unknown) => void;
   onExit: () => void;
-  onEvent: (eventName: string, metadata: any) => void;
+  onEvent: (eventName: string, metadata: unknown) => void;
 }
 
 interface PlaidLinkStatic {
@@ -19,4 +19,4 @@ declare global {
   interface Window {
     Plaid: PlaidLinkStatic;
   }
-} 
+}

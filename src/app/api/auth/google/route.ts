@@ -1,12 +1,12 @@
-import { supabase } from '@/lib/supabase';
-import { NextResponse } from 'next/server';
+import { supabase } from "@/lib/supabase";
+import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
     const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
+      provider: "google",
       options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/sign-up/account-creation`,
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/sign-up/account-creation`,
       },
     });
 
@@ -20,11 +20,16 @@ export async function GET() {
     }
 
     // Fallback to home page if no URL is returned
-    return NextResponse.redirect(new URL('/', process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'));
-  } catch (error) {
-    console.error('Google OAuth error:', error);
     return NextResponse.redirect(
-      new URL('/sign-up?error=oauth_failed', process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000')
+      new URL("/", process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
+    );
+  } catch (error) {
+    console.error("Google OAuth error:", error);
+    return NextResponse.redirect(
+      new URL(
+        "/sign-up?error=oauth_failed",
+        process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+      ),
     );
   }
-} 
+}

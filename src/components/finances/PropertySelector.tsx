@@ -1,12 +1,12 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery } from "@tanstack/react-query";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { useSelectedProperty } from '@/hooks/useSelectedProperty';
+} from "@/components/ui/select";
+import { useSelectedProperty } from "@/hooks/useSelectedProperty";
 
 interface Property {
   id: string;
@@ -17,11 +17,11 @@ export function PropertySelector() {
   const { propertyId, setPropertyId } = useSelectedProperty();
 
   const { data: properties, isLoading } = useQuery<Property[]>({
-    queryKey: ['properties'],
+    queryKey: ["properties"],
     queryFn: async () => {
-      const response = await fetch('/api/properties');
+      const response = await fetch("/api/properties");
       if (!response.ok) {
-        throw new Error('Failed to fetch properties');
+        throw new Error("Failed to fetch properties");
       }
       return response.json();
     },
@@ -36,10 +36,7 @@ export function PropertySelector() {
   }
 
   return (
-    <Select
-      value={propertyId || undefined}
-      onValueChange={setPropertyId}
-    >
+    <Select value={propertyId || undefined} onValueChange={setPropertyId}>
       <SelectTrigger className="w-[200px]">
         <SelectValue placeholder="Select a property" />
       </SelectTrigger>
@@ -52,4 +49,4 @@ export function PropertySelector() {
       </SelectContent>
     </Select>
   );
-} 
+}

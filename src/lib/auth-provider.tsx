@@ -1,12 +1,20 @@
-'use client';
+"use client";
 
-import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { Session, User } from '@supabase/supabase-js';
+import React, {
+  createContext,
+  useState,
+  useEffect,
+  useContext,
+  ReactNode,
+} from "react";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { Session, User, AuthError, AuthResponse } from "@supabase/supabase-js";
 
 export async function getCurrentUserId(): Promise<string | null> {
   const supabase = createClientComponentClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   return session?.user?.id || null;
 }
 
@@ -16,9 +24,12 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-  signUp: (email: string, password: string) => Promise<{ error: any, data: any }>;
-  signInWithGoogle: () => Promise<{ error: any }>;
-  signInWithApple: () => Promise<{ error: any }>;
+  signUp: (
+    email: string,
+    password: string,
+  ) => Promise<AuthResponse>;
+  signInWithGoogle: () => Promise<{ error: unknown }>;
+  signInWithFacebook: () => Promise<{ error: unknown }>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -27,9 +38,9 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   signIn: async () => {},
   signOut: async () => {},
-  signUp: async () => ({ error: null, data: null }),
+  signUp: async () => ({ data: { user: null, session: null }, error: null }),
   signInWithGoogle: async () => ({ error: null }),
-  signInWithApple: async () => ({ error: null }),
+  signInWithFacebook: async () => ({ error: null }),
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -75,58 +86,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+        provider: "google",
         options: {
           redirectTo: `${window.location.origin}/dashboard`,
           queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
+            access_type: "offline",
+            prompt: "consent",
           },
-        }
+        },
       });
-      
+
       return { error };
     } catch (error) {
-      console.error('Error signing in with Google:', error);
+      console.error("Error signing in with Google:", error);
       return { error };
     }
   };
 
-  // Sign in with Apple
-  const signInWithApple = async () => {
+  // Sign in with Facebook
+  const signInWithFacebook = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'apple',
+        provider: "facebook",
         options: {
           redirectTo: `${window.location.origin}/dashboard`,
-          queryParams: {
-            response_mode: 'query',
-          },
-        }
+          scopes: "email,public_profile",
+        },
       });
-      
+
       return { error };
     } catch (error) {
-      console.error('Error signing in with Apple:', error);
+      console.error("Error signing in with Facebook:", error);
       return { error };
     }
   };
 
   // Sign up with email and password
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string): Promise<AuthResponse> => {
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const response = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/sign-up/email-verification`,
         },
       });
-      
-      return { data, error };
+
+      return response;
     } catch (error) {
-      console.error('Error during sign up:', error);
-      return { error, data: null };
+      console.error("Error during sign up:", error);
+      return { data: { user: null, session: null }, error: error as AuthError };
     }
   };
 
@@ -138,7 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signOut,
     signUp,
     signInWithGoogle,
-    signInWithApple,
+    signInWithFacebook,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -146,4 +155,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   return useContext(AuthContext);
-} 
+}

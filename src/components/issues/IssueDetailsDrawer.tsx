@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
-import { XMarkIcon } from '@heroicons/react/24/outline'
-import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
+import { XMarkIcon } from "@heroicons/react/24/outline";
+import { Badge } from "@/components/ui/badge";
 
 type Issue = {
   id: string;
@@ -13,15 +13,19 @@ type Issue = {
   property?: string;
   reported?: string;
   assignedTo?: string;
-}
+};
 
 type IssueDetailsDrawerProps = {
   issue: Issue | null;
   open: boolean;
   onClose: () => void;
-}
+};
 
-export function IssueDetailsDrawer({ issue, open, onClose }: IssueDetailsDrawerProps) {
+export function IssueDetailsDrawer({
+  issue,
+  open,
+  onClose,
+}: IssueDetailsDrawerProps) {
   if (!issue) return null;
 
   const getTypeColor = (type: Issue["type"]) => {
@@ -78,8 +82,7 @@ export function IssueDetailsDrawer({ issue, open, onClose }: IssueDetailsDrawerP
                       Issue #{issue.id}
                     </DialogTitle>
                     <div className="ml-3 flex h-7 items-center">
-                      <button
-                        type="button"
+                      <button type="button"
                         onClick={onClose}
                         className="relative rounded-md bg-white text-gray-400 hover:text-gray-500 focus:ring-2 focus:ring-d9e8ff-80 focus:ring-offset-2 focus:outline-hidden"
                       >
@@ -94,16 +97,24 @@ export function IssueDetailsDrawer({ issue, open, onClose }: IssueDetailsDrawerP
                   <div className="space-y-6">
                     {/* Title */}
                     <div>
-                      <h3 className="text-lg font-medium text-gray-900">{issue.title}</h3>
-                      <p className="mt-1 text-sm text-gray-500">{issue.property}</p>
+                      <h3 className="text-lg font-medium text-gray-900">
+                        {issue.title}
+                      </h3>
+                      <p className="mt-1 text-sm text-gray-500">
+                        {issue.property}
+                      </p>
                     </div>
 
                     {/* Status and Type */}
                     <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className={getTypeColor(issue.type)}>
+                      <Badge variant="secondary"
+                        className={getTypeColor(issue.type)}
+                      >
                         {issue.type}
                       </Badge>
-                      <Badge variant="secondary" className={getPriorityColor(issue.priority)}>
+                      <Badge variant="secondary"
+                        className={getPriorityColor(issue.priority)}
+                      >
                         {issue.priority}
                       </Badge>
                     </div>
@@ -111,20 +122,33 @@ export function IssueDetailsDrawer({ issue, open, onClose }: IssueDetailsDrawerP
                     {/* Details */}
                     <div className="space-y-4">
                       <div>
-                        <h4 className="text-sm font-medium text-gray-500">Status</h4>
-                        <p className="mt-1 text-sm text-gray-900">{issue.status}</p>
+                        <h4 className="text-sm font-medium text-gray-500">
+                          Status
+                        </h4>
+                        <p className="mt-1 text-sm text-gray-900">
+                          {issue.status}
+                        </p>
                       </div>
                       <div>
-                        <h4 className="text-sm font-medium text-gray-500">Reported</h4>
-                        <p className="mt-1 text-sm text-gray-900">{issue.reported}</p>
+                        <h4 className="text-sm font-medium text-gray-500">
+                          Reported
+                        </h4>
+                        <p className="mt-1 text-sm text-gray-900">
+                          {issue.reported}
+                        </p>
                       </div>
                       <div>
-                        <h4 className="text-sm font-medium text-gray-500">Assigned To</h4>
+                        <h4 className="text-sm font-medium text-gray-500">
+                          Assigned To
+                        </h4>
                         <div className="mt-1 flex items-center gap-2">
-                          <span className={`w-6 h-6 rounded-full ${getAssignedToColor(issue.assignedTo || "?")} flex items-center justify-center text-xs font-medium`}>
+                          <span className={`w-6 h-6 rounded-full ${getAssignedToColor(issue.assignedTo || "?")} flex items-center justify-center text-xs font-medium`}
+                          >
                             {issue.assignedTo}
                           </span>
-                          <span className="text-sm text-gray-900">{issue.assignedTo}</span>
+                          <span className="text-sm text-gray-900">
+                            {issue.assignedTo}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -136,5 +160,5 @@ export function IssueDetailsDrawer({ issue, open, onClose }: IssueDetailsDrawerP
         </div>
       </div>
     </Dialog>
-  )
-} 
+  );
+}

@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import Image from "next/image";
 
-export default function EmailVerification() {
+// Separate component that uses searchParams
+function EmailVerificationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState<string>('');
+  const [email, setEmail] = useState<string>("");
   const [timeLeft, setTimeLeft] = useState(60);
   const [canResend, setCanResend] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -15,42 +17,42 @@ export default function EmailVerification() {
 
   // Skip verification in development mode
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Development mode: Skipping email verification');
-      router.push('/sign-up/account-creation');
+    if (process.env.NODE_ENV === "development") {
+      console.log("Development mode: Skipping email verification");
+      router.push("/sign-up/account-creation");
     }
   }, [router]);
 
   // Get email from URL query parameter or localStorage
   useEffect(() => {
-    const urlEmail = searchParams.get('email');
-    const storedEmail = localStorage.getItem('signupEmail');
-    
+    const urlEmail = searchParams.get("email");
+    const storedEmail = localStorage.getItem("signupEmail");
+
     if (urlEmail) {
       setEmail(urlEmail);
-      localStorage.setItem('signupEmail', urlEmail);
+      localStorage.setItem("signupEmail", urlEmail);
     } else if (storedEmail) {
       setEmail(storedEmail);
     } else {
       // Redirect to sign-up if no email is found
-      router.push('/sign-up');
+      router.push("/sign-up");
     }
   }, [searchParams, router]);
 
   // Mask email for display
-  const maskedEmail = email ? email.replace(/(.{2})(.*)(@.*)/, '$1****$3') : '';
+  const maskedEmail = email ? email.replace(/(.{2})(.*)(@.*)/, "$1****$3") : "";
 
   // Handle form submission (manual verification not needed with Supabase)
   const handleManualVerification = async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       // Redirect to account creation
-      router.push('/sign-up/account-creation');
+      router.push("/sign-up/account-creation");
     } catch (err: any) {
-      console.error('Verification error:', err);
-      setError(err.message || 'Failed to verify. Please try again.');
+      console.error("Verification error:", err);
+      setError(err.message || "Failed to verify. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -59,33 +61,35 @@ export default function EmailVerification() {
   // Handle resend code
   const handleResendCode = async () => {
     if (!canResend || !email) return;
-    
+
     try {
       setLoading(true);
       setError(null);
-      
+
       // Reset the countdown
       setTimeLeft(60);
       setCanResend(false);
-      
+
       // Resend verification email - use OTP since we're in verification process
       const { error } = await supabase.auth.resend({
-        type: 'signup',
+        type: "signup",
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/sign-up/account-creation`
-        }
+          emailRedirectTo: `${window.location.origin}/sign-up/account-creation`,
+        },
       });
-      
+
       if (error) {
         throw error;
       }
-      
+
       // Show success message
-      alert('Verification email resent! Please check your inbox.');
+      alert("Verification email resent! Please check your inbox.");
     } catch (err: any) {
-      console.error('Resend error:', err);
-      setError(err.message || 'Failed to resend verification email. Please try again.');
+      console.error("Resend error:", err);
+      setError(
+        err.message || "Failed to resend verification email. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -106,10 +110,12 @@ export default function EmailVerification() {
   return (
     <div className="flex min-h-full flex-1 flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <img
+        <Image 
           alt="ZenRent"
           src="/images/logo/ZenRent-square-logo.png"
           className="mx-auto h-10 w-auto"
+          width={40}
+          height={40}
         />
         <h2 className="mt-6 text-center text-2xl/9 title-font text-gray-900">
           Verify your email
@@ -125,53 +131,100 @@ export default function EmailVerification() {
           )}
 
           <div className="text-center mb-6">
-            <p className="text-sm/6 text-gray-600">We've sent a verification email to</p>
-            <p className="text-base/6 font-medium text-gray-900 mt-1">{maskedEmail}</p>
+            <p className="text-sm/6 text-gray-600">
+              We've sent a verification email to
+            </p>
+            <p className="text-base/6 font-medium text-gray-900 mt-1">
+              {maskedEmail}
+            </p>
           </div>
 
           <div className="space-y-6">
             <div className="text-center">
               <p className="text-sm/6 text-gray-600">
-                Please check your inbox and click the verification link in the email we sent you.
+                Please check your inbox and click the verification link in the
+                email we sent you.
               </p>
             </div>
 
             <div>
-              <button
-                type="button"
+              <button type="button"
                 onClick={handleManualVerification}
                 disabled={loading}
                 className="flex w-full justify-center rounded-md bg-[#D9E8FF] px-3 py-1.5 text-sm/6 font-semibold text-gray-900 shadow-xs hover:bg-[#D9E8FF]/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF] disabled:opacity-70"
               >
-                {loading ? 'Processing...' : "I've verified my email"}
+                {loading ? "Processing..." : "I've verified my email"}
               </button>
             </div>
           </div>
 
           <div className="mt-6 flex items-center justify-between">
             <div className="text-sm/6">
-              <a href="/sign-up" className="font-semibold text-[#330015] hover:text-[#330015]/80">
+              <a href="/sign-up"
+                className="font-semibold text-[#330015] hover:text-[#330015]/80"
+              >
                 Change email
               </a>
             </div>
             <div className="text-sm/6">
-              <button 
-                onClick={handleResendCode}
+              <button onClick={handleResendCode}
                 disabled={!canResend || loading}
-                className={`font-semibold ${canResend && !loading ? 'text-[#330015] hover:text-[#330015]/80' : 'text-gray-400'}`}
+                className={`font-semibold ${canResend && !loading ? "text-[#330015] hover:text-[#330015]/80" : "text-gray-400"}`}
               >
-                Resend email {!canResend && <span className="text-gray-500">({timeLeft}s)</span>}
+                Resend email{" "}
+                {!canResend && (
+                  <span className="text-gray-500">({timeLeft}s)</span>
+                )}
               </button>
             </div>
           </div>
 
           <div className="mt-8 border-t border-gray-200 pt-6">
             <p className="text-sm text-gray-500 text-center">
-              Need help? <a href="#" className="font-semibold text-[#330015] hover:text-[#330015]/80">Contact support</a>
+              Need help?{" "}
+              <a href="#"
+                className="font-semibold text-[#330015] hover:text-[#330015]/80"
+              >
+                Contact support
+              </a>
             </p>
           </div>
         </div>
       </div>
     </div>
-  )
-} 
+  );
+}
+
+// Loading component
+function EmailVerificationLoading() {
+  return (
+    <div className="flex min-h-full flex-1 flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="mx-auto h-10 w-10 bg-gray-200 rounded-md animate-pulse"></div>
+        <div className="mt-6 mx-auto h-8 w-40 bg-gray-200 rounded animate-pulse"></div>
+      </div>
+      <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-[480px]">
+        <div className="bg-white px-6 py-12 shadow-sm sm:rounded-lg sm:px-12 border border-gray-200">
+          <div className="animate-pulse space-y-4">
+            <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto"></div>
+            <div className="h-8 bg-gray-200 rounded w-full mx-auto mt-6"></div>
+            <div className="h-4 bg-gray-200 rounded w-full mx-auto"></div>
+            <div className="flex justify-between mt-6">
+              <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function EmailVerification() {
+  return (
+    <Suspense fallback={<EmailVerificationLoading />}>
+      <EmailVerificationContent />
+    </Suspense>
+  );
+}

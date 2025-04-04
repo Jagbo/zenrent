@@ -58,7 +58,7 @@ const expandableChatVariants = cva(
       size: "md",
       position: "bottom-right",
     },
-  }
+  },
 );
 
 const ExpandableChat: React.FC<ExpandableChatProps> = ({
@@ -75,12 +75,10 @@ const ExpandableChat: React.FC<ExpandableChatProps> = ({
   const toggleChat = () => setIsOpen(!isOpen);
 
   return (
-    <div
-      className={cn(`fixed ${chatConfig.positions[position]} z-50`, className)}
+    <div className={cn(`fixed ${chatConfig.positions[position]} z-50`, className)}
       {...props}
     >
-      <div
-        ref={chatRef}
+      <div ref={chatRef}
         className={cn(
           "flex flex-col bg-background border sm:rounded-lg shadow-md overflow-hidden transition-all duration-250 ease-out sm:absolute sm:w-[90vw] sm:h-[80vh] fixed inset-0 w-full h-full sm:inset-auto",
           chatConfig.chatPositions[position],
@@ -90,8 +88,7 @@ const ExpandableChat: React.FC<ExpandableChatProps> = ({
         )}
       >
         {children}
-        <Button
-          variant="ghost"
+        <Button variant="ghost"
           size="icon"
           className="absolute top-2 right-2 sm:hidden"
           onClick={toggleChat}
@@ -99,8 +96,7 @@ const ExpandableChat: React.FC<ExpandableChatProps> = ({
           <X className="h-4 w-4" />
         </Button>
       </div>
-      <ExpandableChatToggle
-        icon={icon}
+      <ExpandableChatToggle icon={icon}
         isOpen={isOpen}
         toggleChat={toggleChat}
       />
@@ -114,8 +110,7 @@ const ExpandableChatHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   className,
   ...props
 }) => (
-  <div
-    className={cn("flex items-center justify-between p-4 border-b", className)}
+  <div className={cn("flex items-center justify-between p-4 border-b", className)}
     {...props}
   />
 );
@@ -150,8 +145,7 @@ const ExpandableChatToggle: React.FC<ExpandableChatToggleProps> = ({
   toggleChat,
   ...props
 }) => (
-  <Button
-    variant="default"
+  <Button variant="default"
     onClick={toggleChat}
     className={cn(
       "w-14 h-14 rounded-full shadow-md flex items-center justify-center hover:shadow-lg hover:shadow-black/30 transition-all duration-300",

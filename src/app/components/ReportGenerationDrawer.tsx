@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { BaseDrawer } from './BaseDrawer';
+import { useState } from "react";
+import { BaseDrawer } from "./BaseDrawer";
 
 interface ReportGenerationDrawerProps {
   isOpen: boolean;
@@ -8,93 +8,103 @@ interface ReportGenerationDrawerProps {
 }
 
 interface ReportConfig {
-  reportType: 'financial' | 'occupancy' | 'maintenance' | 'custom';
-  dateRange: 'last30days' | 'last3months' | 'last6months' | 'lastYear' | 'custom';
+  reportType: "financial" | "occupancy" | "maintenance" | "custom";
+  dateRange:
+    | "last30days"
+    | "last3months"
+    | "last6months"
+    | "lastYear"
+    | "custom";
   customStartDate?: string;
   customEndDate?: string;
   properties: string[];
   includeGraphs: boolean;
   includeTables: boolean;
-  format: 'pdf' | 'csv' | 'excel';
+  format: "pdf" | "csv" | "excel";
   recipients: string[];
-  schedule?: 'once' | 'daily' | 'weekly' | 'monthly';
+  schedule?: "once" | "daily" | "weekly" | "monthly";
 }
 
 export const ReportGenerationDrawer: React.FC<ReportGenerationDrawerProps> = ({
   isOpen,
   onClose,
-  onSubmit
+  onSubmit,
 }) => {
   const [reportConfig, setReportConfig] = useState<ReportConfig>({
-    reportType: 'financial',
-    dateRange: 'last30days',
+    reportType: "financial",
+    dateRange: "last30days",
     properties: [],
     includeGraphs: true,
     includeTables: true,
-    format: 'pdf',
+    format: "pdf",
     recipients: [],
-    schedule: 'once'
+    schedule: "once",
   });
   const [showCustomDateRange, setShowCustomDateRange] = useState(false);
-  const [newRecipient, setNewRecipient] = useState('');
+  const [newRecipient, setNewRecipient] = useState("");
   const [availableProperties, setAvailableProperties] = useState([
-    { id: 'prop1', name: '123 Main St' },
-    { id: 'prop2', name: '456 Oak Ave' },
-    { id: 'prop3', name: '789 Pine Rd' },
-    { id: 'prop4', name: '321 Cedar Ln' }
+    { id: "prop1", name: "123 Main St" },
+    { id: "prop2", name: "456 Oak Ave" },
+    { id: "prop3", name: "789 Pine Rd" },
+    { id: "prop4", name: "321 Cedar Ln" },
   ]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => {
     const { name, value, type } = e.target;
-    
-    if (type === 'checkbox') {
+
+    if (type === "checkbox") {
       const checkbox = e.target as HTMLInputElement;
-      setReportConfig(prev => ({
+      setReportConfig((prev) => ({
         ...prev,
-        [name]: checkbox.checked
+        [name]: checkbox.checked,
       }));
     } else {
-      setReportConfig(prev => ({
+      setReportConfig((prev) => ({
         ...prev,
-        [name]: value
+        [name]: value,
       }));
 
-      if (name === 'dateRange') {
-        setShowCustomDateRange(value === 'custom');
+      if (name === "dateRange") {
+        setShowCustomDateRange(value === "custom");
       }
     }
   };
 
   const handlePropertyToggle = (propertyId: string) => {
-    setReportConfig(prev => {
+    setReportConfig((prev) => {
       if (prev.properties.includes(propertyId)) {
         return {
           ...prev,
-          properties: prev.properties.filter(id => id !== propertyId)
+          properties: prev.properties.filter((id) => id !== propertyId),
         };
       } else {
         return {
           ...prev,
-          properties: [...prev.properties, propertyId]
+          properties: [...prev.properties, propertyId],
         };
       }
     });
   };
 
   const handleAddRecipient = () => {
-    if (newRecipient.trim() && !reportConfig.recipients.includes(newRecipient.trim())) {
-      setReportConfig(prev => ({
+    if (
+      newRecipient.trim() &&
+      !reportConfig.recipients.includes(newRecipient.trim())
+    ) {
+      setReportConfig((prev) => ({
         ...prev,
-        recipients: [...prev.recipients, newRecipient.trim()]
+        recipients: [...prev.recipients, newRecipient.trim()],
       }));
-      setNewRecipient('');
+      setNewRecipient("");
     }
   };
 
   const handleRemoveRecipient = (email: string) => {
-    setReportConfig(prev => ({
+    setReportConfig((prev) => ({
       ...prev,
-      recipients: prev.recipients.filter(r => r !== email)
+      recipients: prev.recipients.filter((r) => r !== email),
     }));
   };
 
@@ -104,19 +114,19 @@ export const ReportGenerationDrawer: React.FC<ReportGenerationDrawerProps> = ({
   };
 
   return (
-    <BaseDrawer
-      isOpen={isOpen}
+    <BaseDrawer isOpen={isOpen}
       onClose={onClose}
       title="Generate Report"
       width="lg"
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label htmlFor="reportType" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="reportType"
+            className="block text-sm font-medium text-gray-700"
+          >
             Report Type
           </label>
-          <select
-            id="reportType"
+          <select id="reportType"
             name="reportType"
             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
             value={reportConfig.reportType}
@@ -130,11 +140,12 @@ export const ReportGenerationDrawer: React.FC<ReportGenerationDrawerProps> = ({
         </div>
 
         <div>
-          <label htmlFor="dateRange" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="dateRange"
+            className="block text-sm font-medium text-gray-700"
+          >
             Date Range
           </label>
-          <select
-            id="dateRange"
+          <select id="dateRange"
             name="dateRange"
             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
             value={reportConfig.dateRange}
@@ -151,28 +162,30 @@ export const ReportGenerationDrawer: React.FC<ReportGenerationDrawerProps> = ({
         {showCustomDateRange && (
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="customStartDate" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="customStartDate"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Start Date
               </label>
-              <input
-                type="date"
+              <input type="date"
                 id="customStartDate"
                 name="customStartDate"
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
-                value={reportConfig.customStartDate || ''}
+                value={reportConfig.customStartDate || ""}
                 onChange={handleChange}
               />
             </div>
             <div>
-              <label htmlFor="customEndDate" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="customEndDate"
+                className="block text-sm font-medium text-gray-700"
+              >
                 End Date
               </label>
-              <input
-                type="date"
+              <input type="date"
                 id="customEndDate"
                 name="customEndDate"
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
-                value={reportConfig.customEndDate || ''}
+                value={reportConfig.customEndDate || ""}
                 onChange={handleChange}
               />
             </div>
@@ -184,16 +197,17 @@ export const ReportGenerationDrawer: React.FC<ReportGenerationDrawerProps> = ({
             Properties
           </label>
           <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-2">
-            {availableProperties.map(property => (
+            {availableProperties.map((property) => (
               <div key={property.id} className="flex items-center mb-2">
-                <input
-                  id={`property-${property.id}`}
+                <input id={`property-${property.id}`}
                   type="checkbox"
                   className="h-4 w-4 text-gray-900 focus:ring-[#D9E8FF]/80 border-gray-300 rounded"
                   checked={reportConfig.properties.includes(property.id)}
                   onChange={() => handlePropertyToggle(property.id)}
                 />
-                <label htmlFor={`property-${property.id}`} className="ml-2 block text-sm text-gray-900">
+                <label htmlFor={`property-${property.id}`}
+                  className="ml-2 block text-sm text-gray-900"
+                >
                   {property.name}
                 </label>
               </div>
@@ -203,40 +217,43 @@ export const ReportGenerationDrawer: React.FC<ReportGenerationDrawerProps> = ({
 
         <div className="flex flex-col space-y-4">
           <div className="flex items-center">
-            <input
-              id="includeGraphs"
+            <input id="includeGraphs"
               name="includeGraphs"
               type="checkbox"
               className="h-4 w-4 text-gray-900 focus:ring-[#D9E8FF]/80 border-gray-300 rounded"
               checked={reportConfig.includeGraphs}
               onChange={handleChange}
             />
-            <label htmlFor="includeGraphs" className="ml-2 block text-sm text-gray-900">
+            <label htmlFor="includeGraphs"
+              className="ml-2 block text-sm text-gray-900"
+            >
               Include Graphs
             </label>
           </div>
-          
+
           <div className="flex items-center">
-            <input
-              id="includeTables"
+            <input id="includeTables"
               name="includeTables"
               type="checkbox"
               className="h-4 w-4 text-gray-900 focus:ring-[#D9E8FF]/80 border-gray-300 rounded"
               checked={reportConfig.includeTables}
               onChange={handleChange}
             />
-            <label htmlFor="includeTables" className="ml-2 block text-sm text-gray-900">
+            <label htmlFor="includeTables"
+              className="ml-2 block text-sm text-gray-900"
+            >
               Include Tables
             </label>
           </div>
         </div>
 
         <div>
-          <label htmlFor="format" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="format"
+            className="block text-sm font-medium text-gray-700"
+          >
             Format
           </label>
-          <select
-            id="format"
+          <select id="format"
             name="format"
             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
             value={reportConfig.format}
@@ -249,12 +266,13 @@ export const ReportGenerationDrawer: React.FC<ReportGenerationDrawerProps> = ({
         </div>
 
         <div>
-          <label htmlFor="recipients" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="recipients"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
             Recipients
           </label>
           <div className="flex">
-            <input
-              type="email"
+            <input type="email"
               id="newRecipient"
               name="newRecipient"
               className="flex-1 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
@@ -262,8 +280,7 @@ export const ReportGenerationDrawer: React.FC<ReportGenerationDrawerProps> = ({
               value={newRecipient}
               onChange={(e) => setNewRecipient(e.target.value)}
             />
-            <button
-              type="button"
+            <button type="button"
               className="ml-2 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-[#D9E8FF] hover:bg-[#D9E8FF]/80 focus:outline-none"
               onClick={handleAddRecipient}
             >
@@ -273,10 +290,11 @@ export const ReportGenerationDrawer: React.FC<ReportGenerationDrawerProps> = ({
           {reportConfig.recipients.length > 0 && (
             <ul className="mt-2 divide-y divide-gray-200 border border-gray-200 rounded-md overflow-hidden">
               {reportConfig.recipients.map((email, index) => (
-                <li key={index} className="px-4 py-2 flex justify-between items-center bg-white">
+                <li key={index}
+                  className="px-4 py-2 flex justify-between items-center bg-white"
+                >
                   <span className="text-sm text-gray-900">{email}</span>
-                  <button
-                    type="button"
+                  <button type="button"
                     className="text-sm text-red-600 hover:text-red-900"
                     onClick={() => handleRemoveRecipient(email)}
                   >
@@ -289,11 +307,12 @@ export const ReportGenerationDrawer: React.FC<ReportGenerationDrawerProps> = ({
         </div>
 
         <div>
-          <label htmlFor="schedule" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="schedule"
+            className="block text-sm font-medium text-gray-700"
+          >
             Schedule
           </label>
-          <select
-            id="schedule"
+          <select id="schedule"
             name="schedule"
             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
             value={reportConfig.schedule}
@@ -307,15 +326,13 @@ export const ReportGenerationDrawer: React.FC<ReportGenerationDrawerProps> = ({
         </div>
 
         <div className="flex space-x-3">
-          <button
-            type="button"
+          <button type="button"
             className="flex-1 bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none"
             onClick={onClose}
           >
             Cancel
           </button>
-          <button
-            type="submit"
+          <button type="submit"
             className="flex-1 bg-[#D9E8FF] py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-[#D9E8FF]/80 focus:outline-none"
           >
             Generate Report
@@ -324,4 +341,4 @@ export const ReportGenerationDrawer: React.FC<ReportGenerationDrawerProps> = ({
       </form>
     </BaseDrawer>
   );
-}; 
+};

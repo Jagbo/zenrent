@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import { ZenAgent } from "@/components/ui/zen-agent"
+import { ZenAgent } from "@/components/ui/zen-agent";
 
 interface ZenAgentProviderProps {
-  children: React.ReactNode
+  children: React.ReactNode;
 }
 
 export function ZenAgentProvider({ children }: ZenAgentProviderProps) {
@@ -12,5 +12,5 @@ export function ZenAgentProvider({ children }: ZenAgentProviderProps) {
       {children}
       <ZenAgent />
     </>
-  )
-} 
+  );
+}

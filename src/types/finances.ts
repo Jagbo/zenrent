@@ -104,4 +104,4 @@ export interface FinancialData {
     occupancy_rate: number;
   };
   property_performance: PropertyFinancialPerformance[];
-} 
+}

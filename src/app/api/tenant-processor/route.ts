@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import { NextRequest, NextResponse } from "next/server";
+import OpenAI from "openai";
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -11,36 +11,48 @@ const TENANT_ASSISTANT_ID = "asst_Rm4ndGEifO2vmK6jlFWkNq3l";
 
 export async function POST(request: NextRequest) {
   try {
-    const { 
+    const {
       propertyData, // This should contain all necessary property information
-      spreadsheetData // This contains the tenant spreadsheet data
+      spreadsheetData, // This contains the tenant spreadsheet data
     } = await request.json();
-    
+
     if (!propertyData || !spreadsheetData) {
-      return NextResponse.json({ 
-        error: 'Missing required property data or spreadsheet data',
-        requiredFormat: {
-          propertyData: {
-            id: "string - property identifier",
-            address: "string - property address",
-            propertyType: "string - type of property",
-            bedrooms: "string - number of bedrooms",
-            isHmo: "boolean - whether the property is an HMO"
+      return NextResponse.json(
+        {
+          error: "Missing required property data or spreadsheet data",
+          requiredFormat: {
+            propertyData: {
+              id: "string - property identifier",
+              address: "string - property address",
+              propertyType: "string - type of property",
+              bedrooms: "string - number of bedrooms",
+              isHmo: "boolean - whether the property is an HMO",
+            },
+            spreadsheetData: "array - tenant data from spreadsheet",
           },
-          spreadsheetData: "array - tenant data from spreadsheet"
-        }
-      }, { status: 400 });
+        },
+        { status: 400 },
+      );
     }
 
     // Extract property information
-    const { id: propertyId, address: propertyAddress, propertyType, isHmo } = propertyData;
+    const {
+      id: propertyId,
+      address: propertyAddress,
+      propertyType,
+      isHmo,
+    } = propertyData;
 
     // Ensure required property fields are present
-    if (!propertyId || !propertyAddress || (isHmo === undefined)) {
-      return NextResponse.json({ 
-        error: 'Incomplete property data. Please provide id, address, and isHmo flag.',
-        providedData: propertyData
-      }, { status: 400 });
+    if (!propertyId || !propertyAddress || isHmo === undefined) {
+      return NextResponse.json(
+        {
+          error:
+            "Incomplete property data. Please provide id, address, and isHmo flag.",
+          providedData: propertyData,
+        },
+        { status: 400 },
+      );
     }
 
     // Create a thread
@@ -53,19 +65,22 @@ export async function POST(request: NextRequest) {
 
 Property details:
 - Address: ${propertyAddress}
-- Type: ${propertyType || 'Not specified'}
-- Is HMO: ${isHmo ? 'Yes' : 'No'}
-${isHmo ? `- Bedrooms: ${propertyData.bedrooms || 'Not specified'}` : ''}
+- Type: ${propertyType || "Not specified"}
+- Is HMO: ${isHmo ? "Yes" : "No"}
+${isHmo ? `- Bedrooms: ${propertyData.bedrooms || "Not specified"}` : ""}
 
-${isHmo 
-  ? 'For this HMO property, each room has its own tenant with potentially separate tenancy details.' 
-  : 'For this standard property, multiple tenants may share the same tenancy details.'}
+${
+  isHmo
+    ? "For this HMO property, each room has its own tenant with potentially separate tenancy details."
+    : "For this standard property, multiple tenants may share the same tenancy details."
+}
 
 Here is the tenant data: ${JSON.stringify(spreadsheetData)}
 
 Format your response as a valid JSON object with the following structure:
-${isHmo 
-  ? `{
+${
+  isHmo
+    ? `{
   "propertyId": "${propertyId}",
   "propertyAddress": "${propertyAddress}",
   "rooms": [
@@ -96,7 +111,7 @@ ${isHmo
     }
   ]
 }`
-  : `{
+    : `{
   "propertyId": "${propertyId}",
   "propertyAddress": "${propertyAddress}",
   "tenancyDetails": {
@@ -123,8 +138,9 @@ ${isHmo
       "email": "tenant email"
     }
   ]
-}`}
-`
+}`
+}
+`,
     });
 
     // Run the Assistant
@@ -134,26 +150,31 @@ ${isHmo
 
     // Poll for the run to complete
     let runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
-    
+
     // Wait for the run to complete (simple polling)
     while (runStatus.status !== "completed") {
       if (["failed", "cancelled", "expired"].includes(runStatus.status)) {
-        throw new Error(`Assistant run failed with status: ${runStatus.status}`);
+        throw new Error(
+          `Assistant run failed with status: ${runStatus.status}`,
+        );
       }
-      
+
       // Wait 1 second before checking again
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
     }
 
     // Get the messages from the thread
     const messages = await openai.beta.threads.messages.list(thread.id);
-    
+
     // Find the last assistant message
     const lastAssistantMessage = messages.data
-      .filter(message => message.role === "assistant")
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
-    
+      .filter((message) => message.role === "assistant")
+      .sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      )[0];
+
     if (!lastAssistantMessage) {
       throw new Error("No response from assistant");
     }
@@ -165,10 +186,11 @@ ${isHmo
     }
 
     // Extract JSON from the text response
-    let jsonMatch = responseContent.match(/```json\n([\s\S]*?)\n```/) || 
-                    responseContent.match(/```\n([\s\S]*?)\n```/) ||
-                    responseContent.match(/{[\s\S]*}/);
-                    
+    const jsonMatch =
+      responseContent.match(/```json\n([\s\S]*?)\n```/) ||
+      responseContent.match(/```\n([\s\S]*?)\n```/) ||
+      responseContent.match(/{[\s\S]*}/);
+
     let structuredData;
     if (jsonMatch) {
       try {
@@ -179,22 +201,24 @@ ${isHmo
     } else {
       throw new Error("No valid JSON found in assistant response");
     }
-    
+
     // Return the structured data with explicit property type
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       propertyData: {
         id: propertyId,
         address: propertyAddress,
-        propertyType: propertyType || (isHmo ? 'hmo' : 'standard'),
-        isHmo
+        propertyType: propertyType || (isHmo ? "hmo" : "standard"),
+        isHmo,
       },
       structuredData: structuredData,
-      propertyType: isHmo ? 'hmo' : 'standard'
+      propertyType: isHmo ? "hmo" : "standard",
     });
-    
   } catch (error) {
-    console.error('Error processing tenant data:', error);
-    return NextResponse.json({ error: 'Failed to process tenant data' }, { status: 500 });
+    console.error("Error processing tenant data:", error);
+    return NextResponse.json(
+      { error: "Failed to process tenant data" },
+      { status: 500 },
+    );
   }
-} 
+}

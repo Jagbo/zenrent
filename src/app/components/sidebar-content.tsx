@@ -138,7 +138,7 @@ export function SidebarContent({ currentPath }: { currentPath: string }): ReactE
                           ? 'bg-[#F9F7F7] text-[#330015]'
                           : 'text-gray-700 hover:bg-[#F9F7F7] hover:text-[#330015]',
                         'group flex items-center gap-x-3 rounded-md p-2 text-sm/6 font-semibold',
-                        item.subItems ? 'pr-8' : '' // Add padding for the arrow
+                        item.subItems ? 'pr-8' : '',
                       )}
                     >
                       <item.icon

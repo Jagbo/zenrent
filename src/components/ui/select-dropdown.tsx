@@ -1,5 +1,5 @@
-import React from 'react';
-import { ChevronDownIcon } from '@heroicons/react/24/solid';
+import React from "react";
+import { ChevronDownIcon } from "@heroicons/react/24/solid";
 
 interface SelectDropdownProps {
   id: string;
@@ -18,7 +18,7 @@ export function SelectDropdown({
   defaultValue,
   options,
   onChange,
-  className = '',
+  className = "",
 }: SelectDropdownProps) {
   return (
     <div className={className}>
@@ -26,8 +26,7 @@ export function SelectDropdown({
         {label}
       </label>
       <div className="mt-2 grid grid-cols-1">
-        <select
-          id={id}
+        <select id={id}
           name={name}
           defaultValue={defaultValue}
           onChange={onChange}
@@ -39,11 +38,10 @@ export function SelectDropdown({
             </option>
           ))}
         </select>
-        <ChevronDownIcon
-          aria-hidden="true"
+        <ChevronDownIcon aria-hidden="true"
           className="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end text-gray-500 sm:size-4"
         />
       </div>
     </div>
   );
-} 
+}
