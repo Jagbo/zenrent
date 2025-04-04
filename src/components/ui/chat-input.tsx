@@ -15,26 +15,25 @@ const ChatInput = React.forwardRef<HTMLTextAreaElement, ChatInputProps>(
         const form = event.currentTarget.form;
         if (form) {
           form.dispatchEvent(
-            new Event("submit", { cancelable: true, bubbles: true })
+            new Event("submit", { cancelable: true, bubbles: true }),
           );
         }
       }
     };
 
     return (
-      <Textarea
-        ref={ref}
+      <Textarea ref={ref}
         onKeyDown={handleKeyDown}
         className={cn(
           "min-h-12 resize-none rounded-lg bg-background border-0 p-3 shadow-none focus-visible:ring-0",
-          className
+          className,
         )}
         {...props}
       />
     );
-  }
+  },
 );
 
 ChatInput.displayName = "ChatInput";
 
-export { ChatInput }; 
+export { ChatInput };

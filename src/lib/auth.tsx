@@ -1,7 +1,13 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from './supabase';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import { supabase } from "./supabase";
 
 // Define user type
 export interface User {
@@ -25,7 +31,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   signIn: async () => {},
-  signOut: async () => {}
+  signOut: async () => {},
 });
 
 // Auth provider component
@@ -37,27 +43,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Check for active session
     const checkSession = async () => {
       const { data } = await supabase.auth.getSession();
-      
+
       if (data.session) {
         const { data: userData } = await supabase.auth.getUser();
         setUser(userData.user as User);
       }
-      
+
       setLoading(false);
     };
 
     checkSession();
 
     // Subscribe to auth changes
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session) {
-        const { data: userData } = await supabase.auth.getUser();
-        setUser(userData.user as User);
-      } else {
-        setUser(null);
-      }
-      setLoading(false);
-    });
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session) {
+          const { data: userData } = await supabase.auth.getUser();
+          setUser(userData.user as User);
+        } else {
+          setUser(null);
+        }
+        setLoading(false);
+      },
+    );
 
     return () => {
       if (authListener?.subscription) {
@@ -70,10 +78,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signIn = async (email: string, password: string) => {
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
       if (error) throw error;
     } catch (error) {
-      console.error('Error signing in:', error);
+      console.error("Error signing in:", error);
       throw error;
     } finally {
       setLoading(false);
@@ -88,7 +99,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (error) throw error;
       setUser(null);
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error("Error signing out:", error);
       throw error;
     } finally {
       setLoading(false);
@@ -108,10 +119,10 @@ export const useAuth = () => useContext(AuthContext);
 
 // Temporary function to simulate authentication for testing (not needed anymore)
 export const testAuth = async () => {
-  console.log('testAuth is deprecated, using mock user instead');
+  console.log("testAuth is deprecated, using mock user instead");
 };
 
 export const getUserId = async () => {
   const session = await supabase.auth.getSession();
   return session?.data?.session?.user?.id;
-}; 
+};

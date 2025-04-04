@@ -1,19 +1,19 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardContent } from '@/components/ui/card';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 interface ServiceResult {
   section: string;
-  data: any;
+  data: unknown;
   error?: string;
 }
 
 export default function ServicesApiPage() {
-  const [userId, setUserId] = useState<string>('');
+  const [userId, setUserId] = useState<string>("");
   const [results, setResults] = useState<ServiceResult[]>([]);
   const [loading, setLoading] = useState(false);
   const supabase = createClientComponentClient();
@@ -22,12 +22,12 @@ export default function ServicesApiPage() {
     setLoading(true);
     try {
       const services = [
-        { section: 'Properties', query: 'properties' },
-        { section: 'Tenants', query: 'tenants' },
-        { section: 'Issues', query: 'issues' },
-        { section: 'Payments', query: 'payments' },
-        { section: 'Documents', query: 'documents' },
-        { section: 'Maintenance', query: 'maintenance_records' },
+        { section: "Properties", query: "properties" },
+        { section: "Tenants", query: "tenants" },
+        { section: "Issues", query: "issues" },
+        { section: "Payments", query: "payments" },
+        { section: "Documents", query: "documents" },
+        { section: "Maintenance", query: "maintenance_records" },
       ];
 
       const results: ServiceResult[] = [];
@@ -36,26 +36,26 @@ export default function ServicesApiPage() {
         try {
           const { data, error } = await supabase
             .from(service.query)
-            .select('*')
-            .eq('user_id', userId);
+            .select("*")
+            .eq("user_id", userId);
 
           results.push({
             section: service.section,
             data: data || [],
-            error: error?.message
+            error: error?.message,
           });
         } catch (error) {
           results.push({
             section: service.section,
             data: [],
-            error: 'Failed to fetch data'
+            error: "Failed to fetch data",
           });
         }
       }
 
       setResults(results);
     } catch (error) {
-      console.error('Error fetching services:', error);
+      console.error("Error fetching services:", error);
     } finally {
       setLoading(false);
     }
@@ -64,19 +64,15 @@ export default function ServicesApiPage() {
   return (
     <div className="container mx-auto py-8">
       <h1 className="text-2xl font-bold mb-6">Services API Debug</h1>
-      
+
       <div className="flex gap-4 mb-8">
-        <Input
-          placeholder="Enter User ID"
+        <Input placeholder="Enter User ID"
           value={userId}
           onChange={(e) => setUserId(e.target.value)}
           className="max-w-md"
         />
-        <Button 
-          onClick={fetchAllServices}
-          disabled={!userId || loading}
-        >
-          {loading ? 'Loading...' : 'Fetch Services'}
+        <Button onClick={fetchAllServices} disabled={!userId || loading}>
+          {loading ? "Loading..." : "Fetch Services"}
         </Button>
       </div>
 
@@ -102,4 +98,4 @@ export default function ServicesApiPage() {
       </div>
     </div>
   );
-} 
+}

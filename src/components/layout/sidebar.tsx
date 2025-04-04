@@ -19,11 +19,11 @@ import {
   Lightbulb,
   LogOut,
 } from "lucide-react";
-import { 
-  Dropdown, 
-  DropdownButton, 
-  DropdownMenu, 
-  DropdownItem, 
+import {
+  Dropdown,
+  DropdownButton,
+  DropdownMenu,
+  DropdownItem,
 } from "../../app/components/dropdown";
 import { useAuth } from "@/lib/auth-provider";
 
@@ -46,9 +46,9 @@ export function Sidebar() {
   const handleSignOut = async () => {
     try {
       await signOut();
-      router.push('/login');
+      router.push("/login");
     } catch (error) {
-      console.error('Failed to sign out:', error);
+      console.error("Failed to sign out:", error);
     }
   };
 
@@ -56,8 +56,7 @@ export function Sidebar() {
     <div className="flex h-full flex-col bg-white dark:bg-zinc-900">
       <div className="flex h-16 items-center justify-center px-6">
         <div className="flex h-12 w-12 items-center justify-center">
-          <Image
-            src="/images/logo/ZenRent-logo.png"
+          <Image src="/images/logo/ZenRent-logo.png"
             alt="ZenRent Logo"
             width={48}
             height={48}
@@ -70,8 +69,7 @@ export function Sidebar() {
           {navigation.map((item) => {
             const isActive = pathname === item.href;
             return (
-              <Link
-                key={item.name}
+              <Link key={item.name}
                 href={item.href}
                 className={`group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium ${
                   isActive
@@ -97,8 +95,7 @@ export function Sidebar() {
         <Dropdown>
           <DropdownButton className="flex w-full items-center gap-3">
             <span className="flex min-w-0 items-center gap-3">
-              <Image
-                src="/profile-photo.jpg"
+              <Image src="/profile-photo.jpg"
                 width={40}
                 height={40}
                 className="h-10 w-10 rounded-lg object-cover"
@@ -106,10 +103,10 @@ export function Sidebar() {
               />
               <span className="min-w-0">
                 <span className="block truncate text-sm font-medium text-gray-900 dark:text-white">
-                  {user?.user_metadata?.full_name || 'User'}
+                  {user?.user_metadata?.full_name || "User"}
                 </span>
                 <span className="block truncate text-xs text-gray-500 dark:text-zinc-400">
-                  {user?.email || 'email@example.com'}
+                  {user?.email || "email@example.com"}
                 </span>
               </span>
             </span>
@@ -143,4 +140,4 @@ export function Sidebar() {
       </div>
     </div>
   );
-} 
+}

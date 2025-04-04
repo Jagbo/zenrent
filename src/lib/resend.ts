@@ -1,8 +1,11 @@
-import { Resend } from 'resend';
-import { supabase } from './supabase';
+import { Resend } from "resend";
+import { supabase } from "./supabase";
 
 // Initialize Resend with API key from environment variables
-const resendApiKey = process.env.NEXT_PUBLIC_RESEND_API_KEY || process.env.RESEND_API_KEY || 'test-api-key';
+const resendApiKey =
+  process.env.NEXT_PUBLIC_RESEND_API_KEY ||
+  process.env.RESEND_API_KEY ||
+  "test-api-key";
 const resend = new Resend(resendApiKey);
 
 /**
@@ -11,17 +14,19 @@ const resend = new Resend(resendApiKey);
 export async function sendPasswordResetEmail(email: string, resetUrl: string) {
   try {
     // In development mode, just log and return success
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`Development mode: Would send password reset email to ${email}`);
+    if (process.env.NODE_ENV === "development") {
+      console.log(
+        `Development mode: Would send password reset email to ${email}`,
+      );
       console.log(`Reset URL: ${resetUrl}`);
       return { success: true };
     }
 
     // Send email via Resend
     const { data, error } = await resend.emails.send({
-      from: 'ZenRent <noreply@zenrent.app>',
+      from: "ZenRent <noreply@zenrent.app>",
       to: email,
-      subject: 'Reset your ZenRent password',
+      subject: "Reset your ZenRent password",
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <img src="https://yourdomain.com/images/logo/zenrent-square-logo.png" alt="ZenRent" style="max-width: 120px; margin: 20px 0;" />
@@ -43,13 +48,13 @@ export async function sendPasswordResetEmail(email: string, resetUrl: string) {
     });
 
     if (error) {
-      console.error('Resend API error:', error);
+      console.error("Resend API error:", error);
       throw error;
     }
 
     return { success: true, data };
   } catch (error) {
-    console.error('Error sending password reset email:', error);
+    console.error("Error sending password reset email:", error);
     return { success: false, error };
   }
 }
@@ -58,11 +63,16 @@ export async function sendPasswordResetEmail(email: string, resetUrl: string) {
  * Use Supabase Auth to send the password reset email
  * This is an alternative to using Resend directly
  */
-export async function sendSupabasePasswordResetEmail(email: string, redirectUrl: string) {
+export async function sendSupabasePasswordResetEmail(
+  email: string,
+  redirectUrl: string,
+) {
   try {
     // In development mode, just log and return success
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`Development mode: Would send password reset email via Supabase to ${email}`);
+    if (process.env.NODE_ENV === "development") {
+      console.log(
+        `Development mode: Would send password reset email via Supabase to ${email}`,
+      );
       console.log(`Redirect URL: ${redirectUrl}`);
       return { success: true };
     }
@@ -73,13 +83,13 @@ export async function sendSupabasePasswordResetEmail(email: string, redirectUrl:
     });
 
     if (error) {
-      console.error('Supabase reset password error:', error);
+      console.error("Supabase reset password error:", error);
       throw error;
     }
 
     return { success: true };
   } catch (error) {
-    console.error('Error sending password reset email:', error);
+    console.error("Error sending password reset email:", error);
     return { success: false, error };
   }
-} 
+}

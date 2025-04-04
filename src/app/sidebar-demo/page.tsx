@@ -1,7 +1,7 @@
-'use client'
+"use client";
 
-import SidebarExample from '../components/new-sidebar-example'
+import SidebarExample from "../components/new-sidebar-example";
 
 export default function SidebarDemoPage() {
-  return <SidebarExample />
+  return <SidebarExample />;
 }

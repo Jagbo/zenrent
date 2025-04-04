@@ -20,7 +20,7 @@ export interface IssueCategory {
   id: string;
   name: string;
   description: string | null;
-  priority_default: 'Low' | 'Medium' | 'High';
+  priority_default: "Low" | "Medium" | "High";
   requires_approval: boolean;
   created_at: string;
 }
@@ -81,7 +81,7 @@ export interface WorkOrder {
   actual_cost: number | null;
   scheduled_date: string | null;
   completed_date: string | null;
-  status: 'Pending' | 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled';
+  status: "Pending" | "Scheduled" | "In Progress" | "Completed" | "Cancelled";
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -102,4 +102,4 @@ export interface PropertyIssuesSummary {
   total_issues: number;
   open_issues: number;
   high_priority_issues: number;
-} 
+}

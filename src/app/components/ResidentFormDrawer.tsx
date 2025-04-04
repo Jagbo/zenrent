@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { BaseDrawer } from './BaseDrawer';
+import { useState } from "react";
+import { BaseDrawer } from "./BaseDrawer";
 
 interface ResidentFormState {
   firstName: string;
@@ -18,7 +18,7 @@ interface ResidentFormState {
   pets: string;
   vehicleInfo: string;
   moveInDate: string;
-  status: 'active' | 'inactive' | 'pending';
+  status: "active" | "inactive" | "pending";
   paymentMethod: string;
   notes: string;
 }
@@ -38,33 +38,37 @@ export const ResidentFormDrawer: React.FC<ResidentFormDrawerProps> = ({
   onSubmit,
   initialData = {},
   properties = [],
-  title = 'Add Resident'
+  title = "Add Resident",
 }) => {
   const [formData, setFormData] = useState<ResidentFormState>({
-    firstName: initialData.firstName || '',
-    lastName: initialData.lastName || '',
-    email: initialData.email || '',
-    phone: initialData.phone || '',
-    propertyId: initialData.propertyId || '',
-    unitNumber: initialData.unitNumber || '',
-    leaseStartDate: initialData.leaseStartDate || '',
-    leaseEndDate: initialData.leaseEndDate || '',
-    rentAmount: initialData.rentAmount || '',
-    securityDeposit: initialData.securityDeposit || '',
-    emergencyContactName: initialData.emergencyContactName || '',
-    emergencyContactPhone: initialData.emergencyContactPhone || '',
-    occupants: initialData.occupants || '',
-    pets: initialData.pets || '',
-    vehicleInfo: initialData.vehicleInfo || '',
-    moveInDate: initialData.moveInDate || '',
-    status: initialData.status || 'active',
-    paymentMethod: initialData.paymentMethod || 'bank_transfer',
-    notes: initialData.notes || ''
+    firstName: initialData.firstName || "",
+    lastName: initialData.lastName || "",
+    email: initialData.email || "",
+    phone: initialData.phone || "",
+    propertyId: initialData.propertyId || "",
+    unitNumber: initialData.unitNumber || "",
+    leaseStartDate: initialData.leaseStartDate || "",
+    leaseEndDate: initialData.leaseEndDate || "",
+    rentAmount: initialData.rentAmount || "",
+    securityDeposit: initialData.securityDeposit || "",
+    emergencyContactName: initialData.emergencyContactName || "",
+    emergencyContactPhone: initialData.emergencyContactPhone || "",
+    occupants: initialData.occupants || "",
+    pets: initialData.pets || "",
+    vehicleInfo: initialData.vehicleInfo || "",
+    moveInDate: initialData.moveInDate || "",
+    status: initialData.status || "active",
+    paymentMethod: initialData.paymentMethod || "bank_transfer",
+    notes: initialData.notes || "",
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >,
+  ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -73,23 +77,21 @@ export const ResidentFormDrawer: React.FC<ResidentFormDrawerProps> = ({
   };
 
   return (
-    <BaseDrawer
-      isOpen={isOpen}
-      onClose={onClose}
-      title={title}
-      width="lg"
-    >
+    <BaseDrawer isOpen={isOpen} onClose={onClose} title={title} width="lg">
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Personal Information */}
         <div>
-          <h3 className="text-base font-semibold text-gray-900 mb-4">Personal Information</h3>
+          <h3 className="text-base font-semibold text-gray-900 mb-4">
+            Personal Information
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="firstName"
+                className="block text-sm font-medium text-gray-700"
+              >
                 First Name
               </label>
-              <input
-                type="text"
+              <input type="text"
                 name="firstName"
                 id="firstName"
                 required
@@ -99,11 +101,12 @@ export const ResidentFormDrawer: React.FC<ResidentFormDrawerProps> = ({
               />
             </div>
             <div>
-              <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="lastName"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Last Name
               </label>
-              <input
-                type="text"
+              <input type="text"
                 name="lastName"
                 id="lastName"
                 required
@@ -116,11 +119,12 @@ export const ResidentFormDrawer: React.FC<ResidentFormDrawerProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="email"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Email
               </label>
-              <input
-                type="email"
+              <input type="email"
                 name="email"
                 id="email"
                 required
@@ -130,11 +134,12 @@ export const ResidentFormDrawer: React.FC<ResidentFormDrawerProps> = ({
               />
             </div>
             <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="phone"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Phone
               </label>
-              <input
-                type="tel"
+              <input type="tel"
                 name="phone"
                 id="phone"
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
@@ -147,14 +152,17 @@ export const ResidentFormDrawer: React.FC<ResidentFormDrawerProps> = ({
 
         {/* Property Information */}
         <div>
-          <h3 className="text-base font-semibold text-gray-900 mb-4">Property Information</h3>
+          <h3 className="text-base font-semibold text-gray-900 mb-4">
+            Property Information
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="propertyId" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="propertyId"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Property
               </label>
-              <select
-                id="propertyId"
+              <select id="propertyId"
                 name="propertyId"
                 required
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
@@ -162,7 +170,7 @@ export const ResidentFormDrawer: React.FC<ResidentFormDrawerProps> = ({
                 onChange={handleChange}
               >
                 <option value="">Select a property</option>
-                {properties.map(property => (
+                {properties.map((property) => (
                   <option key={property.id} value={property.id}>
                     {property.name}
                   </option>
@@ -170,11 +178,12 @@ export const ResidentFormDrawer: React.FC<ResidentFormDrawerProps> = ({
               </select>
             </div>
             <div>
-              <label htmlFor="unitNumber" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="unitNumber"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Unit Number
               </label>
-              <input
-                type="text"
+              <input type="text"
                 name="unitNumber"
                 id="unitNumber"
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
@@ -187,14 +196,17 @@ export const ResidentFormDrawer: React.FC<ResidentFormDrawerProps> = ({
 
         {/* Lease Information */}
         <div>
-          <h3 className="text-base font-semibold text-gray-900 mb-4">Lease Information</h3>
+          <h3 className="text-base font-semibold text-gray-900 mb-4">
+            Lease Information
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="leaseStartDate" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="leaseStartDate"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Lease Start Date
               </label>
-              <input
-                type="date"
+              <input type="date"
                 name="leaseStartDate"
                 id="leaseStartDate"
                 required
@@ -204,11 +216,12 @@ export const ResidentFormDrawer: React.FC<ResidentFormDrawerProps> = ({
               />
             </div>
             <div>
-              <label htmlFor="leaseEndDate" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="leaseEndDate"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Lease End Date
               </label>
-              <input
-                type="date"
+              <input type="date"
                 name="leaseEndDate"
                 id="leaseEndDate"
                 required
@@ -221,11 +234,12 @@ export const ResidentFormDrawer: React.FC<ResidentFormDrawerProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <div>
-              <label htmlFor="moveInDate" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="moveInDate"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Move-in Date
               </label>
-              <input
-                type="date"
+              <input type="date"
                 name="moveInDate"
                 id="moveInDate"
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
@@ -234,11 +248,12 @@ export const ResidentFormDrawer: React.FC<ResidentFormDrawerProps> = ({
               />
             </div>
             <div>
-              <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="status"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Status
               </label>
-              <select
-                id="status"
+              <select id="status"
                 name="status"
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
                 value={formData.status}
@@ -254,14 +269,17 @@ export const ResidentFormDrawer: React.FC<ResidentFormDrawerProps> = ({
 
         {/* Financial Information */}
         <div>
-          <h3 className="text-base font-semibold text-gray-900 mb-4">Financial Information</h3>
+          <h3 className="text-base font-semibold text-gray-900 mb-4">
+            Financial Information
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="rentAmount" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="rentAmount"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Monthly Rent (£)
               </label>
-              <input
-                type="number"
+              <input type="number"
                 name="rentAmount"
                 id="rentAmount"
                 required
@@ -273,11 +291,12 @@ export const ResidentFormDrawer: React.FC<ResidentFormDrawerProps> = ({
               />
             </div>
             <div>
-              <label htmlFor="securityDeposit" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="securityDeposit"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Security Deposit (£)
               </label>
-              <input
-                type="number"
+              <input type="number"
                 name="securityDeposit"
                 id="securityDeposit"
                 step="0.01"
@@ -290,11 +309,12 @@ export const ResidentFormDrawer: React.FC<ResidentFormDrawerProps> = ({
           </div>
 
           <div className="mt-4">
-            <label htmlFor="paymentMethod" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="paymentMethod"
+              className="block text-sm font-medium text-gray-700"
+            >
               Preferred Payment Method
             </label>
-            <select
-              id="paymentMethod"
+            <select id="paymentMethod"
               name="paymentMethod"
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
               value={formData.paymentMethod}
@@ -311,14 +331,17 @@ export const ResidentFormDrawer: React.FC<ResidentFormDrawerProps> = ({
 
         {/* Emergency Contact */}
         <div>
-          <h3 className="text-base font-semibold text-gray-900 mb-4">Emergency Contact</h3>
+          <h3 className="text-base font-semibold text-gray-900 mb-4">
+            Emergency Contact
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="emergencyContactName" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="emergencyContactName"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Name
               </label>
-              <input
-                type="text"
+              <input type="text"
                 name="emergencyContactName"
                 id="emergencyContactName"
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
@@ -327,11 +350,12 @@ export const ResidentFormDrawer: React.FC<ResidentFormDrawerProps> = ({
               />
             </div>
             <div>
-              <label htmlFor="emergencyContactPhone" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="emergencyContactPhone"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Phone
               </label>
-              <input
-                type="tel"
+              <input type="tel"
                 name="emergencyContactPhone"
                 id="emergencyContactPhone"
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
@@ -344,14 +368,17 @@ export const ResidentFormDrawer: React.FC<ResidentFormDrawerProps> = ({
 
         {/* Additional Information */}
         <div>
-          <h3 className="text-base font-semibold text-gray-900 mb-4">Additional Information</h3>
+          <h3 className="text-base font-semibold text-gray-900 mb-4">
+            Additional Information
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="occupants" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="occupants"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Additional Occupants
               </label>
-              <input
-                type="text"
+              <input type="text"
                 name="occupants"
                 id="occupants"
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
@@ -361,11 +388,12 @@ export const ResidentFormDrawer: React.FC<ResidentFormDrawerProps> = ({
               />
             </div>
             <div>
-              <label htmlFor="pets" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="pets"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Pets
               </label>
-              <input
-                type="text"
+              <input type="text"
                 name="pets"
                 id="pets"
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
@@ -377,11 +405,12 @@ export const ResidentFormDrawer: React.FC<ResidentFormDrawerProps> = ({
           </div>
 
           <div className="mt-4">
-            <label htmlFor="vehicleInfo" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="vehicleInfo"
+              className="block text-sm font-medium text-gray-700"
+            >
               Vehicle Information
             </label>
-            <input
-              type="text"
+            <input type="text"
               name="vehicleInfo"
               id="vehicleInfo"
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
@@ -392,11 +421,12 @@ export const ResidentFormDrawer: React.FC<ResidentFormDrawerProps> = ({
           </div>
 
           <div className="mt-4">
-            <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="notes"
+              className="block text-sm font-medium text-gray-700"
+            >
               Notes
             </label>
-            <textarea
-              name="notes"
+            <textarea name="notes"
               id="notes"
               rows={3}
               className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-[#D9E8FF]/80 focus:border-indigo-500 sm:text-sm"
@@ -408,21 +438,19 @@ export const ResidentFormDrawer: React.FC<ResidentFormDrawerProps> = ({
         </div>
 
         <div className="flex space-x-3">
-          <button
-            type="button"
+          <button type="button"
             className="flex-1 bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none"
             onClick={onClose}
           >
             Cancel
           </button>
-          <button
-            type="submit"
+          <button type="submit"
             className="flex-1 bg-[#D9E8FF] py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-[#D9E8FF]/80 focus:outline-none"
           >
-            {initialData.firstName ? 'Update Resident' : 'Add Resident'}
+            {initialData.firstName ? "Update Resident" : "Add Resident"}
           </button>
         </div>
       </form>
     </BaseDrawer>
   );
-}; 
+};

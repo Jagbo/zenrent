@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase } from "./supabase";
 
 /**
  * Initializes the Supabase environment.
@@ -6,5 +6,5 @@ import { supabase } from './supabase';
  */
 export async function initSupabaseEnvironment() {
   // No longer setting development mode to ensure normal authentication flow
-  console.log('Initializing Supabase environment');
-} 
+  console.log("Initializing Supabase environment");
+}

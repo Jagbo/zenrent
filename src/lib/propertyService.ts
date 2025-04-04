@@ -1,5 +1,5 @@
-import { supabase } from './supabase';
-import { getCurrentUserId } from './auth-provider';
+import { supabase } from "./supabase";
+import { getCurrentUserId } from "./auth-provider";
 
 export interface IProperty {
   id: string;
@@ -32,7 +32,7 @@ export interface IProperty {
     amenities?: string[];
     year_built?: number;
     square_footage?: number;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 
@@ -68,48 +68,50 @@ export interface IPropertyWithTenants extends IProperty {
 export const getProperties = async (userId?: string): Promise<IProperty[]> => {
   try {
     // Get the current user ID if not provided
-    const effectiveUserId = userId || await getCurrentUserId();
-    
+    const effectiveUserId = userId || (await getCurrentUserId());
+
     if (!effectiveUserId) {
-      console.error('No user ID provided and not authenticated');
+      console.error("No user ID provided and not authenticated");
       return [];
     }
 
-    console.log('Fetching properties for user:', effectiveUserId);
-    
+    console.log("Fetching properties for user:", effectiveUserId);
+
     // Attempt to fetch from the database
     const { data, error } = await supabase
-      .from('properties')
-      .select('*')
-      .eq('user_id', effectiveUserId);
-    
+      .from("properties")
+      .select("*")
+      .eq("user_id", effectiveUserId);
+
     if (error) {
-      console.error('Error fetching properties from Supabase:', error);
+      console.error("Error fetching properties from Supabase:", error);
       throw error;
     }
-    
-    console.log('Properties fetched from Supabase:', data?.length || 0);
-    
+
+    console.log("Properties fetched from Supabase:", data?.length || 0);
+
     // If we have data from the database, return it
     if (data && data.length > 0) {
       if (data[0]) {
-        console.log('First property from DB:', {
+        console.log("First property from DB:", {
           id: data[0].id,
           name: data[0].address,
-          property_code: data[0].property_code
+          property_code: data[0].property_code,
         });
       }
       return data;
     }
-    
+
     // If no data was found in the database, log a warning
-    console.warn('No properties found in the database for user:', effectiveUserId);
-    
+    console.warn(
+      "No properties found in the database for user:",
+      effectiveUserId,
+    );
+
     // In production, return empty array if no properties found
     return [];
-    
   } catch (error) {
-    console.error('Error in getProperties:', error);
+    console.error("Error in getProperties:", error);
     return [];
   }
 };
@@ -117,57 +119,63 @@ export const getProperties = async (userId?: string): Promise<IProperty[]> => {
 // Fetch all properties direct (debug)
 export const getAllProperties = async (): Promise<IProperty[]> => {
   try {
-    console.log('DEBUG: Fetching ALL properties');
-    const { data, error } = await supabase
-      .from('properties')
-      .select('*');
-    
+    console.log("DEBUG: Fetching ALL properties");
+    const { data, error } = await supabase.from("properties").select("*");
+
     if (error) {
-      console.error('Error fetching all properties:', error);
+      console.error("Error fetching all properties:", error);
       throw error;
     }
-    
-    console.log('All properties fetched:', data?.length || 0);
+
+    console.log("All properties fetched:", data?.length || 0);
     if (data && data.length > 0) {
-      console.log('Property IDs:', data.map((p: IProperty) => p.id));
+      console.log(
+        "Property IDs:",
+        data.map((p: IProperty) => p.id),
+      );
     }
-    
+
     return data || [];
   } catch (error) {
-    console.error('Error fetching all properties:', error);
+    console.error("Error fetching all properties:", error);
     return [];
   }
 };
 
 // Fetch a single property by ID
-export const getPropertyById = async (propertyId: string): Promise<IProperty | null> => {
+export const getPropertyById = async (
+  propertyId: string,
+): Promise<IProperty | null> => {
   try {
-    console.log('Fetching property by ID:', propertyId);
-    
+    console.log("Fetching property by ID:", propertyId);
+
     const { data, error } = await supabase
-      .from('properties')
-      .select('*')
-      .eq('id', propertyId)
+      .from("properties")
+      .select("*")
+      .eq("id", propertyId)
       .single();
-    
+
     if (error) {
       console.error(`Error fetching property ${propertyId}:`, error);
-      
+
       // Try by property code if ID lookup fails
       const { data: dataByCode, error: errorByCode } = await supabase
-        .from('properties')
-        .select('*')
-        .eq('property_code', propertyId)
+        .from("properties")
+        .select("*")
+        .eq("property_code", propertyId)
         .single();
-      
+
       if (errorByCode) {
-        console.error(`Error fetching property by code ${propertyId}:`, errorByCode);
+        console.error(
+          `Error fetching property by code ${propertyId}:`,
+          errorByCode,
+        );
         return null;
       }
-      
+
       return dataByCode;
     }
-    
+
     return data;
   } catch (error) {
     console.error(`Error fetching property ${propertyId}:`, error);
@@ -184,14 +192,14 @@ const getAvatarUrl = (name: string) => {
 // Helper function to validate image URL
 const isValidImageUrl = (url?: string): boolean => {
   if (!url) return false;
-  
+
   // List of allowed domains from next.config.js
   const allowedDomains = [
-    'images.unsplash.com',
-    'picsum.photos',
-    'ui-avatars.com'
+    "images.unsplash.com",
+    "picsum.photos",
+    "ui-avatars.com",
   ];
-  
+
   try {
     const urlObj = new URL(url);
     return allowedDomains.includes(urlObj.hostname);
@@ -201,19 +209,24 @@ const isValidImageUrl = (url?: string): boolean => {
 };
 
 // Fetch a property with its tenants
-export const getPropertyWithTenants = async (propertyId: string): Promise<IPropertyWithTenants | null> => {
+export const getPropertyWithTenants = async (
+  propertyId: string,
+): Promise<IPropertyWithTenants | null> => {
   try {
-    console.log('Fetching property with tenants for ID:', propertyId);
-    
+    console.log("Fetching property with tenants for ID:", propertyId);
+
     // First get the property
     const property = await getPropertyById(propertyId);
     if (!property) {
-      console.error('No property found with ID:', propertyId);
+      console.error("No property found with ID:", propertyId);
       return null;
     }
-    
-    console.log('Found property, fetching tenants for property ID:', property.id);
-    
+
+    console.log(
+      "Found property, fetching tenants for property ID:",
+      property.id,
+    );
+
     interface LeaseWithTenant {
       tenant_id: string;
       tenants: {
@@ -225,11 +238,12 @@ export const getPropertyWithTenants = async (propertyId: string): Promise<IPrope
         status?: string;
       };
     }
-    
+
     // Get tenants for this property by joining through the leases table
     const { data: tenantData, error: tenantsError } = await supabase
-      .from('leases')
-      .select(`
+      .from("leases")
+      .select(
+        `
         tenant_id,
         tenants:tenant_id (
           id,
@@ -239,42 +253,49 @@ export const getPropertyWithTenants = async (propertyId: string): Promise<IPrope
           photo_url,
           status
         )
-      `)
-      .eq('property_id', property.id)
-      .eq('status', 'active');
-    
+      `,
+      )
+      .eq("property_id", property.id)
+      .eq("status", "active");
+
     if (tenantsError) {
-      console.error(`Error fetching tenants for property ${property.id}:`, tenantsError);
+      console.error(
+        `Error fetching tenants for property ${property.id}:`,
+        tenantsError,
+      );
       return {
         ...property,
-        tenants: []
+        tenants: [],
       };
     }
-    
+
     // Transform the joined data to match ITenant interface
-    const tenants = (tenantData as LeaseWithTenant[] | null)?.map(lease => {
-      const photoUrl = lease.tenants.photo_url;
-      const validatedImage = isValidImageUrl(photoUrl) ? photoUrl : getAvatarUrl(lease.tenants.name);
-      
-      return {
-        id: lease.tenants.id,
-        name: lease.tenants.name,
-        email: lease.tenants.email,
-        phone: lease.tenants.phone,
-        image: validatedImage,
-        status: lease.tenants.status,
-        property_id: property.id,
-        property_address: property.address,
-        property_code: property.property_code
-      };
-    }) || [];
+    const tenants =
+      (tenantData as LeaseWithTenant[] | null)?.map((lease) => {
+        const photoUrl = lease.tenants.photo_url;
+        const validatedImage = isValidImageUrl(photoUrl)
+          ? photoUrl
+          : getAvatarUrl(lease.tenants.name);
+
+        return {
+          id: lease.tenants.id,
+          name: lease.tenants.name,
+          email: lease.tenants.email,
+          phone: lease.tenants.phone,
+          image: validatedImage,
+          status: lease.tenants.status,
+          property_id: property.id,
+          property_address: property.address,
+          property_code: property.property_code,
+        };
+      }) || [];
 
     return {
       ...property,
-      tenants: tenants
+      tenants: tenants,
     };
   } catch (error) {
     console.error(`Error fetching property with tenants ${propertyId}:`, error);
     return null;
   }
-}; 
+};

@@ -8,4 +8,4 @@ export default function ForgotPasswordLayout({
       <main className="flex-1">{children}</main>
     </div>
   );
-} 
+}

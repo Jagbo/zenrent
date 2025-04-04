@@ -1,20 +1,20 @@
-import { Metadata } from 'next';
-import { FinancialOverview } from '@/components/finances/FinancialOverview';
-import { ExpensesTable } from '@/components/finances/ExpensesTable';
-import { IncomeTable } from '@/components/finances/IncomeTable';
-import { InvoicesTable } from '@/components/finances/InvoicesTable';
-import { ServiceChargesTable } from '@/components/finances/ServiceChargesTable';
+import { Metadata } from "next";
+import { FinancialOverview } from "@/components/finances/FinancialOverview";
+import { ExpensesTable } from "@/components/finances/ExpensesTable";
+import { IncomeTable } from "@/components/finances/IncomeTable";
+import { InvoicesTable } from "@/components/finances/InvoicesTable";
+import { ServiceChargesTable } from "@/components/finances/ServiceChargesTable";
 
 export const metadata: Metadata = {
-  title: 'Finances | ZenRent',
-  description: 'Manage your property finances',
+  title: "Finances | ZenRent",
+  description: "Manage your property finances",
 };
 
 export default async function FinancesPage() {
   return (
     <div className="flex flex-col gap-6 p-6">
       <h1 className="text-2xl font-semibold tracking-tight">Finances</h1>
-      
+
       {/* Financial Overview */}
       <div>
         <FinancialOverview />
@@ -45,4 +45,4 @@ export default async function FinancesPage() {
       </div>
     </div>
   );
-} 
+}

@@ -37,23 +37,25 @@ type Issue = {
 const mockIssues: Issue[] = [
   {
     id: "TASK-8782",
-    title: "You can't compress the program without quantifying the open-source SSD...",
+    title:
+      "You can't compress the program without quantifying the open-source SSD...",
     type: "Documentation",
     status: "In Progress",
     priority: "Medium",
     property: "Frontend",
     reported: "2024-03-20",
-    assignedTo: "JS"
+    assignedTo: "JS",
   },
   {
     id: "TASK-7878",
-    title: "Try to calculate the EXE feed, maybe it will index the multi-byte pixel!",
+    title:
+      "Try to calculate the EXE feed, maybe it will index the multi-byte pixel!",
     type: "Documentation",
     status: "Backlog",
     priority: "Medium",
     property: "Backend",
     reported: "2024-03-19",
-    assignedTo: "RW"
+    assignedTo: "RW",
   },
   {
     id: "TASK-7839",
@@ -63,7 +65,7 @@ const mockIssues: Issue[] = [
     priority: "High",
     property: "API",
     reported: "2024-03-18",
-    assignedTo: "SJ"
+    assignedTo: "SJ",
   },
 ];
 
@@ -76,7 +78,7 @@ export function IssuesList() {
     setSelectedIssues((current) =>
       current.includes(issueId)
         ? current.filter((id) => id !== issueId)
-        : [...current, issueId]
+        : [...current, issueId],
     );
   };
 
@@ -84,7 +86,7 @@ export function IssuesList() {
     setSelectedIssues((current) =>
       current.length === mockIssues.length
         ? []
-        : mockIssues.map((issue) => issue.id)
+        : mockIssues.map((issue) => issue.id),
     );
   };
 
@@ -124,10 +126,7 @@ export function IssuesList() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-4">
-        <Input
-          placeholder="Filter tasks..."
-          className="max-w-sm"
-        />
+        <Input placeholder="Filter tasks..." className="max-w-sm" />
         <Button variant="outline" className="gap-2">
           Status <ChevronDown className="h-4 w-4" />
         </Button>
@@ -141,8 +140,7 @@ export function IssuesList() {
           <TableHeader>
             <TableRow>
               <TableHead className="w-12">
-                <Checkbox
-                  checked={selectedIssues.length === mockIssues.length}
+                <Checkbox checked={selectedIssues.length === mockIssues.length}
                   onCheckedChange={toggleAll}
                 />
               </TableHead>
@@ -154,29 +152,25 @@ export function IssuesList() {
           </TableHeader>
           <TableBody>
             {mockIssues.map((issue) => (
-              <TableRow 
-                key={issue.id}
+              <TableRow key={issue.id}
                 className="cursor-pointer hover:bg-muted/50"
               >
                 <TableCell className="p-0">
                   <div className="flex items-center justify-center h-full px-4 py-3">
-                    <Checkbox
-                      checked={selectedIssues.includes(issue.id)}
+                    <Checkbox checked={selectedIssues.includes(issue.id)}
                       onCheckedChange={() => toggleIssue(issue.id)}
                       onClick={(e) => e.stopPropagation()}
                     />
                   </div>
                 </TableCell>
                 <TableCell className="p-0">
-                  <div 
-                    className="px-4 py-3 h-full w-full"
+                  <div className="px-4 py-3 h-full w-full"
                     onClick={() => openDrawer(issue)}
                   >
                     <div className="font-medium">{issue.title}</div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <span>{issue.id}</span>
-                      <Badge
-                        variant="secondary"
+                      <Badge variant="secondary"
                         className={getTypeColor(issue.type)}
                       >
                         {issue.type}
@@ -185,18 +179,18 @@ export function IssuesList() {
                   </div>
                 </TableCell>
                 <TableCell className="p-0">
-                  <div 
-                    className="px-4 py-3 h-full w-full"
+                  <div className="px-4 py-3 h-full w-full"
                     onClick={() => openDrawer(issue)}
                   >
-                    <Badge variant="secondary" className={getStatusColor(issue.status)}>
+                    <Badge variant="secondary"
+                      className={getStatusColor(issue.status)}
+                    >
                       {issue.status}
                     </Badge>
                   </div>
                 </TableCell>
                 <TableCell className="p-0">
-                  <div 
-                    className="px-4 py-3 h-full w-full"
+                  <div className="px-4 py-3 h-full w-full"
                     onClick={() => openDrawer(issue)}
                   >
                     {issue.priority}
@@ -204,8 +198,7 @@ export function IssuesList() {
                 </TableCell>
                 <TableCell className="p-0">
                   <div className="flex items-center justify-center h-full px-4 py-3">
-                    <Button 
-                      variant="ghost" 
+                    <Button variant="ghost"
                       size="icon"
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -219,8 +212,7 @@ export function IssuesList() {
         </Table>
       </div>
 
-      <IssueDrawer
-        issue={selectedIssue}
+      <IssueDrawer issue={selectedIssue}
         isOpen={isDrawerOpen}
         onClose={() => {
           setIsDrawerOpen(false);
@@ -229,4 +221,4 @@ export function IssuesList() {
       />
     </div>
   );
-} 
+}

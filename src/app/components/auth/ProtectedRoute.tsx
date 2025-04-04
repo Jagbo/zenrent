@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth-provider';
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-provider";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -15,8 +15,10 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   useEffect(() => {
     // If authentication is complete and no user, redirect to login
     if (!loading && !user) {
-      console.log('No authenticated user found, redirecting to login');
-      router.push(`/login?redirectedFrom=${encodeURIComponent(window.location.pathname)}`);
+      console.log("No authenticated user found, redirecting to login");
+      router.push(
+        `/login?redirectedFrom=${encodeURIComponent(window.location.pathname)}`,
+      );
     }
   }, [user, loading, router]);
 

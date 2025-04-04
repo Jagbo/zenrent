@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { BaseDrawer } from './BaseDrawer'
+import { useState } from "react";
+import { BaseDrawer } from "./BaseDrawer";
 
 // Define property form state type
 export interface PropertyFormState {
@@ -26,34 +26,38 @@ interface PropertyFormDrawerProps {
   title?: string;
 }
 
-export const PropertyFormDrawer: React.FC<PropertyFormDrawerProps> = ({ 
-  isOpen, 
-  onClose, 
-  initialData = {}, 
+export const PropertyFormDrawer: React.FC<PropertyFormDrawerProps> = ({
+  isOpen,
+  onClose,
+  initialData = {},
   onSubmit,
-  title = 'Add Property' 
+  title = "Add Property",
 }) => {
   const [formData, setFormData] = useState<PropertyFormState>({
-    address: initialData.address || '',
-    city: initialData.city || '',
-    postcode: initialData.postcode || '',
-    property_type: initialData.property_type || 'HMO',
-    bedrooms: initialData.bedrooms || '',
-    bathrooms: initialData.bathrooms || '',
-    description: initialData.description || '',
+    address: initialData.address || "",
+    city: initialData.city || "",
+    postcode: initialData.postcode || "",
+    property_type: initialData.property_type || "HMO",
+    bedrooms: initialData.bedrooms || "",
+    bathrooms: initialData.bathrooms || "",
+    description: initialData.description || "",
     is_furnished: initialData.is_furnished || false,
     has_garden: initialData.has_garden || false,
     has_parking: initialData.has_parking || false,
-    energy_rating: initialData.energy_rating || '',
-    council_tax_band: initialData.council_tax_band || '',
-    notes: initialData.notes || ''
+    energy_rating: initialData.energy_rating || "",
+    council_tax_band: initialData.council_tax_band || "",
+    notes: initialData.notes || "",
   });
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >,
+  ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -63,18 +67,15 @@ export const PropertyFormDrawer: React.FC<PropertyFormDrawerProps> = ({
   };
 
   return (
-    <BaseDrawer
-      isOpen={isOpen}
-      onClose={onClose}
-      title={title}
-    >
+    <BaseDrawer isOpen={isOpen} onClose={onClose} title={title}>
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label htmlFor="address" className="block text-sm font-medium text-gray-900">
+          <label htmlFor="address"
+            className="block text-sm font-medium text-gray-900"
+          >
             Street Address
           </label>
-          <input
-            type="text"
+          <input type="text"
             name="address"
             id="address"
             required
@@ -86,11 +87,12 @@ export const PropertyFormDrawer: React.FC<PropertyFormDrawerProps> = ({
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label htmlFor="city" className="block text-sm font-medium text-gray-900">
+            <label htmlFor="city"
+              className="block text-sm font-medium text-gray-900"
+            >
               City
             </label>
-            <input
-              type="text"
+            <input type="text"
               name="city"
               id="city"
               required
@@ -100,11 +102,12 @@ export const PropertyFormDrawer: React.FC<PropertyFormDrawerProps> = ({
             />
           </div>
           <div>
-            <label htmlFor="postcode" className="block text-sm font-medium text-gray-900">
+            <label htmlFor="postcode"
+              className="block text-sm font-medium text-gray-900"
+            >
               Post Code
             </label>
-            <input
-              type="text"
+            <input type="text"
               name="postcode"
               id="postcode"
               required
@@ -116,11 +119,12 @@ export const PropertyFormDrawer: React.FC<PropertyFormDrawerProps> = ({
         </div>
 
         <div>
-          <label htmlFor="property_type" className="block text-sm font-medium text-gray-900">
+          <label htmlFor="property_type"
+            className="block text-sm font-medium text-gray-900"
+          >
             Property Type
           </label>
-          <select
-            name="property_type"
+          <select name="property_type"
             id="property_type"
             required
             value={formData.property_type}
@@ -136,11 +140,12 @@ export const PropertyFormDrawer: React.FC<PropertyFormDrawerProps> = ({
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label htmlFor="bedrooms" className="block text-sm font-medium text-gray-900">
+            <label htmlFor="bedrooms"
+              className="block text-sm font-medium text-gray-900"
+            >
               Bedrooms
             </label>
-            <input
-              type="number"
+            <input type="number"
               name="bedrooms"
               id="bedrooms"
               required
@@ -150,11 +155,12 @@ export const PropertyFormDrawer: React.FC<PropertyFormDrawerProps> = ({
             />
           </div>
           <div>
-            <label htmlFor="bathrooms" className="block text-sm font-medium text-gray-900">
+            <label htmlFor="bathrooms"
+              className="block text-sm font-medium text-gray-900"
+            >
               Bathrooms
             </label>
-            <input
-              type="number"
+            <input type="number"
               name="bathrooms"
               id="bathrooms"
               required
@@ -166,11 +172,12 @@ export const PropertyFormDrawer: React.FC<PropertyFormDrawerProps> = ({
         </div>
 
         <div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-900">
+          <label htmlFor="description"
+            className="block text-sm font-medium text-gray-900"
+          >
             Description
           </label>
-          <textarea
-            name="description"
+          <textarea name="description"
             id="description"
             rows={3}
             value={formData.description}
@@ -182,11 +189,12 @@ export const PropertyFormDrawer: React.FC<PropertyFormDrawerProps> = ({
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label htmlFor="energy_rating" className="block text-sm font-medium text-gray-900">
+            <label htmlFor="energy_rating"
+              className="block text-sm font-medium text-gray-900"
+            >
               Energy Rating
             </label>
-            <input
-              type="text"
+            <input type="text"
               name="energy_rating"
               id="energy_rating"
               value={formData.energy_rating}
@@ -195,11 +203,12 @@ export const PropertyFormDrawer: React.FC<PropertyFormDrawerProps> = ({
             />
           </div>
           <div>
-            <label htmlFor="council_tax_band" className="block text-sm font-medium text-gray-900">
+            <label htmlFor="council_tax_band"
+              className="block text-sm font-medium text-gray-900"
+            >
               Council Tax Band
             </label>
-            <input
-              type="text"
+            <input type="text"
               name="council_tax_band"
               id="council_tax_band"
               value={formData.council_tax_band}
@@ -211,67 +220,77 @@ export const PropertyFormDrawer: React.FC<PropertyFormDrawerProps> = ({
 
         <div className="grid grid-cols-3 gap-4">
           <div className="flex items-center">
-            <input
-              type="checkbox"
+            <input type="checkbox"
               name="is_furnished"
               id="is_furnished"
               checked={formData.is_furnished}
-              onChange={(e) => handleInputChange({
-                target: {
-                  name: 'is_furnished',
-                  value: e.target.checked
-                }
-              } as any)}
+              onChange={(e) =>
+                handleInputChange({
+                  target: {
+                    name: "is_furnished",
+                    value: e.target.checked,
+                  },
+                } as any)
+              }
               className="h-4 w-4 text-gray-900 focus:ring-gray-900 border-gray-300 rounded"
             />
-            <label htmlFor="is_furnished" className="ml-2 block text-sm text-gray-900">
+            <label htmlFor="is_furnished"
+              className="ml-2 block text-sm text-gray-900"
+            >
               Furnished
             </label>
           </div>
           <div className="flex items-center">
-            <input
-              type="checkbox"
+            <input type="checkbox"
               name="has_garden"
               id="has_garden"
               checked={formData.has_garden}
-              onChange={(e) => handleInputChange({
-                target: {
-                  name: 'has_garden',
-                  value: e.target.checked
-                }
-              } as any)}
+              onChange={(e) =>
+                handleInputChange({
+                  target: {
+                    name: "has_garden",
+                    value: e.target.checked,
+                  },
+                } as any)
+              }
               className="h-4 w-4 text-gray-900 focus:ring-gray-900 border-gray-300 rounded"
             />
-            <label htmlFor="has_garden" className="ml-2 block text-sm text-gray-900">
+            <label htmlFor="has_garden"
+              className="ml-2 block text-sm text-gray-900"
+            >
               Garden
             </label>
           </div>
           <div className="flex items-center">
-            <input
-              type="checkbox"
+            <input type="checkbox"
               name="has_parking"
               id="has_parking"
               checked={formData.has_parking}
-              onChange={(e) => handleInputChange({
-                target: {
-                  name: 'has_parking',
-                  value: e.target.checked
-                }
-              } as any)}
+              onChange={(e) =>
+                handleInputChange({
+                  target: {
+                    name: "has_parking",
+                    value: e.target.checked,
+                  },
+                } as any)
+              }
               className="h-4 w-4 text-gray-900 focus:ring-gray-900 border-gray-300 rounded"
             />
-            <label htmlFor="has_parking" className="ml-2 block text-sm text-gray-900">
+            <label htmlFor="has_parking"
+              className="ml-2 block text-sm text-gray-900"
+            >
               Parking
             </label>
           </div>
         </div>
 
         <div>
-          <label htmlFor="notes" className="block text-sm font-medium text-gray-900">
+          <label htmlFor="notes"
+            className="block text-sm font-medium text-gray-900"
+          >
             Notes
           </label>
-          <textarea
-            name="notes"
+          <textarea name="notes"
             id="notes"
             rows={3}
             value={formData.notes}
@@ -282,15 +301,13 @@ export const PropertyFormDrawer: React.FC<PropertyFormDrawerProps> = ({
         </div>
 
         <div className="mt-5 sm:mt-6 flex justify-end space-x-3">
-          <button
-            type="button"
+          <button type="button"
             onClick={onClose}
             className="inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:text-sm"
           >
             Cancel
           </button>
-          <button
-            type="submit"
+          <button type="submit"
             className="inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-gray-900 text-base font-medium text-white hover:bg-gray-800 focus:outline-none sm:text-sm"
           >
             Save
@@ -299,4 +316,4 @@ export const PropertyFormDrawer: React.FC<PropertyFormDrawerProps> = ({
       </form>
     </BaseDrawer>
   );
-}; 
+};

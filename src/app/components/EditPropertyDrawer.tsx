@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { PropertyFormDrawer } from './PropertyFormDrawer';
+import { useState } from "react";
+import { PropertyFormDrawer } from "./PropertyFormDrawer";
 
 // Define property form state interface to match the one in PropertyFormDrawer
 interface PropertyFormState {
@@ -43,19 +43,21 @@ interface EditPropertyDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   property: Property | null;
-  onSave: (updatedProperty: any) => void;
+  onSave: (updatedProperty: unknown) => void;
 }
 
 export const EditPropertyDrawer: React.FC<EditPropertyDrawerProps> = ({
   isOpen,
   onClose,
   property,
-  onSave
+  onSave,
 }) => {
   // Format property data for the form
-  const formatPropertyForForm = (property: Property | null): Partial<PropertyFormState> => {
+  const formatPropertyForForm = (
+    property: Property | null,
+  ): Partial<PropertyFormState> => {
     if (!property) return {};
-    
+
     return {
       name: property.name,
       address: property.address,
@@ -69,9 +71,9 @@ export const EditPropertyDrawer: React.FC<EditPropertyDrawerProps> = ({
       squareFeet: property.squareFeet.toString(),
       rentAmount: property.rentAmount.toString(),
       description: property.description,
-      amenities: property.amenities.join(', '),
+      amenities: property.amenities.join(", "),
       yearBuilt: property.yearBuilt.toString(),
-      parkingSpots: property.parkingSpots.toString()
+      parkingSpots: property.parkingSpots.toString(),
     };
   };
 
@@ -88,22 +90,22 @@ export const EditPropertyDrawer: React.FC<EditPropertyDrawerProps> = ({
       yearBuilt: parseInt(formData.yearBuilt, 10),
       parkingSpots: parseInt(formData.parkingSpots, 10),
       // Convert string amenities back to array
-      amenities: typeof formData.amenities === 'string' 
-        ? formData.amenities.split(',').map((item: string) => item.trim())
-        : formData.amenities
+      amenities:
+        typeof formData.amenities === "string"
+          ? formData.amenities.split(",").map((item: string) => item.trim())
+          : formData.amenities,
     };
-    
+
     onSave(updatedProperty);
     onClose();
   };
 
   return (
-    <PropertyFormDrawer
-      isOpen={isOpen && property !== null}
+    <PropertyFormDrawer isOpen={isOpen && property !== null}
       onClose={onClose}
       initialData={formatPropertyForForm(property)}
       onSubmit={handleSubmit}
-      title={`Edit Property: ${property?.name || ''}`}
+      title={`Edit Property: ${property?.name || ""}`}
     />
   );
-}; 
+};

@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import { NextRequest, NextResponse } from "next/server";
+import OpenAI from "openai";
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -12,9 +12,12 @@ const PROPERTY_ASSISTANT_ID = "asst_w0OLco3hGCoHgDQ2Sc0qae8g";
 export async function POST(request: NextRequest) {
   try {
     const { spreadsheetData } = await request.json();
-    
+
     if (!spreadsheetData) {
-      return NextResponse.json({ error: 'Missing required spreadsheet data' }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing required spreadsheet data" },
+        { status: 400 },
+      );
     }
 
     // Create a thread
@@ -42,7 +45,7 @@ export async function POST(request: NextRequest) {
       - monthlyPayment
 
       Format your response as a valid JSON object with an array of properties. Each property should include all available fields from the data.
-      `
+      `,
     });
 
     // Run the Assistant
@@ -52,26 +55,31 @@ export async function POST(request: NextRequest) {
 
     // Poll for the run to complete
     let runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
-    
+
     // Wait for the run to complete (simple polling)
     while (runStatus.status !== "completed") {
       if (["failed", "cancelled", "expired"].includes(runStatus.status)) {
-        throw new Error(`Assistant run failed with status: ${runStatus.status}`);
+        throw new Error(
+          `Assistant run failed with status: ${runStatus.status}`,
+        );
       }
-      
+
       // Wait 1 second before checking again
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
     }
 
     // Get the messages from the thread
     const messages = await openai.beta.threads.messages.list(thread.id);
-    
+
     // Find the last assistant message
     const lastAssistantMessage = messages.data
-      .filter(message => message.role === "assistant")
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
-    
+      .filter((message) => message.role === "assistant")
+      .sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      )[0];
+
     if (!lastAssistantMessage) {
       throw new Error("No response from assistant");
     }
@@ -83,10 +91,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract JSON from the text response
-    let jsonMatch = responseContent.match(/```json\n([\s\S]*?)\n```/) || 
-                    responseContent.match(/```\n([\s\S]*?)\n```/) ||
-                    responseContent.match(/{[\s\S]*}/);
-                    
+    const jsonMatch =
+      responseContent.match(/```json\n([\s\S]*?)\n```/) ||
+      responseContent.match(/```\n([\s\S]*?)\n```/) ||
+      responseContent.match(/{[\s\S]*}/);
+
     let parsedData;
     if (jsonMatch) {
       try {
@@ -97,21 +106,25 @@ export async function POST(request: NextRequest) {
     } else {
       throw new Error("No valid JSON found in assistant response");
     }
-    
+
     // Generate IDs for each property
-    const propertiesWithIds = parsedData.properties.map((property: any, index: number) => ({
-      id: `prop_${Date.now()}_${index}`,
-      ...property
-    }));
-    
+    const propertiesWithIds = parsedData.properties.map(
+      (property: unknown, index: number) => ({
+        id: `prop_${Date.now()}_${index}`,
+        ...property,
+      }),
+    );
+
     // Return the structured data
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
-      properties: propertiesWithIds
+      properties: propertiesWithIds,
     });
-    
   } catch (error) {
-    console.error('Error processing property data:', error);
-    return NextResponse.json({ error: 'Failed to process property data' }, { status: 500 });
+    console.error("Error processing property data:", error);
+    return NextResponse.json(
+      { error: "Failed to process property data" },
+      { status: 500 },
+    );
   }
-} 
+}

@@ -14,8 +14,7 @@ const ChatMessageList = React.forwardRef<HTMLDivElement, ChatMessageListProps>(
     }, [children]);
 
     return (
-      <div
-        ref={ref}
+      <div ref={ref}
         className={cn("flex flex-col gap-4 p-4", className)}
         {...props}
       >
@@ -23,9 +22,9 @@ const ChatMessageList = React.forwardRef<HTMLDivElement, ChatMessageListProps>(
         <div ref={messagesEndRef} />
       </div>
     );
-  }
+  },
 );
 
 ChatMessageList.displayName = "ChatMessageList";
 
-export { ChatMessageList }; 
+export { ChatMessageList };

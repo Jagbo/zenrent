@@ -11,19 +11,18 @@ interface ChatBubbleProps extends React.HTMLAttributes<HTMLDivElement> {
 const ChatBubble = React.forwardRef<HTMLDivElement, ChatBubbleProps>(
   ({ className, variant = "received", children, ...props }, ref) => {
     return (
-      <div
-        ref={ref}
+      <div ref={ref}
         className={cn(
           "flex w-max max-w-[80%] items-start gap-2 p-2",
           variant === "sent" ? "ml-auto" : "mr-auto",
-          className
+          className,
         )}
         {...props}
       >
         {children}
       </div>
     );
-  }
+  },
 );
 ChatBubble.displayName = "ChatBubble";
 
@@ -47,26 +46,21 @@ const ChatBubbleMessage = React.forwardRef<
   ChatBubbleMessageProps
 >(({ className, variant = "received", isLoading, children, ...props }, ref) => {
   return (
-    <div
-      ref={ref}
+    <div ref={ref}
       className={cn(
         "rounded-2xl px-4 py-2 max-w-sm",
-        variant === "sent"
-          ? "bg-primary text-primary-foreground"
-          : "bg-muted",
-        className
+        variant === "sent" ? "bg-primary text-primary-foreground" : "bg-muted",
+        className,
       )}
       {...props}
     >
       {isLoading ? (
         <div className="flex gap-1">
           <div className="h-2 w-2 animate-bounce rounded-full bg-current" />
-          <div
-            className="h-2 w-2 animate-bounce rounded-full bg-current"
+          <div className="h-2 w-2 animate-bounce rounded-full bg-current"
             style={{ animationDelay: "0.2s" }}
           />
-          <div
-            className="h-2 w-2 animate-bounce rounded-full bg-current"
+          <div className="h-2 w-2 animate-bounce rounded-full bg-current"
             style={{ animationDelay: "0.4s" }}
           />
         </div>
@@ -78,4 +72,4 @@ const ChatBubbleMessage = React.forwardRef<
 });
 ChatBubbleMessage.displayName = "ChatBubbleMessage";
 
-export { ChatBubble, ChatBubbleAvatar, ChatBubbleMessage }; 
+export { ChatBubble, ChatBubbleAvatar, ChatBubbleMessage };
