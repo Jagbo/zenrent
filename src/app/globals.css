@@ -184,16 +184,26 @@ body {
     @apply bg-background text-foreground;
   }
   h3 {
-    font-family: 'Cabinet Grotesk', sans-serif;
+    font-family: var(--font-cabinet), sans-serif;
     font-weight: 700;
   }
   .title-font {
-    font-family: 'Cabinet Grotesk', sans-serif;
+    font-family: var(--font-cabinet), sans-serif;
     font-weight: 800;
   }
   .font-cabinet-grotesk-bold {
-    font-family: 'Cabinet Grotesk', sans-serif;
+    font-family: var(--font-cabinet), sans-serif;
     font-weight: 700;
+  }
+  /* Replace Inter Bold with Cabinet Grotesk */
+  b, strong, .font-bold, [class*="font-bold"], .fw-bold, .tw-font-bold {
+    font-family: var(--font-cabinet), sans-serif;
+    font-weight: 700;
+  }
+  /* Also apply to semibold */
+  .font-semibold, [class*="font-semibold"], .fw-semibold, .tw-font-semibold {
+    font-family: var(--font-cabinet), sans-serif;
+    font-weight: 600; /* Use Medium weight for semibold */
   }
 }
 

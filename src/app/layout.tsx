@@ -5,11 +5,13 @@ import { Providers } from "./components/providers";
 import { initSupabaseEnvironment } from "@/lib/supabase-init";
 import { Toaster } from "react-hot-toast";
 import { ZenAgentProvider } from "@/components/zen-agent-provider";
+import { cabinetGrotesk } from "./fonts";
 
 const inter = Inter({
   subsets: ["latin"],
   display: "swap",
-  weight: ["300", "400", "500", "600", "700", "900"],
+  weight: ["300", "400", "500", "600"],
+  variable: '--font-inter',
 });
 
 export const metadata = {
@@ -27,7 +29,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-full">
-      <body className={`${inter.className} h-full`} suppressHydrationWarning>
+      <body className={`${inter.className} ${cabinetGrotesk.variable} h-full`} suppressHydrationWarning>
         <Script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"
           strategy="beforeInteractive"
         />

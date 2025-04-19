@@ -76,8 +76,8 @@ export const BaseDrawer: React.FC<BaseDrawerProps> = ({
         />
         <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10 z-50">
           <div className={`pointer-events-auto w-screen ${getWidthClass()}`}>
-            <div className="flex h-full flex-col bg-white shadow-xl">
-              <div className="px-4 pt-5 pb-4 sm:px-6 border-b border-gray-200">
+            <div className="flex h-full flex-col bg-white !bg-white shadow-xl">
+              <div className="px-4 pt-5 pb-4 sm:px-6 border-b border-gray-200 bg-white !bg-white">
                 <div className="flex items-start justify-between">
                   <h3 className="text-lg font-medium text-gray-900">{title}</h3>
                   <button type="button"
@@ -88,8 +88,8 @@ export const BaseDrawer: React.FC<BaseDrawerProps> = ({
                   </button>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto py-6">
-                <div className="px-4 sm:px-6">{children}</div>
+              <div className="flex-1 overflow-y-auto py-6 bg-white !bg-white">
+                <div className="px-4 sm:px-6 bg-white !bg-white">{children}</div>
               </div>
             </div>
           </div>

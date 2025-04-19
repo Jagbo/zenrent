@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+// Use createRouteHandlerClient for server-side routes
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
 import { WebhookType } from "plaid";
 
 export async function POST(request: Request) {
   try {
-    const supabase = createClientComponentClient();
+    // Initialize server-side Supabase client (even if user session isn't expected for webhook)
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
     const webhookData = await request.json();
 
     console.log("Received Plaid webhook:", webhookData);

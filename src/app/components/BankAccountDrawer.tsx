@@ -315,7 +315,8 @@ export const BankAccountDrawer: React.FC<BankAccountDrawerProps> = ({
   };
 
   return (
-    <BaseDrawer isOpen={isOpen}
+    <BaseDrawer
+      isOpen={isOpen}
       onClose={handleClose}
       title="Connect Bank Account"
       width="md"

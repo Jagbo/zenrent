@@ -51,6 +51,7 @@ export const getTenants = async (userId?: string): Promise<ITenant[]> => {
       return [];
     }
 
+    // --- Original Query Structure (Confirmed working with correct RLS) ---
     const { data: rawData, error } = await client
       .from("properties")
       .select(
@@ -75,16 +76,18 @@ export const getTenants = async (userId?: string): Promise<ITenant[]> => {
       `,
       )
       .eq("user_id", effectiveUserId)
-      .eq("leases.status", "active");
+      .eq("leases.status", "active"); // Ensure we only get tenants with active leases
 
     if (error) {
-      console.error("Error fetching tenant data (raw object):", error);
-      console.error("Error details:", JSON.stringify(error, null, 2)); // Log full error details
+      console.error("Error fetching tenant data:", error);
+      // Keep detailed error logging for potential future issues
+      console.error("Error details:", JSON.stringify(error, null, 2));
       return [];
     }
 
+    // Cast the data (assuming RLS is now correct)
     const data = rawData as unknown as JoinedProperty[];
-    console.log("Found joined data:", data);
+    // console.log("Found joined data:", data); // Removed debug log
 
     // Transform the nested data into the expected format
     const tenants = data.flatMap((property) =>
@@ -96,7 +99,7 @@ export const getTenants = async (userId?: string): Promise<ITenant[]> => {
       })),
     );
 
-    console.log("Transformed tenants:", tenants);
+    // console.log("Transformed tenants:", tenants); // Removed debug log
     return tenants;
   } catch (error) {
     console.error("Caught error in getTenants function:", error);
