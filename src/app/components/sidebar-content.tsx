@@ -57,6 +57,13 @@ export function SidebarContent({ currentPath }: { currentPath: string }): ReactE
   const [loading, setLoading] = useState(true);
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({});
 
+  // Check if a path is under a parent path
+  const isPathUnderParent = (path: string, parentPath: string): boolean => {
+    // Skip the root path check to avoid all paths matching '/'
+    if (parentPath === '/') return false;
+    return path.startsWith(parentPath + '/') || path === parentPath;
+  };
+
   // Initialize expanded state - auto-expand if the current path is in the submenu
   useEffect(() => {
     const initialExpandedState: Record<string, boolean> = {};
@@ -64,8 +71,8 @@ export function SidebarContent({ currentPath }: { currentPath: string }): ReactE
     navigation.forEach(item => {
       if (item.subItems) {
         // Auto-expand if the current path is a submenu item or the parent path
-        const shouldExpand = currentPath === item.path || 
-                           item.subItems.some(subItem => currentPath === subItem.path);
+        const shouldExpand = isPathUnderParent(currentPath, item.path) || 
+                           item.subItems.some(subItem => isPathUnderParent(currentPath, subItem.path));
         initialExpandedState[item.name] = shouldExpand;
       }
     });
@@ -135,7 +142,7 @@ export function SidebarContent({ currentPath }: { currentPath: string }): ReactE
                     <a
                       href={item.path}
                       className={classNames(
-                        (currentPath === item.path || (item.subItems && item.subItems.some(subItem => currentPath === subItem.path)))
+                        (isPathUnderParent(currentPath, item.path) || (item.subItems && item.subItems.some(subItem => isPathUnderParent(currentPath, subItem.path))))
                           ? 'bg-[#F9F7F7] text-[#330015]'
                           : 'text-gray-700 hover:bg-[#F9F7F7] hover:text-[#330015]',
                         'group flex items-center gap-x-3 rounded-md p-2 text-sm/6 font-semibold',
@@ -145,7 +152,7 @@ export function SidebarContent({ currentPath }: { currentPath: string }): ReactE
                       <item.icon
                         aria-hidden="true"
                         className={classNames(
-                          (currentPath === item.path || (item.subItems && item.subItems.some(subItem => currentPath === subItem.path)))
+                          (isPathUnderParent(currentPath, item.path) || (item.subItems && item.subItems.some(subItem => isPathUnderParent(currentPath, subItem.path))))
                             ? 'text-[#330015]'
                             : 'text-gray-400 group-hover:text-[#330015]',
                           'size-6 shrink-0',
@@ -178,7 +185,7 @@ export function SidebarContent({ currentPath }: { currentPath: string }): ReactE
                           <a
                             href={subItem.path}
                             className={classNames(
-                              currentPath === subItem.path
+                              isPathUnderParent(currentPath, subItem.path)
                                 ? 'bg-[#F9F7F7] text-[#330015] font-medium'
                                 : 'text-gray-600 hover:bg-[#F9F7F7] hover:text-[#330015]',
                               'block rounded-md py-1 px-2 text-sm'
@@ -211,7 +218,7 @@ export function SidebarContent({ currentPath }: { currentPath: string }): ReactE
                     <a
                       href={property.path}
                       className={classNames(
-                        currentPath === property.path
+                        isPathUnderParent(currentPath, property.path)
                           ? 'bg-[#F9F7F7] text-[#330015]'
                           : 'text-gray-700 hover:bg-[#F9F7F7] hover:text-[#330015]',
                         'group flex gap-x-3 rounded-md p-2 text-sm/6 font-semibold',
@@ -219,7 +226,7 @@ export function SidebarContent({ currentPath }: { currentPath: string }): ReactE
                     >
                       <span
                         className={classNames(
-                          currentPath === property.path
+                          isPathUnderParent(currentPath, property.path)
                             ? 'border-[#330015] text-[#330015]'
                             : 'border-gray-200 text-gray-400 group-hover:border-[#330015] group-hover:text-[#330015]',
                           'flex size-6 shrink-0 items-center justify-center rounded-lg border bg-white text-[0.625rem] font-medium',
