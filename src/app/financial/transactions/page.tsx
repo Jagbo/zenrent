@@ -13,6 +13,7 @@ import {
   MagnifyingGlassIcon,
 } from "@heroicons/react/24/solid";
 import { Link } from "@/components/link";
+import Image from "next/image";
 
 // Transaction type definition
 interface Transaction {
@@ -135,68 +136,62 @@ export default function Transactions(): ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // First fetch properties
+      const propertiesResponse = await fetch("/api/properties");
+      const propertiesData = await propertiesResponse.json();
+
+      if (!propertiesResponse.ok) {
+        throw new Error("Failed to fetch properties");
+      }
+
+      if (!Array.isArray(propertiesData) || propertiesData.length === 0) {
+        throw new Error("No properties found for this user");
+      }
+
+      setProperties(propertiesData);
+
+      // Fetch financial data from the API without limiting to 6 months
+      // Remove the startDate/endDate parameters to fetch ALL transactions
+      const financesEndpoint = `/api/finances`;
+      console.log(`[TRANSACTIONS] Fetching data from: ${financesEndpoint}`);
+
+      const response = await fetch(financesEndpoint);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to fetch financial data");
+      }
+
+      // Get combined transactions using our helper function
+      const combinedTransactions = getCombinedTransactions(data);
+
+      if (!combinedTransactions || combinedTransactions.length === 0) {
+        throw new Error("No transaction data available");
+      }
+
+      console.log(
+        `[TRANSACTIONS] Successfully fetched ${combinedTransactions.length} transactions`,
+      );
+      setTransactions(combinedTransactions);
+    } catch (err) {
+      console.error("Error fetching transactions:", err);
+      setError(
+        err instanceof Error ? err.message : "An unexpected error occurred",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchTransactions = async () => {
-      try {
-        setLoading(true);
-
-        // First fetch properties
-        const propertiesResponse = await fetch("/api/properties");
-        const propertiesData = await propertiesResponse.json();
-
-        if (!propertiesResponse.ok) {
-          throw new Error("Failed to fetch properties");
-        }
-
-        if (!Array.isArray(propertiesData) || propertiesData.length === 0) {
-          throw new Error("No properties found for this user");
-        }
-
-        setProperties(propertiesData);
-
-        // Get 6 months of data
-        const now = new Date();
-        const startDate = new Date(now.getFullYear(), now.getMonth() - 6, 1)
-          .toISOString()
-          .split("T")[0];
-        const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-          .toISOString()
-          .split("T")[0];
-
-        // Fetch financial data from the API - use all properties (omit propertyId)
-        const financesEndpoint = `/api/finances?startDate=${startDate}&endDate=${endDate}`;
-        console.log(`[TRANSACTIONS] Fetching data from: ${financesEndpoint}`);
-
-        const response = await fetch(financesEndpoint);
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || "Failed to fetch financial data");
-        }
-
-        // Get combined transactions using our helper function
-        const combinedTransactions = getCombinedTransactions(data);
-
-        if (!combinedTransactions || combinedTransactions.length === 0) {
-          throw new Error("No transaction data available");
-        }
-
-        console.log(
-          `[TRANSACTIONS] Successfully fetched ${combinedTransactions.length} transactions`,
-        );
-        setTransactions(combinedTransactions);
-      } catch (err) {
-        console.error("Error fetching transactions:", err);
-        setError(
-          err instanceof Error ? err.message : "An unexpected error occurred",
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTransactions();
+    fetchData();
   }, []);
 
   // Add handler to fetch data for a specific property
@@ -599,163 +594,224 @@ export default function Transactions(): ReactElement {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredTransactions.map((transaction: Transaction) => (
-                    <tr key={transaction.id}
-                      className="hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 cursor-pointer"
-                        onClick={() => handleViewTransaction(transaction)}
+                  {filteredTransactions
+                    .slice((currentPage - 1) * 20, currentPage * 20)
+                    .map((transaction, index) => (
+                      <tr key={transaction.id || index}
+                        className={`hover:bg-gray-50 transition-colors duration-150 ${
+                          selectedTransaction?.id === transaction.id
+                            ? "bg-blue-50"
+                            : ""
+                        }`}
                       >
-                        {formatDate(transaction.date)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 cursor-pointer"
-                        onClick={() => handleViewTransaction(transaction)}
-                      >
-                        {transaction.type}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingCategory(transaction.id);
-                        }}
-                      >
-                        {editingCategory === transaction.id ? (
-                          <select className="form-select rounded-md border-gray-300 py-1 pl-2 pr-8 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            value={transaction.category}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              handleCategoryChange(
-                                transaction.id,
-                                e.target.value,
-                              );
-                            }}
-                            onBlur={() => setEditingCategory(null)}
-                            autoFocus
-                          >
-                            {categories
-                              .filter((cat) => cat !== "All")
-                              .map((category) => (
-                                <option key={category} value={category}>
-                                  {category}
-                                </option>
-                              ))}
-                          </select>
-                        ) : (
-                          <div className="flex items-center justify-between cursor-pointer hover:text-blue-600">
-                            <span>{transaction.category}</span>
-                            <svg className="h-4 w-4 text-gray-400 ml-2"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 cursor-pointer"
+                          onClick={() => handleViewTransaction(transaction)}
+                        >
+                          {formatDate(transaction.date)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 cursor-pointer"
+                          onClick={() => handleViewTransaction(transaction)}
+                        >
+                          {transaction.type}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingCategory(transaction.id);
+                          }}
+                        >
+                          {editingCategory === transaction.id ? (
+                            <select className="form-select rounded-md border-gray-300 py-1 pl-2 pr-8 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              value={transaction.category}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                handleCategoryChange(
+                                  transaction.id,
+                                  e.target.value,
+                                );
+                              }}
+                              onBlur={() => setEditingCategory(null)}
+                              autoFocus
                             >
-                              <path strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                              />
-                            </svg>
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 cursor-pointer"
-                        onClick={() => handleViewTransaction(transaction)}
-                      >
-                        {transaction.description}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 cursor-pointer"
-                        onClick={() => handleViewTransaction(transaction)}
-                      >
-                        {transaction.property}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm cursor-pointer"
-                        onClick={() => handleViewTransaction(transaction)}
-                      >
-                        <span className={
-                            transaction.amount >= 0
-                              ? "text-green-600"
-                              : "text-red-600"
-                          }
+                              {categories
+                                .filter((cat) => cat !== "All")
+                                .map((category) => (
+                                  <option key={category} value={category}>
+                                    {category}
+                                  </option>
+                                ))}
+                            </select>
+                          ) : (
+                            <div className="flex items-center justify-between cursor-pointer hover:text-blue-600">
+                              <span>{transaction.category}</span>
+                              <svg className="h-4 w-4 text-gray-400 ml-2"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                                />
+                              </svg>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 cursor-pointer"
+                          onClick={() => handleViewTransaction(transaction)}
                         >
-                          {formatCurrency(transaction.amount)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap cursor-pointer"
-                        onClick={() => handleViewTransaction(transaction)}
-                      >
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            transaction.status === "Completed"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-yellow-100 text-yellow-800"
-                          }`}
+                          {transaction.description}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 cursor-pointer"
+                          onClick={() => handleViewTransaction(transaction)}
                         >
-                          {transaction.status}
-                        </span>
+                          {transaction.property}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm cursor-pointer"
+                          onClick={() => handleViewTransaction(transaction)}
+                        >
+                          <span className={
+                              transaction.amount >= 0
+                                ? "text-green-600"
+                                : "text-red-600"
+                            }
+                          >
+                            {formatCurrency(transaction.amount)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap cursor-pointer"
+                          onClick={() => handleViewTransaction(transaction)}
+                        >
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              transaction.status === "Completed"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-yellow-100 text-yellow-800"
+                            }`}
+                          >
+                            {transaction.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+
+                  {filteredTransactions.length === 0 && (
+                    <tr>
+                      <td colSpan={8}
+                        className="px-6 py-10 text-center text-sm text-gray-500"
+                      >
+                        No transactions match your filters.
+                        <div className="mt-2">
+                          <button
+                            onClick={() => {
+                              setTypeFilter("All");
+                              setCategoryFilter("All");
+                              setPropertyFilter("All");
+                              setStatusFilter("All");
+                              setCurrentPage(1);
+                            }}
+                            className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                          >
+                            Clear filters
+                          </button>
+                        </div>
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
 
-            {filteredTransactions.length === 0 && (
-              <div className="text-center py-6">
-                <Text className="text-gray-500">
-                  No transactions found matching your filters.
-                </Text>
-              </div>
-            )}
-
             {/* Pagination */}
-            {filteredTransactions.length > 0 && (
-              <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+            {transactions.length > 0 && (
+              <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
                 <div className="flex-1 flex justify-between sm:hidden">
-                  <a href="#"
-                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  {/* Mobile pagination controls */}
+                  <button
+                    onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                      currentPage === 1
+                        ? "bg-gray-100 text-gray-400"
+                        : "bg-white text-gray-700 hover:bg-gray-50"
+                    }`}
                   >
                     Previous
-                  </a>
-                  <a href="#"
-                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  </button>
+                  <button
+                    onClick={() => 
+                      currentPage < Math.ceil(filteredTransactions.length / 20) && 
+                      setCurrentPage(currentPage + 1)
+                    }
+                    disabled={currentPage >= Math.ceil(filteredTransactions.length / 20)}
+                    className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
+                      currentPage >= Math.ceil(filteredTransactions.length / 20)
+                        ? "bg-gray-100 text-gray-400"
+                        : "bg-white text-gray-700 hover:bg-gray-50"
+                    }`}
                   >
                     Next
-                  </a>
+                  </button>
                 </div>
                 <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                   <div>
                     <p className="text-sm text-gray-700">
-                      Showing <span className="font-medium">1</span> to{" "}
+                      Showing <span className="font-medium">{(currentPage - 1) * 20 + 1}</span> to{" "}
                       <span className="font-medium">
-                        {filteredTransactions.length}
+                        {Math.min(currentPage * 20, filteredTransactions.length)}
                       </span>{" "}
-                      of{" "}
-                      <span className="font-medium">
-                        {filteredTransactions.length}
-                      </span>{" "}
-                      results
+                      of <span className="font-medium">{filteredTransactions.length}</span> results
                     </p>
                   </div>
                   <div>
-                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
-                      aria-label="Pagination"
-                    >
-                      <a href="#"
-                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                      <button
+                        onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 ${
+                          currentPage === 1
+                            ? "bg-gray-100 text-gray-400"
+                            : "bg-white text-gray-500 hover:bg-gray-50"
+                        }`}
                       >
                         <span className="sr-only">Previous</span>
                         &lsaquo;
-                      </a>
-                      <a href="#"
-                        aria-current="page"
-                        className="z-10 bg-[#D9E8FF]/5 border-indigo-500 text-gray-900 relative inline-flex items-center px-4 py-2 border text-sm font-medium"
-                      >
-                        1
-                      </a>
-                      <a href="#"
-                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                      </button>
+                      
+                      {/* Generate page numbers */}
+                      {Array.from({ length: Math.min(5, Math.ceil(filteredTransactions.length / 20)) }).map((_, idx) => {
+                        const pageNum = idx + 1;
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => setCurrentPage(pageNum)}
+                            aria-current={currentPage === pageNum ? "page" : undefined}
+                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                              currentPage === pageNum
+                                ? "z-10 bg-[#D9E8FF]/5 border-indigo-500 text-gray-900"
+                                : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                      
+                      <button
+                        onClick={() => 
+                          currentPage < Math.ceil(filteredTransactions.length / 20) && 
+                          setCurrentPage(currentPage + 1)
+                        }
+                        disabled={currentPage >= Math.ceil(filteredTransactions.length / 20)}
+                        className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 ${
+                          currentPage >= Math.ceil(filteredTransactions.length / 20)
+                            ? "bg-gray-100 text-gray-400"
+                            : "bg-white text-gray-500 hover:bg-gray-50"
+                        }`}
                       >
                         <span className="sr-only">Next</span>
                         &rsaquo;
-                      </a>
+                      </button>
                     </nav>
                   </div>
                 </div>
