@@ -39,7 +39,8 @@ const navigation = [
     icon: BanknotesIcon,
     subItems: [
       { name: 'Overview', path: '/financial' },
-      { name: 'Transactions', path: '/financial/transactions' }
+      { name: 'Transactions', path: '/financial/transactions' },
+      { name: 'Tax', path: '/financial/tax/welcome' }
     ]
   },
   { name: 'Suppliers', path: '/suppliers', icon: ShoppingBagIcon },
