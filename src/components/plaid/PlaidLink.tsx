@@ -68,7 +68,7 @@ export function PlaidLink({
   }, [ready, open, onOpen]);
 
   return (
-    <Button onClick={handleClick} disabled={!ready}>
+    <Button onClick={handleClick} disabled={!ready} id="plaid-link-button">
       Connect Bank
     </Button>
   );

@@ -8,10 +8,12 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'Arial', 'sans-serif'],
-        inter: ['Inter', 'Arial', 'sans-serif'],
-        title: ['Cabinet Grotesk', 'sans-serif'],
-        'cabinet-grotesk-bold': ['Cabinet Grotesk', 'sans-serif'],
+        sans: ['var(--font-inter)', 'Arial', 'sans-serif'],
+        inter: ['var(--font-inter)', 'Arial', 'sans-serif'],
+        title: ['var(--font-cabinet)', 'sans-serif'],
+        'cabinet-grotesk': ['var(--font-cabinet)', 'sans-serif'],
+        'cabinet-grotesk-bold': ['var(--font-cabinet)', 'sans-serif'],
+        bold: ['var(--font-cabinet)', 'sans-serif'],
       },
       colors: {
         border: "rgb(229 231 235)", // zinc-200

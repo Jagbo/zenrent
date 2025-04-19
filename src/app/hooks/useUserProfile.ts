@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 export interface UserProfile {
@@ -13,7 +13,7 @@ export function useUserProfile() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const supabase = createClientComponentClient();
+  const [supabase] = useState(() => createClientComponentClient());
 
   useEffect(() => {
     async function fetchUserProfile() {
@@ -48,7 +48,7 @@ export function useUserProfile() {
     }
 
     fetchUserProfile();
-  }, [supabase]);
+  }, []);
 
   return { profile, loading, error };
 }

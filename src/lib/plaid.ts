@@ -135,11 +135,12 @@ export async function hasLinkedBankAccount(
     .from("bank_connections")
     .select("id")
     .eq("property_id", propertyId)
-    .single();
+    .maybeSingle();
 
-  if (error) {
+  if (error || !data) {
+    console.log(`No bank connection found for property ${propertyId}`);
     return false;
   }
 
-  return !!data;
+  return true;
 }
