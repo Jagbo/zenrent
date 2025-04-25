@@ -56,7 +56,7 @@ export function Sidebar() {
     <div className="flex h-full flex-col bg-white dark:bg-zinc-900">
       <div className="flex h-16 items-center justify-center px-6">
         <div className="flex h-12 w-12 items-center justify-center">
-          <Image src="/images/logo/ZenRent-logo.png"
+          <Image src="/images/logo/zenrent-logo.png"
             alt="ZenRent Logo"
             width={48}
             height={48}

@@ -116,12 +116,10 @@ function EmailVerificationContent() {
   return (
     <div className="flex min-h-full flex-1 flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <Image 
+        <img
+          className="mx-auto h-12 w-auto"
+          src="/images/logo/zenrent-square-logo.png"
           alt="ZenRent"
-          src="/images/logo/ZenRent-square-logo.png"
-          className="mx-auto h-10 w-auto"
-          width={40}
-          height={40}
         />
         <h2 className="mt-6 text-center text-2xl/9 title-font text-gray-900">
           Verify your email
