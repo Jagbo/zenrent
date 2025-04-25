@@ -2,6 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
+import { Logo } from "@/components/layout/logo";
 
 export function SideboardOnboardingContent() {
   return (
@@ -9,12 +10,7 @@ export function SideboardOnboardingContent() {
       {/* Logo at the top */}
       <div className="p-8">
         <div className="flex items-center">
-          <Image src="/images/logo/zenrent-logo.png"
-            alt="ZenRent"
-            className="h-10 w-auto"
-            width={150}
-            height={40}
-          />
+          <Logo width={150} height={40} className="h-10 w-auto" linkTo="/" />
         </div>
       </div>
 

@@ -17,6 +17,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { getProperties, IProperty } from '@/lib/propertyService'
 import { useAuth } from '@/lib/auth-provider'
+import { Logo } from '@/components/layout/logo'
 
 // Define navigation items
 const navigation = [
@@ -125,11 +126,7 @@ export function SidebarContent({ currentPath }: { currentPath: string }): ReactE
   return (
     <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-200 bg-white px-6 pb-4">
       <div className="flex h-16 shrink-0 items-center">
-        <img
-          alt="ZenRent"
-          src="/images/logo/zenrent-logo.png"
-          className="h-8 w-auto"
-        />
+        <Logo width={150} height={32} className="h-8 w-auto" />
       </div>
       <nav className="flex flex-1 flex-col">
         <ul role="list" className="flex flex-1 flex-col gap-y-7">

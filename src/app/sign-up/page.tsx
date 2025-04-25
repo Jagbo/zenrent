@@ -124,12 +124,12 @@ export default function Example() {
         <div className="flex flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24">
           <div className="mx-auto w-full max-w-sm lg:w-96">
             <div>
-              <Image alt="ZenRent"
-                src="/images/logo/ZenRent-square-logo.png"
-                className="h-10 w-auto"
-                width={40}
-                height={40}
-              />
+              <div className="relative" aria-hidden={true}>
+                <img className="mx-auto h-20 w-auto"
+                  src="/images/logo/zenrent-square-logo.png"
+                  alt="ZenRent"
+                />
+              </div>
               <h2 className="mt-8 text-2xl/9 title-font text-gray-900">
                 Create your account
               </h2>
