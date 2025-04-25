@@ -9,7 +9,7 @@ export function SideboardOnboardingContent() {
       {/* Logo at the top */}
       <div className="p-8">
         <div className="flex items-center">
-          <Image src="/images/logo/ZenRent-logo.png"
+          <Image src="/images/logo/zenrent-logo.png"
             alt="ZenRent"
             className="h-10 w-auto"
             width={150}
