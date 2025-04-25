@@ -23,6 +23,9 @@ const nextConfig = {
         hostname: 'ui-avatars.com',
       },
     ],
+    dangerouslyAllowSVG: true,
+    domains: ['localhost'],
+    unoptimized: process.env.NODE_ENV === 'development',
   },
   serverRuntimeConfig: {
     // Will only be available on the server side

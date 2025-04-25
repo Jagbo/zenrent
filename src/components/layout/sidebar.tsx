@@ -26,6 +26,7 @@ import {
   DropdownItem,
 } from "../../app/components/dropdown";
 import { useAuth } from "@/lib/auth-provider";
+import { Logo } from "./logo";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -56,12 +57,7 @@ export function Sidebar() {
     <div className="flex h-full flex-col bg-white dark:bg-zinc-900">
       <div className="flex h-16 items-center justify-center px-6">
         <div className="flex h-12 w-12 items-center justify-center">
-          <Image src="/images/logo/zenrent-logo.png"
-            alt="ZenRent Logo"
-            width={48}
-            height={48}
-            className="h-auto w-auto object-contain"
-          />
+          <Logo width={120} height={48} />
         </div>
       </div>
       <div className="flex-1 overflow-y-auto px-3 py-6">
