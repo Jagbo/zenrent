@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-provider";
 import { supabase } from "@/lib/supabase";
 import Image from "next/image";
-import { AuthError, AuthResponse } from '@supabase/supabase-js';
+import { AuthError } from '@supabase/supabase-js';
 
 export default function Example() {
   const router = useRouter();
@@ -35,11 +35,14 @@ export default function Example() {
     try {
       setLoading(true);
 
-      // Store email in localStorage for verification page
-      localStorage.setItem("signupEmail", email);
-
-      // Normal sign up flow
-      const response = await signUp(email, password);
+      // Sign up with Supabase Auth and redirect to email verification page
+      const response = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/sign-up/account-creation`,
+        }
+      });
 
       if (response.error) {
         throw response.error;
@@ -47,7 +50,10 @@ export default function Example() {
 
       // Check if user was created and confirmation email sent
       if (response.data.user) {
-        // Redirect to email verification page with email in query param
+        // Store email in localStorage for verification page
+        localStorage.setItem("signupEmail", email);
+        
+        // Redirect to email verification page
         router.push(
           `/sign-up/email-verification?email=${encodeURIComponent(email)}`,
         );

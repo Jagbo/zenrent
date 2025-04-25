@@ -42,21 +42,27 @@ function EmailVerificationContent() {
   // Mask email for display
   const maskedEmail = email ? email.replace(/(.{2})(.*)(@.*)/, "$1****$3") : "";
 
-  // Handle form submission (manual verification not needed with Supabase)
-  const handleManualVerification = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Redirect to account creation
-      router.push("/sign-up/account-creation");
-    } catch (err: any) {
-      console.error("Verification error:", err);
-      setError(err.message || "Failed to verify. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Check verified state periodically
+  useEffect(() => {
+    if (!email) return;
+    
+    const checkVerificationStatus = async () => {
+      const { data } = await supabase.auth.getSession();
+      
+      // If user is signed in and confirmed their email, proceed to account creation
+      if (data?.session?.user?.email_confirmed_at) {
+        router.push("/sign-up/account-creation");
+      }
+    };
+    
+    // Check on component mount
+    checkVerificationStatus();
+    
+    // Set interval to check every 5 seconds
+    const interval = setInterval(checkVerificationStatus, 5000);
+    
+    return () => clearInterval(interval);
+  }, [email, router]);
 
   // Handle resend code
   const handleResendCode = async () => {
@@ -70,7 +76,7 @@ function EmailVerificationContent() {
       setTimeLeft(60);
       setCanResend(false);
 
-      // Resend verification email - use OTP since we're in verification process
+      // Resend verification email
       const { error } = await supabase.auth.resend({
         type: "signup",
         email,
@@ -145,16 +151,9 @@ function EmailVerificationContent() {
                 Please check your inbox and click the verification link in the
                 email we sent you.
               </p>
-            </div>
-
-            <div>
-              <button type="button"
-                onClick={handleManualVerification}
-                disabled={loading}
-                className="flex w-full justify-center rounded-md bg-[#D9E8FF] px-3 py-1.5 text-sm/6 font-semibold text-gray-900 shadow-xs hover:bg-[#D9E8FF]/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF] disabled:opacity-70"
-              >
-                {loading ? "Processing..." : "I've verified my email"}
-              </button>
+              <p className="text-sm/6 text-gray-500 mt-2">
+                After verifying your email, you'll be automatically redirected to the next step.
+              </p>
             </div>
           </div>
 

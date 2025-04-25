@@ -12,6 +12,8 @@ export function SideboardOnboardingContent() {
           <Image src="/images/logo/ZenRent-logo.png"
             alt="ZenRent"
             className="h-10 w-auto"
+            width={150}
+            height={40}
           />
         </div>
       </div>
@@ -34,6 +36,8 @@ export function SideboardOnboardingContent() {
         <Image src="/images/hero-gradient.webp"
           alt="Property management illustration"
           className="h-full w-full object-cover rounded-lg"
+          width={500}
+          height={300}
         />
       </div>
     </div>

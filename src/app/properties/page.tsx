@@ -6,15 +6,12 @@ import { SidebarContent } from "../components/sidebar-content";
 import { Heading } from "../components/heading";
 import { Text } from "../components/text";
 import { Link } from "../../components/link";
-import { BuildingOffice2Icon } from "@heroicons/react/24/outline";
+import { BuildingOffice2Icon, PlusIcon, MagnifyingGlassIcon, EllipsisHorizontalIcon } from "@heroicons/react/24/outline";
 import {
-  EllipsisHorizontalIcon,
-  PlusIcon,
   XMarkIcon,
 } from "@heroicons/react/24/solid";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import {
-  MagnifyingGlassIcon,
   PencilIcon,
   ArrowLeftOnRectangleIcon,
   Squares2X2Icon,
@@ -79,9 +76,21 @@ const getOccupancyStatus = (rate: number) => {
 
 // Convert IProperty from Supabase to PropertyForUI for display
 const convertToUIProperty = (property: IProperty): PropertyForUI => {
-  // Default image if not available
-  const defaultImage =
-    "https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=800&h=400";
+  // Default images based on property type
+  const getDefaultImageByType = (type: string) => {
+    const typeToLower = (type || "").toLowerCase();
+    
+    if (typeToLower.includes('hmo')) {
+      return "/images/default/HMO-image.png";
+    } else if (typeToLower.includes('flat') || typeToLower.includes('apartment')) {
+      return "/images/default/Flat-image.png";
+    } else if (typeToLower.includes('house') || typeToLower.includes('townhouse') || typeToLower.includes('detached')) {
+      return "/images/default/House-image.png";
+    }
+    
+    // Default fallback image
+    return "https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=800&h=400";
+  };
 
   // Log the property for debugging purposes
   console.log("Converting property to UI:", property.id, property.address);
@@ -106,6 +115,10 @@ const convertToUIProperty = (property: IProperty): PropertyForUI => {
   const rentAmount =
     typeof property.rentAmount === "number" ? property.rentAmount : 0;
 
+  // Get the property type and determine default image
+  const propertyType = property.property_type || "Not specified";
+  const defaultImage = getDefaultImageByType(propertyType);
+
   return {
     id: property.id,
     name: property.name || property.address,
@@ -115,7 +128,7 @@ const convertToUIProperty = (property: IProperty): PropertyForUI => {
     city: property.city || "",
     state: property.state || "",
     zipCode: property.postcode || property.zipCode || "",
-    type: property.property_type || "Not specified",
+    type: propertyType,
     status: property.status || "available",
     bedrooms: property.bedrooms || 0,
     bathrooms: property.bathrooms || 0,

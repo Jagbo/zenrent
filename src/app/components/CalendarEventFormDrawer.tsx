@@ -279,7 +279,7 @@ export const CalendarEventFormDrawer: React.FC<
               Cancel
             </button>
             <button type="submit"
-              className="flex-1 bg-[#D9E8FF] py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-[#D9E8FF]/80 focus:outline-none"
+              className="flex-1 bg-[#D9E8FF] py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-black hover:bg-[#D9E8FF]/80 focus:outline-none"
             >
               {initialData.title ? "Update Event" : "Add Event"}
             </button>

@@ -294,9 +294,9 @@ export default function AdjustmentsForm() {
       <div className="space-y-8">
         {/* Progress Bar */}
         <div className="py-0">
-          <nav aria-label="Progress">
+          <nav aria-label="Progress" className="overflow-x-auto">
             <ol role="list"
-              className="divide-y divide-gray-300 rounded-md border border-gray-300 md:flex md:divide-y-0 bg-white"
+              className="divide-y divide-gray-300 rounded-md border border-gray-300 md:flex md:divide-y-0 bg-white min-w-full w-max md:w-full"
             >
               {steps.map((step, stepIdx) => (
                 <li key={step.name} className="relative md:flex md:flex-1">
@@ -304,13 +304,13 @@ export default function AdjustmentsForm() {
                     <a href={step.href}
                       className="group flex w-full items-center"
                     >
-                      <span className="flex items-center px-6 py-4 text-sm font-medium">
-                        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#D9E8FF] group-hover:bg-[#D9E8FF]/80">
-                          <svg className="h-6 w-6 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <span className="flex items-center px-3 py-3 md:px-6 md:py-4 text-sm font-medium">
+                        <span className="flex size-8 md:size-10 shrink-0 items-center justify-center rounded-full bg-[#D9E8FF] group-hover:bg-[#D9E8FF]/80">
+                          <svg className="h-5 w-5 md:h-6 md:w-6 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
                         </span>
-                        <span className="ml-4 text-sm font-cabinet-grotesk font-bold text-gray-900">
+                        <span className="ml-3 md:ml-4 text-xs md:text-sm font-cabinet-grotesk font-bold text-gray-900">
                           {step.name}
                         </span>
                       </span>
@@ -318,24 +318,24 @@ export default function AdjustmentsForm() {
                   ) : step.status === "current" ? (
                     <a href={step.href}
                       aria-current="step"
-                      className="flex items-center px-6 py-4 text-sm font-medium"
+                      className="flex items-center px-3 py-3 md:px-6 md:py-4 text-sm font-medium"
                     >
-                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-[#D9E8FF]">
-                        <span className="text-gray-900">{step.id}</span>
+                      <span className="flex size-8 md:size-10 shrink-0 items-center justify-center rounded-full border-2 border-[#D9E8FF]">
+                        <span className="text-xs md:text-sm text-gray-900">{step.id}</span>
                       </span>
-                      <span className="ml-4 text-sm font-cabinet-grotesk font-bold text-gray-900">
+                      <span className="ml-3 md:ml-4 text-xs md:text-sm font-cabinet-grotesk font-bold text-gray-900">
                         {step.name}
                       </span>
                     </a>
                   ) : (
                     <a href={step.href} className="group flex items-center">
-                      <span className="flex items-center px-6 py-4 text-sm font-medium">
-                        <span className="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-gray-300 group-hover:border-gray-400">
-                          <span className="text-gray-500 group-hover:text-gray-900">
+                      <span className="flex items-center px-3 py-3 md:px-6 md:py-4 text-sm font-medium">
+                        <span className="flex size-8 md:size-10 shrink-0 items-center justify-center rounded-full border-2 border-gray-300 group-hover:border-gray-400">
+                          <span className="text-xs md:text-sm text-gray-500 group-hover:text-gray-900">
                             {step.id}
                           </span>
                         </span>
-                        <span className="ml-4 text-sm font-cabinet-grotesk font-bold text-gray-500 group-hover:text-gray-900">
+                        <span className="ml-3 md:ml-4 text-xs md:text-sm font-cabinet-grotesk font-bold text-gray-500 group-hover:text-gray-900">
                           {step.name}
                         </span>
                       </span>
