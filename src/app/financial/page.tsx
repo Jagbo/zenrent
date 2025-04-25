@@ -590,9 +590,13 @@ export default function Financial() {
 
   // Process data for Revenue vs Expenses chart
   const revenueExpenseData = useMemo(() => {
-    const { allIncome, allExpenses } = getCombinedIncomeAndExpenses(financialData);
+    // Check if financialData is available
+    if (!financialData) return [];
     
-    if (allIncome.length === 0 && allExpenses.length === 0) return [];
+    // Use transactions from bank_transactions table instead of income/expenses arrays
+    const transactions = getCombinedTransactions(financialData);
+    
+    if (transactions.length === 0) return [];
 
     const monthlyData: { [key: string]: { month: string; income: number; expenses: number } } = {};
 
@@ -621,41 +625,47 @@ export default function Financial() {
         currentMonth.setMonth(currentMonth.getMonth() + 1);
     }
 
-    // 2. Aggregate income into monthlyData
-    allIncome.forEach((inc: Income) => {
+    // 2. Aggregate transactions into monthlyData
+    transactions.forEach((transaction) => {
       try {
-        const incDate = new Date(inc.date);
-        const monthKey = getMonthKey(incDate);
+        const transactionDate = new Date(transaction.date);
+        const monthKey = getMonthKey(transactionDate);
+        
         if (monthlyData[monthKey]) {
-          monthlyData[monthKey].income += inc.amount || 0;
+          // Positive amounts are income, negative are expenses
+          if (transaction.amount > 0) {
+            monthlyData[monthKey].income += transaction.amount || 0;
+          } else {
+            // Store expenses as positive values for the chart
+            monthlyData[monthKey].expenses += Math.abs(transaction.amount) || 0;
+          }
         }
       } catch (e) {
-        console.error("Error processing income date:", inc.date, e);
+        console.error("Error processing transaction date:", transaction.date, e);
       }
     });
 
-    // 3. Aggregate expenses into monthlyData
-    allExpenses.forEach((exp: Expense) => {
-      try {
-        const expDate = new Date(exp.date);
-        const monthKey = getMonthKey(expDate);
-        if (monthlyData[monthKey]) {
-          monthlyData[monthKey].expenses += exp.amount || 0;
-        }
-      } catch (e) {
-        console.error("Error processing expense date:", exp.date, e);
-      }
-    });
-
-    // 4. Convert monthlyData object to sorted array
-    return Object.values(monthlyData);
+    // 3. Convert monthlyData object to sorted array
+    return Object.entries(monthlyData)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([_, data]) => data);
 
   }, [financialData]);
 
   // Process data for Income Breakdown chart
   const incomeBreakdownData = useMemo(() => {
-    const { allIncome } = getCombinedIncomeAndExpenses(financialData);
-    if (allIncome.length === 0) return [];
+    // Check if financialData is available
+    if (!financialData) return [];
+    
+    // Use transactions from bank_transactions table instead of income array
+    const transactions = getCombinedTransactions(financialData);
+    
+    if (transactions.length === 0) return [];
+
+    // Only consider income transactions (positive amounts)
+    const incomeTransactions = transactions.filter(transaction => transaction.amount > 0);
+    
+    if (incomeTransactions.length === 0) return [];
 
     const monthlyIncomeBreakdown: { [key: string]: { month: string; rent: number; fees: number; other: number } } = {};
 
@@ -686,13 +696,13 @@ export default function Financial() {
     }
 
     // 2. Aggregate income into monthlyIncomeBreakdown by category
-    allIncome.forEach((inc: Income) => {
+    incomeTransactions.forEach((transaction) => {
       try {
-        const incDate = new Date(inc.date);
-        const monthKey = getMonthKey(incDate);
+        const transactionDate = new Date(transaction.date);
+        const monthKey = getMonthKey(transactionDate);
         if (monthlyIncomeBreakdown[monthKey]) {
-            const category = inc.income_type?.toLowerCase() || 'other';
-            const amount = inc.amount || 0;
+            const category = transaction.category?.toLowerCase() || 'other';
+            const amount = transaction.amount || 0;
             if (category.includes('rent')) {
                 monthlyIncomeBreakdown[monthKey].rent += amount;
             } else if (category.includes('fee') || category.includes('deposit')) {
@@ -702,24 +712,38 @@ export default function Financial() {
             }
         }
       } catch (e) {
-        console.error("Error processing income date for breakdown:", inc.date, e);
+        console.error("Error processing transaction date for income breakdown:", transaction.date, e);
       }
     });
 
     // 3. Convert monthlyIncomeBreakdown object to sorted array
-    return Object.values(monthlyIncomeBreakdown);
+    return Object.entries(monthlyIncomeBreakdown)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([_, data]) => data);
   }, [financialData]);
 
   // Process data for Expense Breakdown chart
   const expenseBreakdownData = useMemo(() => {
-    const { allExpenses } = getCombinedIncomeAndExpenses(financialData);
-    if (allExpenses.length === 0) return [];
+    // Check if financialData is available
+    if (!financialData) return [];
+    
+    // Use transactions from bank_transactions table instead of expenses array
+    const transactions = getCombinedTransactions(financialData);
+    
+    if (transactions.length === 0) return [];
+
+    // Only consider expense transactions (negative amounts)
+    const expenseTransactions = transactions.filter(transaction => transaction.amount < 0);
+    
+    if (expenseTransactions.length === 0) return [];
 
     const categoryTotals: { [key: string]: number } = {};
 
-    allExpenses.forEach((exp: Expense) => {
-      const category = exp.category || "Uncategorized";
-      categoryTotals[category] = (categoryTotals[category] || 0) + (exp.amount || 0);
+    // Aggregate expenses by category
+    expenseTransactions.forEach((transaction) => {
+      const category = transaction.category || "Uncategorized";
+      // Store expenses as positive values
+      categoryTotals[category] = (categoryTotals[category] || 0) + Math.abs(transaction.amount || 0);
     });
 
     return Object.entries(categoryTotals).map(([category, amount]) => ({
@@ -985,42 +1009,11 @@ export default function Financial() {
                           tickLine={false}
                           tickMargin={10}
                           axisLine={false}
-                          tickFormatter={(value) => {
-                            try {
-                              const [year, monthNum] = value.split("-");
-                              const date = new Date(
-                                parseInt(year),
-                                parseInt(monthNum) - 1,
-                                1,
-                              );
-                              return date.toLocaleString("default", {
-                                month: "short",
-                              });
-                            } catch (e) {
-                              return value;
-                            }
-                          }}
                         />
                         <ChartTooltip cursor={false}
                           content={
                             <ChartTooltipContent
                               indicator="dashed"
-                              labelFormatter={(label) => {
-                                try {
-                                  const [year, monthNum] = label.split("-");
-                                  const date = new Date(
-                                    parseInt(year),
-                                    parseInt(monthNum) - 1,
-                                    1,
-                                  );
-                                  return date.toLocaleString("default", {
-                                    month: "short",
-                                    year: "numeric",
-                                  });
-                                } catch (e) {
-                                  return label;
-                                }
-                              }}
                             />
                           }
                         />
@@ -1339,22 +1332,6 @@ export default function Financial() {
                           content={
                             <ChartTooltipContent
                               indicator="dashed"
-                              labelFormatter={(label) => {
-                                try {
-                                  const [year, monthNum] = label.split("-");
-                                  const date = new Date(
-                                    parseInt(year),
-                                    parseInt(monthNum) - 1,
-                                    1,
-                                  );
-                                  return date.toLocaleString("default", {
-                                    month: "short",
-                                    year: "numeric",
-                                  });
-                                } catch (e) {
-                                  return label;
-                                }
-                              }}
                             />
                           }
                         />

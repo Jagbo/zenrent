@@ -38,6 +38,7 @@ import {
   CalendarEvent,
   getEventColor,
   formatEventTime,
+  createCalendarEvent,
 } from "../../lib/calendar-utils";
 
 // Icons for navigation items
@@ -129,12 +130,32 @@ export default function Calendar() {
   }, [currentView, currentYear, currentMonth, currentDay]);
 
   // Update handleSubmit to use the calendar utils
-  const handleSubmit = async (formData: unknown) => {
+  const handleSubmit = async (formData: any) => {
     try {
-      // Here you would typically save the event to your backend
-      console.log("New event:", formData);
-      // Refresh events after adding new one
-      await loadEvents();
+      // Convert the form data to a format suitable for the calendar_events table
+      const event = {
+        title: formData.title,
+        date: formData.date,
+        start_time: formData.startTime,
+        end_time: formData.endTime,
+        all_day: false,
+        location: formData.location,
+        event_type: formData.event_type,
+        description: formData.description,
+        property_id: null // Could be set if property selection is added
+      };
+
+      // Save the event to Supabase using the util function
+      const result = await createCalendarEvent(event);
+      
+      if (result) {
+        console.log("Event created successfully:", result);
+        // Refresh events after adding new one
+        await loadEvents();
+      } else {
+        console.error("Failed to create event");
+      }
+      
       setIsDrawerOpen(false);
       setSelectedEvent(null);
     } catch (error) {
