@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { SidebarLayout } from "../../../components/sidebar-layout";
 import { SidebarContent } from "../../../components/sidebar-content";
 import { Button } from "../../../components/button";
 import { supabase } from "@/lib/supabase";
 import { getAuthUser } from "@/lib/auth-helpers";
 import { Navbar, NavbarSection, NavbarItem, NavbarLabel } from "../../../components/navbar";
+import { toast } from 'sonner';
 
 // Tax wizard progress steps
 const steps = [
@@ -19,9 +20,25 @@ const steps = [
   { id: "06", name: "Filing", href: "/financial/tax/filing", status: "current" },
 ];
 
+// --- HMRC Config (Frontend needs Auth URL) ---
+// We only need the client_id and redirect_uri on the frontend to build the auth link
+// Ensure these are exposed safely, e.g., via NEXT_PUBLIC_ variables
+const HMRC_AUTHORIZE_URL = "https://test-api.service.hmrc.gov.uk/oauth/authorize"; // Sandbox URL
+const HMRC_CLIENT_ID = process.env.NEXT_PUBLIC_HMRC_CLIENT_ID; // Use NEXT_PUBLIC_ prefix
+const HMRC_REDIRECT_URI = process.env.NEXT_PUBLIC_HMRC_REDIRECT_URI; // Use NEXT_PUBLIC_ prefix
+
+// Interface for form links
+interface FormLinks {
+  sa100Pdf: string | null;
+  sa105Pdf: string | null;
+  combinedPdf: string | null;
+  timestamp: string | null;
+}
+
 export default function TaxFiling() {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams(); // Hook to read query parameters
   
   // State
   const [userId, setUserId] = useState<string | null>(null);
@@ -30,18 +47,112 @@ export default function TaxFiling() {
   const [error, setError] = useState<string | null>(null);
   const [currentTaxYear, setCurrentTaxYear] = useState<string>("");
   const [userDetails, setUserDetails] = useState<any>(null);
-  const [formLinks, setFormLinks] = useState<{
-    sa100Pdf: string | null;
-    sa105Pdf: string | null;
-    combinedPdf: string | null;
-    timestamp: string | null;
-  }>({
+  const [formLinks, setFormLinks] = useState<FormLinks>({
     sa100Pdf: null,
     sa105Pdf: null,
     combinedPdf: null,
     timestamp: null,
   });
+  const [formStatus, setFormStatus] = useState<string>("idle");
   
+  // --- New State for HMRC Integration ---
+  const [isHmrcConnected, setIsHmrcConnected] = useState<boolean | null>(null); // null = checking, false = not connected, true = connected
+  const [hmrcConnectionError, setHmrcConnectionError] = useState<string | null>(null);
+  const [isSubmittingToHmrc, setIsSubmittingToHmrc] = useState(false);
+  const [hmrcSubmissionStatus, setHmrcSubmissionStatus] = useState<{
+    status: 'idle' | 'submitting' | 'success' | 'error';
+    message: string | null;
+    reference: string | null;
+  }>({ status: 'idle', message: null, reference: null });
+  
+  // Check HMRC connection status and handle OAuth callback params
+  useEffect(() => {
+    const hmrcConnectedParam = searchParams.get('hmrc_connected');
+    const hmrcErrorParam = searchParams.get('hmrc_error');
+
+    if (hmrcConnectedParam === 'true') {
+      setIsHmrcConnected(true);
+      setHmrcConnectionError(null);
+      toast.success("Successfully connected to HMRC.");
+      // Clean the URL
+      router.replace(pathname, { scroll: false }); 
+    } else if (hmrcErrorParam) {
+      setIsHmrcConnected(false);
+      setHmrcConnectionError(decodeURIComponent(hmrcErrorParam));
+      toast.error(`HMRC Connection Error: ${decodeURIComponent(hmrcErrorParam)}`);
+      // Clean the URL
+      router.replace(pathname, { scroll: false }); 
+    } else {
+      // If no callback params, check backend for existing connection
+      async function checkExistingConnection() {
+        if (!userId) return; // Need userId to check
+        console.log("[HMRC Connect] Checking existing connection status...");
+        try {
+          // Use the regular production endpoint (no debug)
+          // For ngrok compatibility, we need to pass the userId in the request
+          const response = await fetch('/api/hmrc/status', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ userId }),
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log("[HMRC Connect] Connection status from backend:", data);
+            setIsHmrcConnected(data.isConnected);
+            if (!data.isConnected) {
+              setHmrcConnectionError("Not currently connected to HMRC. Please connect to continue.");
+            } else {
+              setHmrcConnectionError(null);
+            }
+          } else {
+            // Connection check failed, assume not connected
+            console.warn("[HMRC Connect] Failed to check backend status");
+            setIsHmrcConnected(false);
+            setHmrcConnectionError("Unable to verify HMRC connection. Please connect to continue.");
+          }
+        } catch (err) {
+          console.error("[HMRC Connect] Error checking connection status:", err);
+          setIsHmrcConnected(false);
+          setHmrcConnectionError("Error checking HMRC connection status. Please try connecting again.");
+        }
+      }
+      // Only check if connection status is unknown (null)
+      if (isHmrcConnected === null && userId) {
+           checkExistingConnection();
+      }
+    }
+  }, [searchParams, pathname, router, userId, isHmrcConnected]); // Add userId and isHmrcConnected dependency
+
+  // Fetch user data and forms on mount
+  useEffect(() => {
+    // Set a default tax year
+    const currentYear = new Date().getFullYear();
+    setCurrentTaxYear(`${currentYear}/${currentYear + 1}`);
+    
+    // Simulate getting user ID from context/auth
+    const mockUserId = "fd98eb7b-e2a1-488b-a669-d34c914202b1"; // Your provided user ID
+    setUserId(mockUserId);
+    
+    // Mock user data (in a real app, this would be fetched from API)
+    setUserDetails({
+      name: "James Anderson",
+      utr: "1234567890",
+      nino: "AB123456C"
+    });
+    
+    // This will run once userId and taxYear are set
+  }, []);
+  
+  // Fetch existing forms when userId or taxYear changes
+  useEffect(() => {
+    if (userId && currentTaxYear) {
+      fetchExistingForms();
+    }
+  }, [userId, currentTaxYear]);
+
   // Load user and tax data
   useEffect(() => {
     async function loadData() {
@@ -112,6 +223,76 @@ export default function TaxFiling() {
     loadData();
   }, []);
   
+  // Fetch existing tax forms for the user
+  const fetchExistingForms = async () => {
+    if (!userId || !currentTaxYear) return;
+    
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/financial/tax/forms?userId=${userId}&taxYear=${currentTaxYear}`);
+      
+      if (response.ok) {
+        const forms = await response.json();
+        if (forms && forms.sa100_url) {
+          // Accept both Supabase storage URLs and placeholder/demo URLs
+          const isValidUrl = (url: string) => url && 
+            (url.includes('storage.googleapis.com') || 
+             url.includes('supabase.co/storage/v1/object/public') || 
+             url.includes('supabase.co/storage/v1/object/sign') ||
+             url.includes('s3.amazonaws.com'));
+          
+          if (isValidUrl(forms.sa100_url) && isValidUrl(forms.sa105_url) && isValidUrl(forms.combined_url)) {
+            // Save form links to state - valid URLs
+            setFormLinks({
+              sa100Pdf: forms.sa100_url,
+              sa105Pdf: forms.sa105_url,
+              combinedPdf: forms.combined_url,
+              timestamp: new Date(forms.created_at).toLocaleString(),
+            });
+            setFormStatus("generated");
+          } else {
+            // URLs are example links or invalid - clear form links and set form status to idle
+            console.warn("Invalid form URLs detected - example links found:", forms);
+            setFormLinks({
+              sa100Pdf: null,
+              sa105Pdf: null,
+              combinedPdf: null,
+              timestamp: null,
+            });
+            setFormStatus("idle");
+            
+            // Delete the invalid record from the database
+            try {
+              await fetch(`/api/financial/tax/forms?userId=${userId}&taxYear=${currentTaxYear}`, {
+                method: 'DELETE'
+              });
+            } catch (deleteError) {
+              console.error("Failed to delete invalid form record:", deleteError);
+            }
+          }
+        } else {
+          // No forms found
+          setFormLinks({
+            sa100Pdf: null,
+            sa105Pdf: null,
+            combinedPdf: null,
+            timestamp: null,
+          });
+          setFormStatus("idle");
+        }
+      } else {
+        // Handle error response
+        console.error("Error fetching forms:", response.statusText);
+        setFormStatus("idle");
+      }
+    } catch (error) {
+      console.error("Error fetching existing forms:", error);
+      setFormStatus("idle");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Generate tax forms
   const handleGenerateForms = async () => {
     if (!userId || !currentTaxYear) {
@@ -123,8 +304,9 @@ export default function TaxFiling() {
     setError(null);
     
     try {
+      console.log("Starting form generation with user ID:", userId.substring(0, 8) + "...");
       // Call form generation API
-      const response = await fetch("/api/tax/generate-forms", {
+      const response = await fetch("/api/financial/tax/generate-forms", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -135,64 +317,201 @@ export default function TaxFiling() {
         }),
       });
       
-      if (!response.ok) {
-        throw new Error(`Form generation failed: ${response.statusText}`);
+      // Try to parse the response body
+      let responseData;
+      try {
+        responseData = await response.json();
+        console.log("API response received:", JSON.stringify(responseData).substring(0, 100) + "...");
+      } catch (parseError) {
+        console.error("Failed to parse API response:", parseError);
+        throw new Error("Received invalid response from server. Please try again later.");
       }
       
-      const responseData = await response.json();
+      if (!response.ok) {
+        // Create a more helpful error message
+        let errorMessage = "Failed to generate tax forms";
+        
+        if (responseData?.error) {
+          // Handle specific error cases with user-friendly messages
+          if (responseData.error.includes("PDF font") || 
+              responseData.error.includes("ENOENT") || 
+              responseData.error.includes("font") ||
+              responseData.error.includes("PDF generation failed")) {
+            errorMessage = "Unable to generate PDF forms. Please try again or contact support if the issue persists.";
+            console.error("PDF generation technical error:", responseData.error);
+          } else if (responseData.error.includes("Invalid user ID")) {
+            errorMessage = "Your user account appears to be invalid. Please try logging out and back in.";
+          } else if (responseData.error.includes("upload")) {
+            errorMessage = "There was a problem storing your generated forms. Please try again later.";
+          } else {
+            // Use the error from the API if available
+            errorMessage = responseData.error;
+          }
+        }
+        
+        throw new Error(errorMessage);
+      }
       
-      // Simulate API response for now
-      // In actual implementation, this would come from the API
+      // Success - we have form URLs
+      if (!responseData.sa100Pdf || !responseData.sa105Pdf || !responseData.combinedPdf) {
+        console.error("Incomplete form data received:", responseData);
+        throw new Error("The server generated incomplete form data. Please try again.");
+      }
+      
+      console.log("Received URL for SA100:", responseData.sa100Pdf);
+      console.log("Received URL for SA105:", responseData.sa105Pdf);
+      console.log("Received URL for combined:", responseData.combinedPdf);
+      
+      // Use the response data from the API
       const generatedForms = {
-        sa100Pdf: `https://example.com/tax-forms/${userId}/sa100-${currentTaxYear.replace("/", "-")}.pdf`,
-        sa105Pdf: `https://example.com/tax-forms/${userId}/sa105-${currentTaxYear.replace("/", "-")}.pdf`,
-        combinedPdf: `https://example.com/tax-forms/${userId}/complete-return-${currentTaxYear.replace("/", "-")}.pdf`,
-        timestamp: new Date().toLocaleString(),
+        sa100Pdf: responseData.sa100Pdf,
+        sa105Pdf: responseData.sa105Pdf,
+        combinedPdf: responseData.combinedPdf,
+        timestamp: responseData.timestamp ? new Date(responseData.timestamp).toLocaleString() : new Date().toLocaleString(),
       };
+      
+      console.log("Forms generated successfully, updating state");
       
       // Save form links to state
       setFormLinks(generatedForms);
       
-      // Save to database
-      const { error: saveError } = await supabase
-        .from("tax_forms")
-        .insert({
-          user_id: userId,
-          tax_year: currentTaxYear,
-          sa100_url: generatedForms.sa100Pdf,
-          sa105_url: generatedForms.sa105Pdf,
-          combined_url: generatedForms.combinedPdf,
-          status: "generated",
-        });
-        
-      if (saveError) {
-        console.error("Error saving form links:", saveError);
-      }
+      // Show success message
+      toast.success(responseData.message || "Tax forms generated successfully");
       
+      // Update forms in database
+      fetchExistingForms();
     } catch (error) {
       console.error("Form generation error:", error);
-      setError(error instanceof Error ? error.message : "Failed to generate tax forms");
+      const errorMessage = error instanceof Error ? error.message : "Failed to generate tax forms";
+      setError(errorMessage);
+      
+      // Log detailed error information for debugging
+      if (error instanceof Error && error.stack) {
+        console.error("Detailed error stack:", error.stack);
+      }
+      
+      // Show error toast
+      toast.error(errorMessage);
     } finally {
       setGenerating(false);
     }
   };
-  
+
   // Handle download combined tax return
   const handleDownloadForms = () => {
     if (formLinks.combinedPdf) {
-      // In a real implementation, this would download the actual PDF
-      // For now, just open in a new tab
+      // Open in a new tab for download
       window.open(formLinks.combinedPdf, "_blank");
     }
   };
-  
-  // Handle HMRC redirect
-  const handleSubmitToHMRC = () => {
-    // This would redirect users to HMRC's self assessment portal
-    // For now, just open HMRC website
-    window.open("https://www.gov.uk/self-assessment-tax-returns/sending-return", "_blank");
+
+  // Handle Submission to HMRC via Backend API
+  const handleSubmitToHMRC = async () => {
+    if (!userId || !currentTaxYear || !isHmrcConnected) {
+      setError("Cannot submit. Ensure you are connected to HMRC and tax year is set.");
+      return;
+    }
+
+    setIsSubmittingToHmrc(true);
+    setHmrcSubmissionStatus({ status: 'submitting', message: 'Submitting to HMRC...', reference: null });
+    setError(null);
+    toast.loading("Submitting tax return to HMRC...");
+
+    // --- Gather Fraud Prevention Data --- 
+    let fraudHeadersData = {};
+    try {
+      // Basic browser/window info
+      const screenWidth = window.screen?.width || 0;
+      const screenHeight = window.screen?.height || 0;
+      const windowWidth = window.innerWidth || 0;
+      const windowHeight = window.innerHeight || 0;
+      
+      fraudHeadersData = {
+        userAgent: navigator.userAgent || 'unknown',
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown',
+        screenDetails: `${screenWidth}x${screenHeight}x${window.screen?.colorDepth || 0}`,
+        windowSize: `${windowWidth}x${windowHeight}`,
+        // --- Placeholders for harder-to-get data ---
+        deviceId: 'placeholder-device-id', // TODO: Implement robust device ID generation/retrieval
+        localIps: 'placeholder-local-ip', // TODO: Find way to get local IP if possible/needed
+        // Add timestamp for local IPs if you manage to get them
+      };
+      console.log("[HMRC Submit] Collected Fraud Headers Data:", fraudHeadersData);
+    } catch (e) {
+        console.warn("[HMRC Submit] Could not collect all fraud prevention data:", e);
+        // Decide if submission should proceed without full data
+    }
+    // --- End Gather Fraud Prevention Data ---
+
+    try {
+      const response = await fetch("/api/financial/tax/submit-hmrc", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId, // CRITICAL: Always pass userId for ngrok compatibility
+          taxYear: currentTaxYear,
+          submissionType: 'SA-FULL',
+          // Pass the collected fraud header data to the backend
+          fraudHeaders: fraudHeadersData, 
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || `HMRC submission failed with status ${response.status}`);
+      }
+
+      setHmrcSubmissionStatus({ 
+        status: 'success', 
+        message: 'Submission successful!', 
+        reference: result.hmrcReference || result.submissionId || 'N/A' 
+      });
+      toast.success(`Submission successful! Ref: ${result.hmrcReference || result.submissionId || 'N/A'}`);
+
+    } catch (error) {
+      console.error("HMRC Submission error:", error);
+      const message = error instanceof Error ? error.message : "Failed to submit to HMRC";
+      setError(message);
+      setHmrcSubmissionStatus({ status: 'error', message: message, reference: null });
+      toast.error(`Submission failed: ${message}`);
+    } finally {
+      setIsSubmittingToHmrc(false);
+      toast.dismiss(); // Dismiss loading toast
+    }
   };
   
+  // Initiate HMRC OAuth Flow
+  const handleConnectToHmrc = async () => {
+    if (!HMRC_CLIENT_ID || !HMRC_REDIRECT_URI) {
+      setError("HMRC connection is not configured correctly. Please contact support.");
+      return;
+    }
+    
+    // Define required scopes (adjust as needed based on API usage)
+    const scopes = "read:self-assessment write:self-assessment"; 
+    
+    // Get current user ID to include in state
+    let stateValue = Math.random().toString(36).substring(2);
+    
+    // Include user ID in state if available
+    if (userId) {
+      stateValue = `${userId}:${stateValue}`;
+    }
+
+    const authUrl = `${HMRC_AUTHORIZE_URL}?` + 
+                    `response_type=code&` +
+                    `client_id=${encodeURIComponent(HMRC_CLIENT_ID)}&` +
+                    `scope=${encodeURIComponent(scopes)}&` +
+                    `redirect_uri=${encodeURIComponent(HMRC_REDIRECT_URI)}&` +
+                    `state=${encodeURIComponent(stateValue)}`;
+
+    // Redirect user to HMRC for authorization
+    window.location.href = authUrl;
+  };
+
   return (
     <SidebarLayout 
       sidebar={<SidebarContent currentPath={pathname} />} 
@@ -326,8 +645,43 @@ export default function TaxFiling() {
                 </dl>
               </div>
               
-              {/* Generate Forms Button */}
-              {!formLinks.timestamp ? (
+              {/* --- HMRC Connection Section --- */} 
+              <div className="border rounded-md p-4">
+                  <h3 className="text-sm font-medium text-gray-900 mb-2">HMRC Connection</h3>
+                  {isHmrcConnected === null && (
+                      <p className="text-sm text-gray-500">Checking connection status...</p>
+                  )}
+                  {isHmrcConnected === false && (
+                      <div className="space-y-2">
+                          <p className="text-sm text-red-600">
+                              Not connected to HMRC. You need to authorize ZenRent to submit returns on your behalf.
+                          </p>
+                          {hmrcConnectionError && (
+                               <p className="text-xs text-red-500">Error: {hmrcConnectionError}</p>
+                          )}
+                          <Button 
+                              color="indigo" 
+                              onClick={handleConnectToHmrc}
+                              disabled={!HMRC_CLIENT_ID || !HMRC_REDIRECT_URI} // Disable if config missing
+                          >
+                              Connect to HMRC
+                          </Button>
+                      </div>
+                  )}
+                  {isHmrcConnected === true && (
+                       <div className="flex items-center space-x-2">
+                           <svg className="h-5 w-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                           </svg>
+                           <p className="text-sm text-green-700 font-medium">Connected to HMRC</p>
+                           {/* Optional: Add disconnect button */} 
+                       </div>
+                  )}
+              </div>
+              {/* --- End HMRC Connection Section --- */} 
+
+              {/* Generate Forms Button or Forms Ready Section */}
+              {!formLinks.timestamp && (
                 <div className="text-center py-6">
                   <svg 
                     className="mx-auto h-12 w-12 text-gray-400"
@@ -375,8 +729,10 @@ export default function TaxFiling() {
                     </button>
                   </div>
                 </div>
-              ) : (
-                /* Forms Ready Section */
+              )}
+
+              {/* Forms Ready Section */}
+              {formLinks.timestamp && (
                 <div className="space-y-6">
                   {/* Generation Info */}
                   <div className="bg-green-50 border-l-4 border-green-400 p-4">
@@ -397,7 +753,7 @@ export default function TaxFiling() {
                     </div>
                   </div>
                   
-                  {/* Available Forms */}
+                  {/* Available Forms - Simple List Style */}
                   <div className="border rounded-md">
                     <h3 className="px-4 py-3 text-sm font-medium bg-gray-50 border-b">
                       Your Tax Forms
@@ -484,19 +840,26 @@ export default function TaxFiling() {
                     </ul>
                   </div>
                   
-                  {/* Filing Instructions */}
+                  {/* --- Filing Section --- */}
                   <div className="bg-blue-50 border rounded-md p-4">
-                    <h3 className="text-sm font-medium text-blue-800">Filing Instructions</h3>
-                    <div className="mt-2 text-sm text-blue-700">
-                      <p>You have two options for filing your tax return:</p>
-                      <ol className="list-decimal ml-4 mt-2 space-y-1">
-                        <li>Download your tax forms and upload them to the HMRC Self Assessment portal.</li>
-                        <li>Fill in the online Self Assessment directly on the HMRC website using the figures from these forms.</li>
-                      </ol>
-                      <p className="mt-2">
-                        Remember, the deadline for online submission is January 31, {parseInt(currentTaxYear.split('/')[1])} for the {currentTaxYear} tax year.
-                      </p>
-                    </div>
+                    <h3 className="text-sm font-medium text-blue-800">Submit Your Return</h3>
+                    {hmrcSubmissionStatus.status === 'idle' && (
+                        <p className="mt-2 text-sm text-blue-700">
+                          Once you are ready and connected to HMRC, you can submit your tax return directly.
+                        </p>
+                    )}
+                    {hmrcSubmissionStatus.status === 'submitting' && (
+                        <p className="mt-2 text-sm text-blue-700">{hmrcSubmissionStatus.message}</p>
+                    )}
+                     {hmrcSubmissionStatus.status === 'success' && (
+                        <div className="mt-2 text-sm text-green-700">
+                           <p>{hmrcSubmissionStatus.message}</p>
+                           <p>HMRC Reference: <strong>{hmrcSubmissionStatus.reference}</strong></p>
+                        </div>
+                    )}
+                     {hmrcSubmissionStatus.status === 'error' && (
+                        <p className="mt-2 text-sm text-red-600">Error: {hmrcSubmissionStatus.message}</p>
+                    )}
                   </div>
                   
                   {/* Action Buttons */}
@@ -504,39 +867,46 @@ export default function TaxFiling() {
                     <button
                       type="button"
                       onClick={handleDownloadForms}
-                      className="flex-1 inline-flex justify-center items-center rounded-md bg-d9e8ff px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs hover:bg-d9e8ff-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff"
+                      className="flex-1 inline-flex justify-center items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50"
                     >
                       <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                       </svg>
-                      Download Complete Return
+                      Download Return (PDF)
                     </button>
                     
                     <button
                       type="button"
                       onClick={handleSubmitToHMRC}
-                      className="flex-1 inline-flex justify-center items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50"
+                      disabled={!isHmrcConnected || isSubmittingToHmrc || hmrcSubmissionStatus.status === 'success'}
+                      className="flex-1 inline-flex justify-center items-center rounded-md bg-d9e8ff px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs hover:bg-d9e8ff-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                      Go to HMRC Self Assessment
+                      {isSubmittingToHmrc ? (
+                         <> {/* Submitting spinner */}
+                          <svg className="w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Submitting...
+                         </>
+                      ) : hmrcSubmissionStatus.status === 'success' ? (
+                         <> {/* Success check */}
+                          <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Submitted
+                         </>
+                      ) : (
+                         <> {/* Default state */}
+                          <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                          </svg>
+                          Submit to HMRC
+                         </>
+                      )}
                     </button>
                   </div>
-                  
-                  {/* Regenerate Option */}
-                  <div className="pt-3 text-center">
-                    <button
-                      type="button"
-                      onClick={handleGenerateForms}
-                      className="text-sm text-blue-600 hover:text-blue-500"
-                    >
-                      Regenerate forms
-                    </button>
-                    <p className="mt-1 text-xs text-gray-500">
-                      If you've made changes to your tax data
-                    </p>
-                  </div>
+                  {/* End Filing Section */} 
                 </div>
               )}
             </div>

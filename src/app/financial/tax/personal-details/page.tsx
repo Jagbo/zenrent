@@ -58,7 +58,7 @@ export default function PersonalDetailsForm() {
           // Load existing user profile
           const { data: profileData, error: profileError } = await supabase
             .from("user_profiles")
-            .select("*")
+            .select("*, utr, national_insurance_number")
             .eq("user_id", user.id)
             .single();
 
@@ -75,12 +75,14 @@ export default function PersonalDetailsForm() {
             setTownCity(profileData.town_city || "");
             setCounty(profileData.county || "");
             setPostcode(profileData.postcode || "");
+            setUtr(profileData.utr || "");
+            setNiNumber(profileData.national_insurance_number || "");
           }
 
-          // Check if tax details exist and load them
+          // Load tax year from tax_profiles
           const { data: taxData, error: taxError } = await supabase
             .from("tax_profiles")
-            .select("*")
+            .select("tax_year")
             .eq("user_id", user.id)
             .single();
 
@@ -89,9 +91,7 @@ export default function PersonalDetailsForm() {
           }
 
           if (taxData) {
-            setUtr(taxData.utr || "");
-            setNiNumber(taxData.ni_number || "");
-            // If we have a recent tax filing, set the tax year
+            // If we have a tax profile, set the tax year
             if (taxData.tax_year) {
               setTaxYear(taxData.tax_year);
             }
@@ -162,6 +162,8 @@ export default function PersonalDetailsForm() {
             town_city: townCity,
             county: county,
             postcode: postcode,
+            utr: utr,
+            national_insurance_number: niNumber,
             updated_at: new Date().toISOString(),
           },
           { 
@@ -175,13 +177,12 @@ export default function PersonalDetailsForm() {
       }
 
       // Then save tax-specific information
+      console.log('[handleSubmit] Saving tax_year to tax_profiles:', taxYear);
       const { error: taxError } = await supabase
         .from("tax_profiles")
         .upsert(
           {
             user_id: userId,
-            utr: utr,
-            ni_number: niNumber,
             tax_year: taxYear,
             updated_at: new Date().toISOString(),
           },
@@ -217,7 +218,7 @@ export default function PersonalDetailsForm() {
 
     try {
       // Only save what the user has entered so far
-      if (firstName || lastName || addressLine1) {
+      if (firstName || lastName || addressLine1 || utr || niNumber) {
         const { error: profileError } = await supabase
           .from("user_profiles")
           .upsert(
@@ -230,6 +231,8 @@ export default function PersonalDetailsForm() {
               town_city: townCity,
               county: county,
               postcode: postcode,
+              utr: utr,
+              national_insurance_number: niNumber,
               updated_at: new Date().toISOString(),
             },
             { 
@@ -243,15 +246,14 @@ export default function PersonalDetailsForm() {
         }
       }
 
-      // Save any tax information entered
-      if (utr || niNumber) {
+      // Save tax year information if tax year is set
+      if (taxYear) {
+        console.log('[handleSaveAsDraft] Saving tax_year to tax_profiles:', taxYear);
         const { error: taxError } = await supabase
           .from("tax_profiles")
           .upsert(
             {
               user_id: userId,
-              utr: utr,
-              ni_number: niNumber,
               tax_year: taxYear,
               updated_at: new Date().toISOString(),
             },
@@ -619,7 +621,7 @@ export default function PersonalDetailsForm() {
 
             <div className="flex items-center justify-end gap-x-6 border-t border-gray-900/10 px-4 py-4 sm:px-6">
               <button type="button"
-                onClick={() => router.push("/financial/tax/welcome")}
+                onClick={() => router.push("/financial/tax/company-or-personal")}
                 className="text-sm/6 font-semibold text-gray-900"
                 disabled={isSubmitting}
               >

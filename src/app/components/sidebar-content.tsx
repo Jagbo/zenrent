@@ -204,7 +204,14 @@ export function SidebarContent({ currentPath }: { currentPath: string }): ReactE
             <div className="text-xs/6 font-semibold text-gray-400">Your properties</div>
             <ul role="list" className="-mx-2 mt-2 space-y-1">
               {!user ? (
-                <li className="px-2 py-1 text-sm text-gray-500">Sign in to view properties</li>
+                <li data-component-name="SidebarContent">
+                  <a 
+                    href="/login" 
+                    className="block px-2 py-1 text-sm text-gray-500 hover:text-gray-900 hover:bg-[#F9F7F7] rounded-md transition-colors"
+                  >
+                    Sign in to view properties
+                  </a>
+                </li>
               ) : loading ? (
                 <li className="px-2 py-1 text-sm text-gray-500">Loading properties...</li>
               ) : properties.length === 0 ? (

@@ -1,3 +1,10 @@
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Reset Password | ZenRent",
+  description: "Create a new password for your ZenRent account",
+};
+
 export default function ResetPasswordLayout({
   children,
 }: {

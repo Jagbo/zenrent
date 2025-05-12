@@ -348,13 +348,13 @@ export default function Integrations() {
             </CardFooter>
           </Card>
 
-          {/* Communications */}
+          {/* Messaging */}
           <Card className="cursor-pointer hover:border-blue-200 transition-colors"
             onClick={() => setIsWhatsAppDrawerOpen(true)}
           >
             <CardHeader className="pb-3">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-                <CardTitle className="text-xl">Communications</CardTitle>
+                <CardTitle className="text-xl">Messaging</CardTitle>
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 w-fit">
                   <XCircleIcon className="h-4 w-4 mr-1" />
                   Disconnected

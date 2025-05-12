@@ -1,13 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAuthUser } from "@/lib/auth-helpers"; // Import real auth helper
+import { supabase } from "@/lib/supabase"; // Import Supabase client
 
 export async function POST(request: NextRequest) {
   try {
-    // Get token from environment variable
-    const token = process.env.WHATSAPP_TOKEN;
+    // Get the authenticated user
+    const user = await getAuthUser();
+    if (!user) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+    const userId = user.id;
+
+    // Get token from environment variable (System User Token)
+    const token = process.env.WHATSAPP_SYSTEM_USER_TOKEN;
     
     if (!token) {
+      console.error("WHATSAPP_SYSTEM_USER_TOKEN is not configured.");
       return NextResponse.json(
-        { success: false, error: "WhatsApp token not configured" },
+        { success: false, error: "WhatsApp integration is not configured on the server." },
         { status: 500 }
       );
     }
@@ -22,6 +32,27 @@ export async function POST(request: NextRequest) {
         error: "Phone number ID, recipient number, and message are required" 
       }, { status: 400 });
     }
+
+    // --- Authentication Check --- 
+    // Verify the provided phoneNumberId belongs to the authenticated user
+    const { data: account, error: accountError } = await supabase
+      .from('whatsapp_accounts')
+      .select('phone_number_id')
+      .eq('user_id', userId)
+      .eq('phone_number_id', phoneNumberId)
+      .eq('status', 'connected') // Ensure the account is active
+      .maybeSingle();
+
+    if (accountError) {
+      console.error("Error verifying user's WhatsApp account:", accountError);
+      return NextResponse.json({ success: false, error: "Failed to verify sender account" }, { status: 500 });
+    }
+
+    if (!account) {
+      console.warn(`Attempt to send from phoneNumberId ${phoneNumberId} by user ${userId}, but no matching active account found.`);
+      return NextResponse.json({ success: false, error: "WhatsApp account not found or not connected for this user" }, { status: 403 });
+    }
+    // --- End Authentication Check --- 
 
     // Validate phone number format - should be E.164 without the +
     if (!/^\d+$/.test(to)) {
@@ -58,7 +89,9 @@ async function sendRealWhatsAppMessage(
   message: string, 
   messageType: string
 ) {
-  const apiUrl = process.env.WHATSAPP_API_URL || 'https://graph.facebook.com/v18.0';
+  // Use a consistent Graph API version
+  const GRAPH_API_VERSION = "v18.0";
+  const apiUrl = process.env.WHATSAPP_API_URL || `https://graph.facebook.com/${GRAPH_API_VERSION}`;
   const endpoint = `${apiUrl}/${phoneNumberId}/messages`;
   
   // Prepare request payload based on message type

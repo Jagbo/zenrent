@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BaseDrawer } from "./BaseDrawer";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 interface AdvertisePropertyDrawerProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ interface ListingFormData {
 export const AdvertisePropertyDrawer: React.FC<
   AdvertisePropertyDrawerProps
 > = ({ isOpen, onClose, propertyName }) => {
+  const supabase = createClientComponentClient();
   const [step, setStep] = useState<1 | 2>(1);
   const [formData, setFormData] = useState<ListingFormData>({
     title: propertyName || "",
@@ -43,6 +45,75 @@ export const AdvertisePropertyDrawer: React.FC<
     contactEmail: "",
     contactPhone: "",
   });
+  
+  useEffect(() => {
+    const fetchPropertyData = async () => {
+      if (!isOpen) return;
+      
+      try {
+        // Fetch current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        
+        // Fetch user profile
+        const { data: userProfile } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+        
+        // Fetch property data
+        const { data: properties } = await supabase
+          .from('properties')
+          .select('*')
+          .eq('user_id', user.id)
+          .limit(1);
+          
+        if (properties && properties.length > 0) {
+          const property = properties[0];
+          
+          // Map property features from metadata
+          const propertyFeatures: string[] = [];
+          if (property.has_parking) propertyFeatures.push('Parking');
+          if (property.has_garden) propertyFeatures.push('Garden');
+          
+          // Add amenities from metadata if available
+          if (property.metadata && property.metadata.amenities) {
+            if (property.metadata.amenities.includes('Central Heating')) {
+              propertyFeatures.push('Central Heating');
+            }
+            if (property.metadata.amenities.includes('Fitted Kitchen')) {
+              propertyFeatures.push('Dishwasher');
+            }
+          }
+          
+          // Format today's date as YYYY-MM-DD for availableDate default
+          const today = new Date();
+          const formattedDate = today.toISOString().split('T')[0];
+          
+          setFormData({
+            title: property.address || propertyName || "",
+            description: property.description || "",
+            price: property.current_valuation ? (Number(property.current_valuation) * 0.004).toFixed(0) : "", // Estimate monthly rent as 0.4% of property value
+            bedrooms: property.bedrooms?.toString() || "",
+            bathrooms: property.bathrooms?.toString() || "",
+            squareFeet: property.metadata?.square_footage?.toString() || "",
+            availableDate: formattedDate,
+            propertyType: property.property_type || "apartment",
+            furnishingStatus: property.is_furnished ? "furnished" : "unfurnished",
+            features: propertyFeatures,
+            contactName: userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : "",
+            contactEmail: user.email || "",
+            contactPhone: userProfile?.phone || "",
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching property data:', error);
+      }
+    };
+    
+    fetchPropertyData();
+  }, [isOpen, propertyName, supabase]);
 
   const handleInputChange = (
     e: React.ChangeEvent<

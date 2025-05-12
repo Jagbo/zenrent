@@ -1,4 +1,15 @@
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
+// Configure cookie options to work across development domains
+const cookieOptions = {
+  domain: process.env.NODE_ENV === 'development' ? '' : undefined,
+  path: '/',
+  sameSite: 'lax',
+  secure: process.env.NODE_ENV !== 'development'
+};
+
 // Create a client for the browser with cookie-based session handling
-export const supabase = createClientComponentClient();
+// Using consistent cookie options to prevent rate limit issues across different domains
+export const supabase = createClientComponentClient({
+  cookieOptions
+});

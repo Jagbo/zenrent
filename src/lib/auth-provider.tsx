@@ -139,6 +139,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+
+
   const value = {
     session,
     user,

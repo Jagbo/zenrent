@@ -60,8 +60,8 @@ export function WhatsAppConnectionStatus({
         <button onClick={() => setIsDrawerOpen(true)}
           className={`text-sm font-medium px-4 py-2 rounded-md w-full ${
             isConnected
-              ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+              ? "bg-gray-100 text-gray-900 hover:bg-gray-200"
+              : "bg-blue-100 text-gray-900 hover:bg-blue-200"
           }`}
         >
           {isConnected ? "Manage Connection" : "Connect WhatsApp"}

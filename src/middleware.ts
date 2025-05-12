@@ -1,6 +1,7 @@
 import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { queueUserForEnrichment } from "./services/backgroundEnrichmentService";
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
@@ -32,6 +33,28 @@ export async function middleware(req: NextRequest) {
     const redirectUrl = new URL("/login", req.url);
     redirectUrl.searchParams.set("redirectedFrom", req.nextUrl.pathname);
     return NextResponse.redirect(redirectUrl);
+  }
+  
+  // If user is authenticated, trigger property enrichment in the background
+  if (session?.user) {
+    // Only trigger on dashboard or property-related pages to avoid excessive API calls
+    const propertyRelatedRoutes = [
+      "/dashboard",
+      "/properties",
+      "/property",
+    ];
+    
+    const isPropertyRelatedRoute = propertyRelatedRoutes.some((route) =>
+      req.nextUrl.pathname.startsWith(route),
+    );
+    
+    if (isPropertyRelatedRoute) {
+      // Queue the user for property enrichment in the background
+      // We don't await this to avoid blocking the request
+      queueUserForEnrichment(session.user.id).catch(err => {
+        console.error('Failed to queue user for enrichment:', err);
+      });
+    }
   }
 
   return res;

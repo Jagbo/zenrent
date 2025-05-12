@@ -1,0 +1,25 @@
+{
+  "epcRating": "B",
+  "energyScore": 85,
+  "potentialRating": "A",
+  "potentialScore": 92,
+  "estimatedEnergyCost": 120,
+  "heatingCost": 450,
+  "hotWaterCost": 180,
+  "totalEnergyCost": 750,
+  "potentialSaving": 250,
+  "co2Emissions": 2.5,
+  "validUntil": "2032-08-02",
+  "recommendations": [
+    {
+      "improvement": "Install solar panels",
+      "savingEstimate": "£250-£500",
+      "impact": "Medium"
+    },
+    {
+      "improvement": "Upgrade to LED lighting",
+      "savingEstimate": "£50-£100",
+      "impact": "Low"
+    }
+  ]
+}

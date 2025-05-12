@@ -99,7 +99,7 @@ export default function AdjustmentsForm() {
           
           // Get total expenses for property allowance calculation
           const { data: transactions, error: transError } = await supabase
-            .from("tax_transactions")
+            .from("bank_transactions")
             .select("amount, category")
             .eq("user_id", user.id)
             .gte("date", startDate)

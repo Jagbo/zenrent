@@ -93,7 +93,7 @@ export default function SidebarExample() {
             <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-2">
               <div className="flex h-16 shrink-0 items-center">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-chardonnay-600 text-white">
-                  <Image alt="ZenRent" src="/next.svg" className="h-6 w-auto" />
+                  <Image alt="ZenRent" src="/next.svg" className="h-6 w-auto" width={24} height={24} />
                 </div>
                 <span className="ml-3 text-lg font-semibold">ZenRent</span>
               </div>
@@ -169,7 +169,7 @@ export default function SidebarExample() {
         <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-chardonnay-100 bg-white px-6">
           <div className="flex h-16 shrink-0 items-center">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-chardonnay-600 text-white">
-              <Image alt="ZenRent" src="/next.svg" className="h-6 w-auto" />
+              <Image alt="ZenRent" src="/next.svg" className="h-6 w-auto" width={24} height={24} />
             </div>
             <span className="ml-3 text-lg font-semibold">ZenRent</span>
           </div>
@@ -239,6 +239,8 @@ export default function SidebarExample() {
                   <Image alt="Your profile"
                     src="/profile-photo.jpg"
                     className="size-8 rounded-full bg-gray-50"
+                    width={32}
+                    height={32}
                   />
                   <span className="sr-only">Your profile</span>
                   <span aria-hidden="true">Alex Morgan</span>
@@ -265,6 +267,8 @@ export default function SidebarExample() {
           <Image alt="Your profile"
             src="/profile-photo.jpg"
             className="size-8 rounded-full bg-gray-50"
+            width={32}
+            height={32}
           />
         </a>
       </div>

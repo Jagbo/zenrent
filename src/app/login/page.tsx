@@ -5,6 +5,27 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-provider";
 import Link from "next/link";
 import Image from "next/image";
+import { AuthError } from "@supabase/supabase-js";
+
+// Function to trigger property enrichment in the background
+const triggerPropertyEnrichment = async () => {
+  try {
+    const response = await fetch('/api/property-enrichment', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      console.warn('Property enrichment service returned an error:', await response.text());
+    } else {
+      console.log('Property enrichment service triggered successfully');
+    }
+  } catch (error) {
+    console.error('Failed to trigger property enrichment service:', error);
+  }
+};
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -22,12 +43,25 @@ export default function LoginPage() {
 
     try {
       await signIn(email, password);
+      
+      // Trigger property enrichment in the background
+      triggerPropertyEnrichment();
+      
       router.push("/dashboard");
-    } catch (err: unknown) {
+    } catch (err) {
       console.error("Login error:", err);
-      setError(
-        err?.message || "Failed to sign in. Please check your credentials.",
-      );
+      
+      // Handle rate limit errors specifically
+      const authError = err as AuthError;
+      if (authError.message?.includes("rate limit")) {
+        setError(
+          "You've reached the authentication rate limit. Please wait a few minutes before trying again."
+        );
+      } else {
+        setError(
+          authError.message || "Failed to sign in. Please check your credentials."
+        );
+      }
     } finally {
       setIsLoading(false);
     }
@@ -41,12 +75,26 @@ export default function LoginPage() {
       const { error } = await signInWithGoogle();
 
       if (error) {
-        setError(error.message || "Failed to sign in with Google.");
+        // Handle rate limit errors specifically
+        if (error.message?.includes("rate limit")) {
+          setError("You've reached the authentication rate limit. Please wait a few minutes before trying again.");
+        } else {
+          setError(error.message || "Failed to sign in with Google.");
+        }
+      } else {
+        // Trigger property enrichment in the background on successful OAuth sign-in
+        triggerPropertyEnrichment();
       }
       // Note: For successful sign-in, the page will be redirected by Supabase OAuth flow
     } catch (err) {
       console.error("Google login error:", err);
-      setError("An unexpected error occurred. Please try again.");
+      // Check for rate limit in the caught error as well
+      const authError = err as AuthError;
+      if (authError.message?.includes("rate limit")) {
+        setError("You've reached the authentication rate limit. Please wait a few minutes before trying again.");
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
     } finally {
       setOauthLoading(null);
     }
@@ -60,12 +108,26 @@ export default function LoginPage() {
       const { error } = await signInWithFacebook();
 
       if (error) {
-        setError(error.message || "Failed to sign in with Facebook.");
+        // Handle rate limit errors specifically
+        if (error.message?.includes("rate limit")) {
+          setError("You've reached the authentication rate limit. Please wait a few minutes before trying again.");
+        } else {
+          setError(error.message || "Failed to sign in with Facebook.");
+        }
+      } else {
+        // Trigger property enrichment in the background on successful OAuth sign-in
+        triggerPropertyEnrichment();
       }
       // Note: For successful sign-in, the page will be redirected by Supabase OAuth flow
     } catch (err) {
       console.error("Facebook login error:", err);
-      setError("An unexpected error occurred. Please try again.");
+      // Check for rate limit in the caught error as well
+      const authError = err as AuthError;
+      if (authError.message?.includes("rate limit")) {
+        setError("You've reached the authentication rate limit. Please wait a few minutes before trying again.");
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
     } finally {
       setOauthLoading(null);
     }
@@ -148,20 +210,12 @@ export default function LoginPage() {
                         <path d="M3 8L6 11L11 3.5"
                           strokeWidth={2}
                           strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="opacity-0 group-has-checked:opacity-100"
-                        />
-                        <path d="M3 7H11"
-                          strokeWidth={2}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="opacity-0 group-has-indeterminate:opacity-100"
                         />
                       </svg>
                     </div>
                   </div>
                   <label htmlFor="remember-me"
-                    className="block text-sm/6 text-gray-900"
+                    className="ml-3 block text-sm/6 text-gray-900"
                   >
                     Remember me
                   </label>
@@ -171,7 +225,7 @@ export default function LoginPage() {
                   <Link href="/forgot-password"
                     className="font-semibold text-gray-900 hover:text-gray-700"
                   >
-                    Forgot password?
+                    Forgot your password?
                   </Link>
                 </div>
               </div>
@@ -179,7 +233,7 @@ export default function LoginPage() {
               <div>
                 <button type="submit"
                   disabled={isLoading}
-                  className="flex w-full justify-center rounded-md bg-[#D9E8FF] px-3 py-1.5 text-sm/6 font-semibold text-gray-900 shadow-sm hover:bg-[#D9E8FF]/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF] disabled:opacity-70"
+                  data-component-name="LoginPage" className="flex w-full justify-center rounded-md bg-[#D9E8FF] px-3 py-1.5 text-sm/6 font-semibold text-gray-900 shadow-sm hover:bg-[#c4d9f7] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF] disabled:opacity-70"
                 >
                   {isLoading ? "Signing in..." : "Sign in"}
                 </button>

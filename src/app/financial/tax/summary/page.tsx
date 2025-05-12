@@ -133,7 +133,7 @@ export default function TaxSummary() {
             
             // Load transactions
             const { data: transactions, error: transactionError } = await supabase
-              .from("tax_transactions")
+              .from("bank_transactions")
               .select("*")
               .eq("user_id", user.id)
               .gte("date", startDate)

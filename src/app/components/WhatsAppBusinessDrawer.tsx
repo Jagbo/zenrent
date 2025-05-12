@@ -70,10 +70,13 @@ export const WhatsAppBusinessDrawer: React.FC<WhatsAppBusinessDrawerProps> = ({
 
     // Setup listener for WhatsApp embedded signup messages
     const embeddedSignupListener = (event: MessageEvent) => {
+      console.log("Received event from:", event.origin, "data:", typeof event.data);
+      
       if (!event.origin.includes("facebook.com")) return;
 
       try {
         const data = JSON.parse(event.data);
+        console.log("Parsed event data:", data);
 
         if (data.type === "WA_EMBEDDED_SIGNUP") {
           console.log("Received WhatsApp signup event:", data);
@@ -105,7 +108,7 @@ export const WhatsAppBusinessDrawer: React.FC<WhatsAppBusinessDrawerProps> = ({
           }
         }
       } catch (e) {
-        console.log("Received non-JSON message");
+        console.log("Received non-JSON message from origin", event.origin, ":", event.data);
       }
     };
 
@@ -115,64 +118,146 @@ export const WhatsAppBusinessDrawer: React.FC<WhatsAppBusinessDrawerProps> = ({
     return () => window.removeEventListener("message", embeddedSignupListener);
   }, []);
 
+  // Check environment variables when drawer opens
+  useEffect(() => {
+    if (isOpen) {
+      console.log("WhatsApp drawer opened, checking environment variables");
+      
+      // Check the environment variables via API
+      fetch('/api/env-check')
+        .then(response => response.json())
+        .then(data => {
+          console.log("Environment check:", data);
+          if (data && data.success && data.env) {
+            if (!data.env.NEXT_PUBLIC_FB_CONFIG_ID) {
+              console.warn("NEXT_PUBLIC_FB_CONFIG_ID is not set in environment");
+            }
+          } else {
+            console.warn("Invalid response format from environment check API");
+          }
+        })
+        .catch(error => {
+          console.error("Error checking environment:", error);
+        });
+    }
+  }, [isOpen]);
+
+  // Check if the user already has a WhatsApp integration
+  const checkExistingIntegration = async () => {
+    setIsLoading(true);
+    setError("");
+    
+    try {
+      const response = await fetch("/api/whatsapp/setup");
+      const data = await response.json();
+      
+      if (data.success && data.phones && data.phones.data && data.phones.data.length > 0) {
+        // We already have a WhatsApp integration
+        console.log("Found existing WhatsApp integration:", data);
+        
+        const phoneDetails = data.phones.data[0];
+        setPhoneNumber(phoneDetails.display_phone_number || "");
+        // Use dummy WABA ID if not provided in the response
+        setWabaId(data.wabaId || "existing-waba");
+        setPhoneNumberId(phoneDetails.id || "");
+        setConnectionStatus("connected");
+        setStep(3);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error checking existing integration:", error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Check for existing integration when the drawer opens
+  useEffect(() => {
+    if (isOpen) {
+      checkExistingIntegration();
+    }
+  }, [isOpen]);
+
   // Initiate WhatsApp Embedded Signup
-  const initiateWhatsAppSignup = () => {
+  const initiateWhatsAppSignup = async () => {
+    // First check if there's already an integration
+    const hasExisting = await checkExistingIntegration();
+    if (hasExisting) {
+      return; // Already set up, no need to continue
+    }
+    
     setIsLoading(true);
     setError("");
 
-    // Production implementation - use Facebook SDK
-    if (typeof window.FB === "undefined") {
-      console.error("Facebook SDK not loaded");
-      setError("Facebook SDK failed to load. Please try again.");
-      setIsLoading(false);
-      return;
-    }
-
-    // Login with Facebook to get permissions
-    window.FB.login(
-      function (response) {
-        if (response.authResponse) {
-          console.log("Facebook login successful, starting WhatsApp signup");
-
-          // Use the Embedded Signup flow with configuration ID
-          window.FB.login(
-            (response) => {
-              console.log("FB login response with config", response);
-              // We will handle the post-login via event listener
-              setIsLoading(false);
-            },
-            {
-              config_id: process.env.NEXT_PUBLIC_FB_CONFIG_ID, // Your WhatsApp config ID
-              auth_type: "rerequest",
-              response_type: "code",
-              override_default_response_type: true,
-              extras: { sessionInfoVersion: 3 },
-            },
-          );
-        } else {
-          console.log("User cancelled login or did not fully authorize.");
-          setError(
-            "Facebook login was canceled. Authorization is required to setup WhatsApp.",
-          );
+    try {
+      // Log for debugging
+      console.log("Environment variables available:", {
+        NEXT_PUBLIC_FB_CONFIG_ID: process.env.NEXT_PUBLIC_FB_CONFIG_ID,
+        hasWindow: typeof window !== 'undefined'
+      });
+      
+      const configId = process.env.NEXT_PUBLIC_FB_CONFIG_ID;
+      console.log("CONFIG ID:", configId);
+      
+      if (!configId) {
+        throw new Error("Missing config ID in environment variables");
+      }
+      
+      // URL Parameters for direct navigation to Facebook OAuth
+      const params = new URLSearchParams({
+        app_id: "953206047023164",
+        config_id: configId,
+        redirect_uri: window.location.origin + "/integrations",
+        response_type: "code",
+        state: JSON.stringify({userId: 'current_user', timestamp: Date.now()}),
+        scope: 'whatsapp_business_management,business_management',
+        extras: JSON.stringify({
+          sessionInfoVersion: 3,
+          featureType: "whatsapp_embedded_signup",
+          flow_type: "merchant_managed"
+        })
+      });
+      
+      // Open the WhatsApp for Business signup flow in a new window
+      const signupWindow = window.open(
+        `https://www.facebook.com/v18.0/dialog/oauth?${params.toString()}`,
+        'whatsapp_signup',
+        'width=800,height=600'
+      );
+      
+      if (!signupWindow) {
+        throw new Error("Popup window was blocked. Please allow popups for this site and try again.");
+      }
+      
+      // Set a timeout to check if the window was closed
+      const checkWindowClosed = setInterval(() => {
+        if (signupWindow.closed) {
+          clearInterval(checkWindowClosed);
+          console.log("Signup window was closed by user");
           setIsLoading(false);
+          // We'll check for integration after window closes
+          checkExistingIntegration();
         }
-      },
-      {
-        scope: "whatsapp_business_management,business_management",
-        auth_type: "rerequest",
-      },
-    );
+      }, 1000);
+      
+    } catch (err) {
+      console.error("Error initiating WhatsApp signup:", err);
+      setError("Failed to start WhatsApp setup: " + (err instanceof Error ? err.message : String(err)));
+      setIsLoading(false);
+    }
   };
 
   // Store the WABA connection in your system
-  const storeWabaConnection = async (wabaId: string, phoneNumberId: string) => {
+  const storeWabaConnection = async (wabaId: string, phoneNumberId: string | null) => {
     try {
       const response = await fetch("/api/whatsapp/connect", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ wabaId, phoneNumberId }),
+        body: JSON.stringify({ wabaId }),
       });
 
       const data = await response.json();
@@ -283,14 +368,20 @@ export const WhatsAppBusinessDrawer: React.FC<WhatsAppBusinessDrawerProps> = ({
   };
 
   return (
-    <BaseDrawer isOpen={isOpen}
+    <BaseDrawer
+      isOpen={isOpen}
       onClose={onClose}
-      title="Connect WhatsApp Business"
+      title="WhatsApp Business"
       width="md"
-      blurIntensity="md"
-      overlayOpacity="light"
     >
-      {renderContent()}
+      {isLoading ? (
+        <div className="flex flex-col items-center space-y-3 py-12">
+          <div className="w-10 h-10 border-t-2 border-b-2 border-blue-500 rounded-full animate-spin"></div>
+          <p className="text-sm text-gray-500">Processing your request...</p>
+        </div>
+      ) : (
+        renderContent()
+      )}
     </BaseDrawer>
   );
 };

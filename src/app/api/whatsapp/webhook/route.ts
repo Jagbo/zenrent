@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import crypto from 'crypto'; // Import crypto for signature verification
 
 // Initialize Supabase client with local environment values
 const supabaseUrl =
@@ -11,6 +12,20 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Verification token that matches what's set in Facebook App dashboard
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "your_verify_token";
+// Facebook App Secret for signature verification
+const APP_SECRET = process.env.FB_APP_SECRET;
+
+// Helper function type definition
+interface WhatsAppMessageData {
+  wabaId: string;
+  phoneNumberId: string;
+  from: string;
+  messageId: string;
+  messageType: string;
+  messageContent: string;
+  timestamp: string;
+  direction: 'inbound' | 'outbound'; // Added direction for clarity
+}
 
 // Handle GET requests for webhook verification
 export async function GET(request: Request) {
@@ -32,8 +47,31 @@ export async function GET(request: Request) {
 
 // Handle POST requests for incoming messages
 export async function POST(request: Request) {
+  // Read the raw body for signature verification
+  const rawBody = await request.text();
+  const signature = request.headers.get('x-hub-signature-256') || '';
+
+  // Verify the signature
+  if (!APP_SECRET) {
+      console.error("FB_APP_SECRET is not configured. Cannot verify webhook signature.");
+      // Decide if you want to proceed without verification in dev, but block in prod
+      // For now, return an error
+      return new Response("Webhook security not configured", { status: 500 });
+  }
+  
+  const expectedSignature = `sha256=${crypto
+    .createHmac('sha256', APP_SECRET)
+    .update(rawBody)
+    .digest('hex')}`;
+
+  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) {
+    console.warn("Webhook signature verification failed!");
+    return new Response("Invalid signature", { status: 403 });
+  }
+
+  // Signature verified, now parse the body
   try {
-    const body = await request.json();
+    const body = JSON.parse(rawBody);
 
     // Log the incoming webhook for debugging
     console.log("Received webhook:", JSON.stringify(body));
@@ -115,7 +153,7 @@ export async function POST(request: Request) {
 }
 
 // Helper function to store WhatsApp messages
-async function storeWhatsAppMessage(messageData: unknown) {
+async function storeWhatsAppMessage(messageData: WhatsAppMessageData) {
   try {
     // Find the landlord ID associated with this WABA
     const { data: wabaData, error: wabaError } = await supabase

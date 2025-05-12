@@ -148,9 +148,10 @@ export default function Settings() {
     <SidebarLayout sidebar={<SidebarContent currentPath="/settings" />}>
       <h1 className="sr-only">Account Settings</h1>
 
-      <header className="border-b border-gray-200">
+      {/* Settings forms */}
+      <div className="space-y-6">
         {/* Secondary navigation */}
-        <nav className="flex overflow-x-auto py-3">
+        <nav className="flex overflow-x-auto py-3 bg-white" data-component-name="Settings">
           <ul role="list"
             className="flex min-w-full flex-none gap-x-6 px-4 sm:px-8 lg:px-8 text-sm/6 font-semibold text-gray-500"
           >
@@ -165,10 +166,6 @@ export default function Settings() {
             ))}
           </ul>
         </nav>
-      </header>
-
-      {/* Settings forms */}
-      <div className="space-y-6">
         {activeTab === "Account" && (
           <div className="divide-y divide-gray-200">
             <div className="grid max-w-7xl grid-cols-1 gap-x-8 gap-y-10 px-4 py-16 sm:px-6 md:grid-cols-3 lg:px-8">
@@ -187,6 +184,8 @@ export default function Settings() {
                     <Image alt=""
                       src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
                       className="size-24 flex-none rounded-lg bg-gray-100 object-cover"
+                      width={96}
+                      height={96}
                     />
                     <div>
                       <button type="button"
@@ -274,7 +273,7 @@ export default function Settings() {
 
                 <div className="mt-8 flex">
                   <button type="submit"
-                    className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#D9E8FF]/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
+                    className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-[#D9E8FF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
                   >
                     Save
                   </button>
@@ -345,7 +344,7 @@ export default function Settings() {
 
                 <div className="mt-8 flex">
                   <button type="submit"
-                    className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#D9E8FF]/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
+                    className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-[#D9E8FF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
                   >
                     Save
                   </button>
@@ -384,7 +383,7 @@ export default function Settings() {
 
                 <div className="mt-8 flex">
                   <button type="submit"
-                    className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#D9E8FF]/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
+                    className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-[#D9E8FF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
                   >
                     Log out other sessions
                   </button>
@@ -419,12 +418,12 @@ export default function Settings() {
                         </p>
                       </div>
                       <button type="button"
-                        className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-[#D9E8FF] transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#D9E8FF] focus:ring-offset-2"
+                        style={{background: 'rgb(217, 232, 255)', filter: 'brightness(1.05)', border: '2px solid rgb(217, 232, 255)'}} data-component-name="Settings" className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent focus:outline-none focus:ring-2 focus:ring-[#D9E8FF] focus:ring-offset-2"
                       >
                         <span className="sr-only">
                           Enable rent payment alerts
                         </span>
-                        <span className="pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-5" />
+                        <span className="pointer-events-none relative inline-block h-5 w-5 rounded-full bg-white translate-x-5" />
                       </button>
                     </div>
                   </div>
@@ -440,12 +439,12 @@ export default function Settings() {
                         </p>
                       </div>
                       <button type="button"
-                        className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-[#D9E8FF] transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#D9E8FF] focus:ring-offset-2"
+                        style={{background: 'rgb(217, 232, 255)', filter: 'brightness(1.05)', border: '2px solid rgb(217, 232, 255)'}} data-component-name="Settings" className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent focus:outline-none focus:ring-2 focus:ring-[#D9E8FF] focus:ring-offset-2"
                       >
                         <span className="sr-only">
                           Enable rent arrears alerts
                         </span>
-                        <span className="pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-5" />
+                        <span className="pointer-events-none relative inline-block h-5 w-5 rounded-full bg-white translate-x-5" />
                       </button>
                     </div>
                   </div>
@@ -462,12 +461,12 @@ export default function Settings() {
                         </p>
                       </div>
                       <button type="button"
-                        className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-[#D9E8FF] transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#D9E8FF] focus:ring-offset-2"
+                        style={{background: 'rgb(217, 232, 255)', filter: 'brightness(1.05)', border: '2px solid rgb(217, 232, 255)'}} data-component-name="Settings" className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent focus:outline-none focus:ring-2 focus:ring-[#D9E8FF] focus:ring-offset-2"
                       >
                         <span className="sr-only">
                           Enable maintenance request notifications
                         </span>
-                        <span className="pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-5" />
+                        <span className="pointer-events-none relative inline-block h-5 w-5 rounded-full bg-white translate-x-5" />
                       </button>
                     </div>
                   </div>
@@ -483,12 +482,12 @@ export default function Settings() {
                         </p>
                       </div>
                       <button type="button"
-                        className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-[#D9E8FF] transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#D9E8FF] focus:ring-offset-2"
+                        style={{background: 'rgb(217, 232, 255)', filter: 'brightness(1.05)', border: '2px solid rgb(217, 232, 255)'}} data-component-name="Settings" className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent focus:outline-none focus:ring-2 focus:ring-[#D9E8FF] focus:ring-offset-2"
                       >
                         <span className="sr-only">
                           Enable document update notifications
                         </span>
-                        <span className="pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-5" />
+                        <span className="pointer-events-none relative inline-block h-5 w-5 rounded-full bg-white translate-x-5" />
                       </button>
                     </div>
                   </div>
@@ -525,12 +524,12 @@ export default function Settings() {
                         </p>
                       </div>
                       <button type="button"
-                        className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-[#D9E8FF] transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#D9E8FF] focus:ring-offset-2"
+                        style={{background: 'rgb(217, 232, 255)', filter: 'brightness(1.05)', border: '2px solid rgb(217, 232, 255)'}} data-component-name="Settings" className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent focus:outline-none focus:ring-2 focus:ring-[#D9E8FF] focus:ring-offset-2"
                       >
                         <span className="sr-only">
                           Enable tenancy expiry reminders
                         </span>
-                        <span className="pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-5" />
+                        <span className="pointer-events-none relative inline-block h-5 w-5 rounded-full bg-white translate-x-5" />
                       </button>
                     </div>
                   </div>
@@ -546,12 +545,12 @@ export default function Settings() {
                         </p>
                       </div>
                       <button type="button"
-                        className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-[#D9E8FF] transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#D9E8FF] focus:ring-offset-2"
+                        style={{background: 'rgb(217, 232, 255)', filter: 'brightness(1.05)', border: '2px solid rgb(217, 232, 255)'}} data-component-name="Settings" className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent focus:outline-none focus:ring-2 focus:ring-[#D9E8FF] focus:ring-offset-2"
                       >
                         <span className="sr-only">
                           Enable financial summary notifications
                         </span>
-                        <span className="pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-5" />
+                        <span className="pointer-events-none relative inline-block h-5 w-5 rounded-full bg-white translate-x-5" />
                       </button>
                     </div>
                   </div>
@@ -582,12 +581,12 @@ export default function Settings() {
                         </p>
                       </div>
                       <button type="button"
-                        className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-[#D9E8FF] transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#D9E8FF] focus:ring-offset-2"
+                        style={{background: 'rgb(217, 232, 255)', filter: 'brightness(1.05)', border: '2px solid rgb(217, 232, 255)'}} data-component-name="Settings" className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent focus:outline-none focus:ring-2 focus:ring-[#D9E8FF] focus:ring-offset-2"
                       >
                         <span className="sr-only">
                           Enable urgent maintenance SMS alerts
                         </span>
-                        <span className="pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-5" />
+                        <span className="pointer-events-none relative inline-block h-5 w-5 rounded-full bg-white translate-x-5" />
                       </button>
                     </div>
                   </div>
@@ -625,12 +624,12 @@ export default function Settings() {
                         </p>
                       </div>
                       <button type="button"
-                        className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-[#D9E8FF] transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#D9E8FF] focus:ring-offset-2"
+                        style={{background: 'rgb(217, 232, 255)', filter: 'brightness(1.05)', border: '2px solid rgb(217, 232, 255)'}} data-component-name="Settings" className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent focus:outline-none focus:ring-2 focus:ring-[#D9E8FF] focus:ring-offset-2"
                       >
                         <span className="sr-only">
                           Enable tenant communication SMS alerts
                         </span>
-                        <span className="pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-5" />
+                        <span className="pointer-events-none relative inline-block h-5 w-5 rounded-full bg-white translate-x-5" />
                       </button>
                     </div>
                   </div>
@@ -651,7 +650,7 @@ export default function Settings() {
               <form className="md:col-span-2">
                 <div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:max-w-xl sm:grid-cols-6">
                   <div className="col-span-full">
-                    <div className="rounded-lg border border-gray-200 p-4">
+                    <div className="rounded-lg border border-gray-200 p-4 bg-white" data-component-name="Settings">
                       <div className="mb-4">
                         <h3 className="text-sm font-medium text-gray-900">
                           All notification types with granular control
@@ -663,7 +662,7 @@ export default function Settings() {
                       </div>
                       <div className="flex items-center justify-between">
                         <button type="button"
-                          className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#D9E8FF]/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
+                          className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-[#D9E8FF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
                         >
                           Open Mobile App
                         </button>
@@ -672,12 +671,12 @@ export default function Settings() {
                             Enable push notifications
                           </span>
                           <button type="button"
-                            className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-[#D9E8FF] transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#D9E8FF] focus:ring-offset-2"
+                            style={{background: 'rgb(217, 232, 255)', filter: 'brightness(1.05)', border: '2px solid rgb(217, 232, 255)'}} data-component-name="Settings" className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent focus:outline-none focus:ring-2 focus:ring-[#D9E8FF] focus:ring-offset-2"
                           >
                             <span className="sr-only">
                               Enable push notifications
                             </span>
-                            <span className="pointer-events-none relative inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-5" />
+                            <span className="pointer-events-none relative inline-block h-5 w-5 rounded-full bg-white translate-x-5" />
                           </button>
                         </div>
                       </div>
@@ -715,7 +714,7 @@ export default function Settings() {
                         min="1"
                         max="30"
                         defaultValue="7"
-                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#D9E8FF] sm:text-sm/6"
+                        className="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 bg-white shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#D9E8FF] sm:text-sm/6" data-component-name="Settings"
                       />
                     </div>
                   </div>
@@ -736,7 +735,7 @@ export default function Settings() {
                         min="1"
                         max="90"
                         defaultValue="30"
-                        className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#D9E8FF] sm:text-sm/6"
+                        className="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 bg-white shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#D9E8FF] sm:text-sm/6" data-component-name="Settings"
                       />
                     </div>
                   </div>
@@ -744,7 +743,7 @@ export default function Settings() {
 
                 <div className="mt-8 flex">
                   <button type="submit"
-                    className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#D9E8FF]/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
+                    className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-[#D9E8FF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
                   >
                     Save preferences
                   </button>
@@ -1001,7 +1000,7 @@ export default function Settings() {
                       </div>
                     </div>
                     <button type="button"
-                      className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#D9E8FF]/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
+                      className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-[#D9E8FF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
                       onClick={() => setIsAccountingDrawerOpen(true)}
                     >
                       Connect
@@ -1027,7 +1026,7 @@ export default function Settings() {
                       </div>
                     </div>
                     <button type="button"
-                      className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#D9E8FF]/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
+                      className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-[#D9E8FF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
                     >
                       Connect
                     </button>
@@ -1097,7 +1096,7 @@ export default function Settings() {
                       </div>
                     </div>
                     <button type="button"
-                      className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#D9E8FF]/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
+                      className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-[#D9E8FF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
                       onClick={() => setIsWhatsAppDrawerOpen(true)}
                     >
                       Connect
@@ -1128,7 +1127,7 @@ export default function Settings() {
                       </div>
                     </div>
                     <button type="button"
-                      className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#D9E8FF]/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
+                      className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-[#D9E8FF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
                     >
                       Connect
                     </button>
@@ -1167,7 +1166,7 @@ export default function Settings() {
                     </div>
                   </div>
                   <button type="button"
-                    className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#D9E8FF]/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
+                    className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-[#D9E8FF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF]"
                     onClick={() => setIsBankAccountDrawerOpen(true)}
                   >
                     Connect

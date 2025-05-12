@@ -622,7 +622,7 @@ export default function Transactions(): ReactElement {
                         >
                           {editingCategory === transaction.id ? (
                             <select className="form-select rounded-md border-gray-300 py-1 pl-2 pr-8 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              value={transaction.category}
+                              value={transaction.category || "exclude"}
                               onChange={(e) => {
                                 e.stopPropagation();
                                 handleCategoryChange(
@@ -643,7 +643,7 @@ export default function Transactions(): ReactElement {
                             </select>
                           ) : (
                             <div className="flex items-center justify-between cursor-pointer hover:text-blue-600">
-                              <span>{transaction.category}</span>
+                              <span>{transaction.category || "Uncategorized"}</span>
                               <svg className="h-4 w-4 text-gray-400 ml-2"
                                 fill="none"
                                 stroke="currentColor"
@@ -869,7 +869,7 @@ export default function Transactions(): ReactElement {
                             <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">
                               {editingCategory === selectedTransaction.id ? (
                                 <select className="form-select w-full rounded-md border-gray-300 py-1 pl-2 pr-8 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                                  value={selectedTransaction.category}
+                                  value={selectedTransaction.category || "exclude"}
                                   onChange={(e) => {
                                     handleCategoryChange(
                                       selectedTransaction.id,
@@ -893,7 +893,7 @@ export default function Transactions(): ReactElement {
                                     setEditingCategory(selectedTransaction.id)
                                   }
                                 >
-                                  <span>{selectedTransaction.category}</span>
+                                  <span>{selectedTransaction.category || "Uncategorized"}</span>
                                   <svg className="h-4 w-4 text-gray-400 ml-2"
                                     fill="none"
                                     stroke="currentColor"

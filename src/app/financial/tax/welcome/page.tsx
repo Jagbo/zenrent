@@ -95,7 +95,7 @@ export default function WelcomeScreen() {
         <div className="flex justify-center gap-4 pt-4">
           <button 
             className="rounded-lg bg-[#D9E8FF] text-gray-900 hover:bg-[#c8d7ee] px-4 py-2 font-semibold"
-            onClick={() => router.push("/financial/tax/personal-details")}
+            onClick={() => router.push("/financial/tax/company-or-personal")}
           >
             Get Started
           </button>

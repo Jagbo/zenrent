@@ -1,7 +1,11 @@
-"use client";
-
 import "../globals.css";
 import { Inter } from "next/font/google";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Sign In | ZenRent",
+  description: "Sign in to your ZenRent account to manage your properties and tenants.",
+};
 
 // Configure the Inter font
 const inter = Inter({

@@ -36,6 +36,14 @@ import {
 import { getPropertyIssues, createIssue } from "../../../lib/issueService";
 import { supabase } from "../../../lib/supabase";
 import { ChevronDownIcon } from "@heroicons/react/24/solid";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import {
+  getAllPropertyDetails,
+  IPropertyImage,
+  IPropertyFloorPlan,
+  IPropertyInsurance,
+  IPropertyMortgage
+} from "../../../lib/propertyDetailsService";
 
 // Define the Property interface for UI
 interface PropertyForUI {
@@ -111,6 +119,70 @@ interface PropertyForEdit {
   yearBuilt: number;
   parkingSpots: number;
 }
+
+// Fetch financial data for a property from Supabase
+const fetchFinancialData = async (propertyId: string) => {
+  const supabase = createClientComponentClient();
+  const currentDate = new Date();
+  const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+  const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+  
+  // Format dates for SQL query
+  const startDate = firstDayOfMonth.toISOString();
+  const endDate = lastDayOfMonth.toISOString();
+  
+  try {
+    // Get total income for the current month
+    const { data: incomeData, error: incomeError } = await supabase
+      .from('income')
+      .select('amount')
+      .eq('property_id', propertyId)
+      .gte('date', startDate)
+      .lte('date', endDate);
+      
+    if (incomeError) throw incomeError;
+    
+    // Get total expenses for the current month
+    const { data: expenseData, error: expenseError } = await supabase
+      .from('expenses')
+      .select('amount')
+      .eq('property_id', propertyId)
+      .gte('date', startDate)
+      .lte('date', endDate);
+      
+    if (expenseError) throw expenseError;
+    
+    // Get latest financial metrics
+    const { data: metricsData, error: metricsError } = await supabase
+      .from('financial_metrics')
+      .select('*')
+      .eq('property_id', propertyId)
+      .order('period_end', { ascending: false })
+      .limit(1);
+      
+    if (metricsError) throw metricsError;
+    
+    // Calculate totals
+    const totalIncome = incomeData.reduce((sum, item) => sum + Number(item.amount), 0);
+    const totalExpenses = expenseData.reduce((sum, item) => sum + Number(item.amount), 0);
+    const netIncome = totalIncome - totalExpenses;
+    
+    // Get occupancy rate from metrics or calculate default
+    const occupancyRate = metricsData && metricsData.length > 0 
+      ? Number(metricsData[0].occupancy_rate) 
+      : null;
+    
+    return {
+      monthlyIncome: totalIncome,
+      expenses: totalExpenses,
+      netIncome: netIncome,
+      occupancyRate: occupancyRate
+    };
+  } catch (error) {
+    console.error('Error fetching financial data:', error);
+    return null;
+  }
+};
 
 // Convert Supabase property to UI format
 const convertToUIProperty = (property: IPropertyWithTenants): PropertyForUI => {
@@ -267,48 +339,81 @@ const sampleProperty: PropertyForUI = {
 };
 
 export default function PropertyDetails() {
-  const params = useParams();
-  const propertyId = params.id as string;
+  const { id: propertyId } = useParams<{ id: string }>();
   const [property, setProperty] = useState<PropertyForUI | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("overview");
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isAdvertiseDrawerOpen, setIsAdvertiseDrawerOpen] = useState(false);
-  const [isIssueDrawerOpen, setIsIssueDrawerOpen] = useState(false);
-  const [isNewIssueDrawerOpen, setIsNewIssueDrawerOpen] = useState(false);
-  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
-  const [selectedProperty, setSelectedProperty] =
-    useState<PropertyForEdit | null>(null);
+  const [selectedProperty, setSelectedProperty] = useState<PropertyForEdit | null>(null);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [issuesLoading, setIssuesLoading] = useState(true);
   const [issuesError, setIssuesError] = useState<string | null>(null);
-  const [selectedTab, setSelectedTab] = useState("images");
+  const [isIssueDrawerOpen, setIsIssueDrawerOpen] = useState(false);
+  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
+  const [isNewIssueDrawerOpen, setIsNewIssueDrawerOpen] = useState(false);
+  const [financialData, setFinancialData] = useState<any>(null);
+  const [financialDataLoading, setFinancialDataLoading] = useState(true);
+  
+  // New state for property details from database
+  const [propertyImages, setPropertyImages] = useState<IPropertyImage[]>([]);
+  const [propertyFloorPlans, setPropertyFloorPlans] = useState<IPropertyFloorPlan[]>([]);
+  const [propertyInsurance, setPropertyInsurance] = useState<IPropertyInsurance | null>(null);
+  const [propertyMortgage, setPropertyMortgage] = useState<IPropertyMortgage | null>(null);
+  const [propertyAmenities, setPropertyAmenities] = useState<string[]>([]);
+  const [detailsLoading, setDetailsLoading] = useState(true);
 
   // Update tabs to use state
   const tabs = [
-    { name: "Images", value: "images", current: selectedTab === "images" },
+    { name: "Images", value: "images", current: activeTab === "images" },
     {
       name: "Floor Plan",
       value: "floor-plan",
-      current: selectedTab === "floor-plan",
+      current: activeTab === "floor-plan",
     },
     {
       name: "Financials",
       value: "financials",
-      current: selectedTab === "financials",
+      current: activeTab === "financials",
     },
-    { name: "Details", value: "details", current: selectedTab === "details" },
+    { name: "Details", value: "details", current: activeTab === "details" },
     {
       name: "Documents",
       value: "documents",
-      current: selectedTab === "documents",
+      current: activeTab === "documents",
     },
+    { name: "Overview", value: "overview", current: activeTab === "overview" },
   ];
 
   const handleTabChange = (value: string) => {
-    setSelectedTab(value);
+    setActiveTab(value);
   };
 
+  // Fetch property details from database
+  const fetchPropertyDetails = async (propertyId: string) => {
+    setDetailsLoading(true);
+    try {
+      console.log("Fetching property details from database for ID:", propertyId);
+      
+      // Fetch all property details in a single call
+      const details = await getAllPropertyDetails(propertyId);
+      
+      // Update state with the fetched data
+      setPropertyImages(details.images);
+      setPropertyFloorPlans(details.floorPlans);
+      setPropertyInsurance(details.insurance);
+      setPropertyMortgage(details.mortgage);
+      setPropertyAmenities(details.amenities);
+      
+      console.log("Property details fetched successfully:", details);
+    } catch (error) {
+      console.error("Error fetching property details:", error);
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
+  
   // Fetch property data when component mounts
   useEffect(() => {
     const fetchProperty = async () => {
@@ -325,7 +430,32 @@ export default function PropertyDetails() {
           console.log("Property found:", data.id);
           // Convert to UI format
           const uiProperty = convertToUIProperty(data);
+          
+          // Fetch property details from database (images, floor plans, insurance, mortgage, amenities)
+          await fetchPropertyDetails(propertyId);
+          
+          // Fetch financial data
+          setFinancialDataLoading(true);
+          const financials = await fetchFinancialData(propertyId);
+          if (financials) {
+            setFinancialData(financials);
+            
+            // Update property with financial data
+            uiProperty.financials = {
+              monthlyIncome: financials.monthlyIncome,
+              expenses: financials.expenses,
+              netIncome: financials.netIncome,
+              occupancyRate: financials.occupancyRate || uiProperty.occupancyRate
+            };
+          }
+          
+          // Update property with database amenities if available
+          if (propertyAmenities.length > 0) {
+            uiProperty.amenities = propertyAmenities;
+          }
+          
           setProperty(uiProperty);
+          setFinancialDataLoading(false);
 
           // Set selected property for edit drawer
           setSelectedProperty({
@@ -349,31 +479,6 @@ export default function PropertyDetails() {
         } else {
           console.error("No property data returned for ID:", propertyId);
           setError(`Property not found with ID: ${propertyId}`);
-
-          // In development mode, use sample data as fallback
-          if (process.env.NODE_ENV === "development") {
-            console.log("Using sample data as fallback");
-            setProperty(sampleProperty);
-            setSelectedProperty({
-              id: sampleProperty.id,
-              name: sampleProperty.name,
-              address: sampleProperty.address,
-              city: sampleProperty.city,
-              state: sampleProperty.state || "",
-              zipCode: sampleProperty.zipCode || "",
-              type: sampleProperty.type,
-              status: sampleProperty.status || "available",
-              bedrooms: sampleProperty.bedrooms || 0,
-              bathrooms: sampleProperty.bathrooms || 0,
-              squareFeet: sampleProperty.squareFeet || 0,
-              rentAmount: sampleProperty.rentAmount || 0,
-              description: sampleProperty.description || "",
-              amenities: sampleProperty.amenities || [],
-              yearBuilt: sampleProperty.yearBuilt || 0,
-              parkingSpots: sampleProperty.parkingSpots || 0,
-            });
-            setError(null);
-          }
         }
       } catch (error) {
         console.error(`Error fetching property ${propertyId}:`, error);
@@ -804,7 +909,7 @@ export default function PropertyDetails() {
               <div className="w-full">
                 <div>
                   <div className="grid grid-cols-1 sm:hidden">
-                    <select value={selectedTab}
+                    <select value={activeTab}
                       onChange={(e) => handleTabChange(e.target.value)}
                       aria-label="Select a tab"
                       className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-2 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-[#D9E8FF]"
@@ -849,12 +954,11 @@ export default function PropertyDetails() {
                   </div>
                 </div>
 
-                <Tabs value={selectedTab}
+                <Tabs value={activeTab}
                   onValueChange={handleTabChange}
                   className="w-full"
                 >
                   {/* Tab Content */}
-                  <div>
                     <TabsContent value="images" className="mt-0">
                       <div className="rounded-md border p-4 bg-white">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -908,14 +1012,16 @@ export default function PropertyDetails() {
                     <TabsContent value="financials" className="mt-0">
                       <div className="rounded-md border p-4 bg-white">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="bg-white p-4 rounded-lg border border-gray-200">
-                            <h4 className="text-sm font-medium text-gray-900">
+                          <div className="bg-white p-4 rounded-lg border border-gray-200" data-component-name="PropertyDetails">
+                            <h4 className="text-sm font-medium text-gray-900" data-component-name="PropertyDetails">
                               Monthly Income
                             </h4>
-                            <p className="mt-2 text-2xl font-semibold text-gray-900">
-                              £
-                              {property.financials?.monthlyIncome.toLocaleString() ||
-                                property.stats.monthlyRevenue.toLocaleString()}
+                            <p className="mt-2 text-2xl font-semibold text-gray-900" data-component-name="PropertyDetails">
+                              {financialDataLoading ? (
+                                <span className="text-gray-400">Loading...</span>
+                              ) : (
+                                <>£{(property.financials?.monthlyIncome || 0).toLocaleString()}</>  
+                              )}
                             </p>
                           </div>
                           <div className="bg-white p-4 rounded-lg border border-gray-200">
@@ -923,32 +1029,35 @@ export default function PropertyDetails() {
                               Monthly Expenses
                             </h4>
                             <p className="mt-2 text-2xl font-semibold text-gray-900">
-                              £
-                              {property.financials?.expenses.toLocaleString() ||
-                                property.stats.maintenanceCosts.toLocaleString()}
+                              {financialDataLoading ? (
+                                <span className="text-gray-400">Loading...</span>
+                              ) : (
+                                <>£{(property.financials?.expenses || 0).toLocaleString()}</>  
+                              )}
                             </p>
                           </div>
-                          <div className="bg-white p-4 rounded-lg border border-gray-200">
-                            <h4 className="text-sm font-medium text-gray-900">
+                          <div className="bg-white p-4 rounded-lg border border-gray-200" data-component-name="PropertyDetails">
+                            <h4 className="text-sm font-medium text-gray-900" data-component-name="PropertyDetails">
                               Net Income
                             </h4>
                             <p className="mt-2 text-2xl font-semibold text-gray-900">
-                              £
-                              {property.financials?.netIncome.toLocaleString() ||
-                                (
-                                  property.stats.monthlyRevenue -
-                                  property.stats.maintenanceCosts
-                                ).toLocaleString()}
+                              {financialDataLoading ? (
+                                <span className="text-gray-400">Loading...</span>
+                              ) : (
+                                <>£{(property.financials?.netIncome || 0).toLocaleString()}</>  
+                              )}
                             </p>
                           </div>
-                          <div className="bg-white p-4 rounded-lg border border-gray-200">
+                          <div className="bg-white p-4 rounded-lg border border-gray-200" data-component-name="PropertyDetails">
                             <h4 className="text-sm font-medium text-gray-900">
                               Occupancy Rate
                             </h4>
-                            <p className="mt-2 text-2xl font-semibold text-gray-900">
-                              {property.financials?.occupancyRate ||
-                                property.occupancyRate}
-                              %
+                            <p className="mt-2 text-2xl font-semibold text-gray-900" data-component-name="PropertyDetails">
+                              {financialDataLoading ? (
+                                <span className="text-gray-400">Loading...</span>
+                              ) : (
+                                <>{property.financials?.occupancyRate || property.occupancyRate || 0}%</>  
+                              )}
                             </p>
                           </div>
                         </div>
@@ -1061,8 +1170,8 @@ export default function PropertyDetails() {
                     <TabsContent value="documents" className="mt-0">
                       <div className="rounded-md border p-4 bg-white">
                         <div className="space-y-4">
-                          <div className="flex justify-between items-center">
-                            <h4 className="text-sm font-medium text-gray-900">
+                          <div className="flex justify-between items-center" data-component-name="PropertyDetails">
+                            <h4 className="text-sm font-medium text-gray-900" data-component-name="PropertyDetails">
                               Property Documents
                             </h4>
                             <button className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-gray-900 hover:bg-gray-800">
@@ -1071,126 +1180,222 @@ export default function PropertyDetails() {
                             </button>
                           </div>
 
-                          <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th scope="col"
-                                  className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
-                                  Document Name
-                                </th>
-                                <th scope="col"
-                                  className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
-                                  Type
-                                </th>
-                                <th scope="col"
-                                  className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
-                                  Upload Date
-                                </th>
-                                <th scope="col"
-                                  className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
-                                  Size
-                                </th>
-                                <th scope="col"
-                                  className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                ></th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              <tr>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                  Mortgage Document.pdf
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                  <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                    Mortgage
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                                  Jan 15, 2024
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                                  2.3 MB
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                                  <a href="#"
-                                    className="text-blue-600 hover:text-blue-900 mr-3"
+                          {/* Mobile responsive table */}
+                          <div className="overflow-x-auto -mx-4 sm:mx-0 sm:rounded-lg" data-component-name="PropertyDetails">
+                            <table className="min-w-full divide-y divide-gray-200">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  <th scope="col"
+                                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell"
+                                    data-component-name="PropertyDetails"
                                   >
-                                    View
-                                  </a>
-                                  <a href="#"
-                                    className="text-blue-600 hover:text-blue-900"
+                                    Document Name
+                                  </th>
+                                  <th scope="col"
+                                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sm:table-cell hidden"
+                                    data-component-name="PropertyDetails"
                                   >
-                                    Download
-                                  </a>
-                                </td>
-                              </tr>
-                              <tr>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                  Insurance Policy.pdf
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                  <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                    Insurance
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                                  Feb 10, 2024
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                                  3.1 MB
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                                  <a href="#"
-                                    className="text-blue-600 hover:text-blue-900 mr-3"
+                                    Type
+                                  </th>
+                                  <th scope="col"
+                                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell"
                                   >
-                                    View
-                                  </a>
-                                  <a href="#"
-                                    className="text-blue-600 hover:text-blue-900"
+                                    Upload Date
+                                  </th>
+                                  <th scope="col"
+                                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell"
                                   >
-                                    Download
-                                  </a>
-                                </td>
-                              </tr>
-                              <tr>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                  Energy Performance Certificate.pdf
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                  <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                    EPC
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                                  Nov 5, 2023
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                                  1.5 MB
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                                  <a href="#"
-                                    className="text-blue-600 hover:text-blue-900 mr-3"
+                                    Size
+                                  </th>
+                                  <th scope="col"
+                                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                   >
-                                    View
-                                  </a>
-                                  <a href="#"
-                                    className="text-blue-600 hover:text-blue-900"
-                                  >
-                                    Download
-                                  </a>
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
+                                    <span className="sr-only">Actions</span>
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                <tr>
+                                  <td className="px-4 py-3 text-sm text-gray-900 sm:whitespace-nowrap" data-component-name="PropertyDetails">
+                                    <div className="flex flex-col sm:hidden mb-2">
+                                      <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 self-start mb-1">
+                                        Mortgage
+                                      </span>
+                                      <span className="text-xs text-gray-500 mb-1">Jan 15, 2024 • 2.3 MB</span>
+                                    </div>
+                                    Mortgage Document.pdf
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm hidden sm:table-cell">
+                                    <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                      Mortgage
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                    Jan 15, 2024
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                    2.3 MB
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                                    <div className="flex justify-end sm:justify-start space-x-3">
+                                      <a href="#"
+                                        className="text-blue-600 hover:text-blue-900"
+                                      >
+                                        View
+                                      </a>
+                                      <a href="#"
+                                        className="text-blue-600 hover:text-blue-900"
+                                      >
+                                        Download
+                                      </a>
+                                    </div>
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td className="px-4 py-3 text-sm text-gray-900 sm:whitespace-nowrap">
+                                    <div className="flex flex-col sm:hidden mb-2">
+                                      <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 self-start mb-1">
+                                        Insurance
+                                      </span>
+                                      <span className="text-xs text-gray-500 mb-1">Feb 10, 2024 • 3.1 MB</span>
+                                    </div>
+                                    Insurance Policy.pdf
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm hidden sm:table-cell">
+                                    <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                      Insurance
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                    Feb 10, 2024
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                    3.1 MB
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                                    <div className="flex justify-end sm:justify-start space-x-3">
+                                      <a href="#"
+                                        className="text-blue-600 hover:text-blue-900"
+                                      >
+                                        View
+                                      </a>
+                                      <a href="#"
+                                        className="text-blue-600 hover:text-blue-900"
+                                      >
+                                        Download
+                                      </a>
+                                    </div>
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td className="px-4 py-3 text-sm text-gray-900 sm:whitespace-nowrap">
+                                    <div className="flex flex-col sm:hidden mb-2">
+                                      <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800 self-start mb-1">
+                                        EPC
+                                      </span>
+                                      <span className="text-xs text-gray-500 mb-1">Nov 5, 2023 • 1.5 MB</span>
+                                    </div>
+                                    Energy Performance Certificate.pdf
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm hidden sm:table-cell">
+                                    <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                      EPC
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                    Nov 5, 2023
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                    1.5 MB
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                                    <div className="flex justify-end sm:justify-start space-x-3">
+                                      <a href="#"
+                                        className="text-blue-600 hover:text-blue-900"
+                                      >
+                                        View
+                                      </a>
+                                      <a href="#"
+                                        className="text-blue-600 hover:text-blue-900"
+                                      >
+                                        Download
+                                      </a>
+                                    </div>
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
                       </div>
                     </TabsContent>
-                  </div>
-                </Tabs>
+                    
+                    {/* Overview Tab */}
+                    <TabsContent value="overview" className="mt-0">
+                      <div className="bg-white shadow-sm rounded-lg border border-gray-200">
+                        <div className="px-4 py-5 sm:p-6">
+                          <h3 className="text-lg font-medium leading-6 text-gray-900">Property Overview</h3>
+                          <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                            <div className="bg-white overflow-hidden shadow-sm rounded-lg">
+                              <div className="px-4 py-5 sm:p-6">
+                                <dt className="text-sm font-medium text-gray-500 truncate">Property Type</dt>
+                                <dd className="mt-1 text-3xl font-semibold text-gray-900">{property?.type}</dd>
+                              </div>
+                            </div>
+                            <div className="bg-white overflow-hidden shadow-sm rounded-lg">
+                              <div className="px-4 py-5 sm:p-6">
+                                <dt className="text-sm font-medium text-gray-500 truncate">Bedrooms</dt>
+                                <dd className="mt-1 text-3xl font-semibold text-gray-900">{property?.bedrooms}</dd>
+                              </div>
+                            </div>
+                            <div className="bg-white overflow-hidden shadow-sm rounded-lg">
+                              <div className="px-4 py-5 sm:p-6">
+                                <dt className="text-sm font-medium text-gray-500 truncate">Bathrooms</dt>
+                                <dd className="mt-1 text-3xl font-semibold text-gray-900">{property?.bathrooms}</dd>
+                              </div>
+                            </div>
+                            <div className="bg-white overflow-hidden shadow-sm rounded-lg">
+                              <div className="px-4 py-5 sm:p-6">
+                                <dt className="text-sm font-medium text-gray-500 truncate">Square Feet</dt>
+                                <dd className="mt-1 text-3xl font-semibold text-gray-900">{property?.squareFeet}</dd>
+                              </div>
+                            </div>
+                            <div className="bg-white overflow-hidden shadow-sm rounded-lg">
+                              <div className="px-4 py-5 sm:p-6">
+                                <dt className="text-sm font-medium text-gray-500 truncate">Rent Amount</dt>
+                                <dd className="mt-1 text-3xl font-semibold text-gray-900">£{property?.rentAmount}</dd>
+                              </div>
+                            </div>
+                            <div className="bg-white overflow-hidden shadow-sm rounded-lg">
+                              <div className="px-4 py-5 sm:p-6">
+                                <dt className="text-sm font-medium text-gray-500 truncate">Status</dt>
+                                <dd className="mt-1 text-3xl font-semibold text-gray-900">{property?.status}</dd>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-8">
+                            <h4 className="text-md font-medium text-gray-900">Description</h4>
+                            <p className="mt-2 text-sm text-gray-500">{property?.description}</p>
+                          </div>
+                          
+                          <div className="mt-8">
+                            <h4 className="text-md font-medium text-gray-900">Amenities</h4>
+                            <ul className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                              {property?.amenities?.map((amenity, index) => (
+                                <li key={index} className="flex items-center text-sm text-gray-500">
+                                  <svg className="flex-shrink-0 mr-1.5 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                  </svg>
+                                  {amenity}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
               </div>
             </div>
           </div>
@@ -1229,46 +1434,64 @@ export default function PropertyDetails() {
                     No issues found for this property
                   </div>
                 ) : (
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th scope="col"
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Issue
-                        </th>
-                        <th scope="col"
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Priority
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {issues.map((issue) => (
-                        <tr key={issue.id}
-                          onClick={() => openIssueDrawer(issue)}
-                          className="cursor-pointer hover:bg-gray-50"
-                        >
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {issue.title}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                issue.priority === "High"
-                                  ? "bg-red-100 text-red-800"
-                                  : issue.priority === "Medium"
-                                    ? "bg-blue-100 text-blue-800"
-                                    : "bg-green-100 text-green-800"
-                              }`}
-                            >
-                              {issue.priority}
-                            </span>
-                          </td>
+                  <div className="overflow-x-auto -mx-4 sm:mx-0 sm:rounded-lg" data-component-name="PropertyDetails">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th scope="col"
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            data-component-name="PropertyDetails"
+                          >
+                            Issue
+                          </th>
+                          <th scope="col"
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell"
+                            data-component-name="PropertyDetails"
+                          >
+                            Priority
+                          </th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {issues.map((issue) => (
+                          <tr key={issue.id}
+                            onClick={() => openIssueDrawer(issue)}
+                            className="cursor-pointer hover:bg-gray-50"
+                          >
+                            <td className="px-6 py-4 text-sm text-gray-900" data-component-name="PropertyDetails">
+                              <div className="flex items-center">
+                                <div className="sm:hidden mr-2">
+                                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                    issue.priority === "High"
+                                      ? "bg-red-100 text-red-800"
+                                      : issue.priority === "Medium"
+                                        ? "bg-blue-100 text-blue-800"
+                                        : "bg-green-100 text-green-800"
+                                  }`}
+                                  >
+                                    {issue.priority}
+                                  </span>
+                                </div>
+                                <span className="truncate">{issue.title}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap hidden sm:table-cell">
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                  issue.priority === "High"
+                                    ? "bg-red-100 text-red-800"
+                                    : issue.priority === "Medium"
+                                      ? "bg-blue-100 text-blue-800"
+                                      : "bg-green-100 text-green-800"
+                                }`}
+                              >
+                                {issue.priority}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
               <div className="px-6 py-4 border-t border-gray-200">

@@ -10,7 +10,7 @@ import { BuildingOffice2Icon, PlusIcon, MagnifyingGlassIcon, EllipsisHorizontalI
 import {
   XMarkIcon,
 } from "@heroicons/react/24/solid";
-import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
+import { Menu, MenuButton, MenuItem, MenuItems, Portal } from "@headlessui/react";
 import {
   PencilIcon,
   ArrowLeftOnRectangleIcon,
@@ -608,7 +608,7 @@ export default function Properties() {
 
               return (
                 <li key={property.id}
-                  className="overflow-hidden rounded-xl border border-gray-200 bg-white"
+                  className="rounded-xl border border-gray-200 bg-white" style={{ overflow: 'visible' }}
                 >
                   <div className="relative h-48 border-b border-gray-200">
                     {property.image ? (
@@ -628,67 +628,67 @@ export default function Properties() {
                       <div className="text-base font-medium text-white">
                         {property.name}
                       </div>
-                      <Menu as="div" className="relative">
+                      <Menu as="div" className="relative" data-component-name="Properties">
                         <MenuButton className="rounded-full bg-white/80 p-1.5 text-gray-700 hover:bg-white">
                           <span className="sr-only">Open options</span>
                           <EllipsisHorizontalIcon aria-hidden="true"
                             className="size-5"
                           />
                         </MenuButton>
-                        <MenuItems transition
-                          className="absolute right-0 z-50 mt-0.5 w-32 origin-top-right rounded-md bg-white py-2 ring-1 shadow-lg ring-gray-900/5 transition focus:outline-hidden data-closed:scale-95 data-closed:transform data-closed:opacity-0 data-enter:duration-100 data-enter:ease-out data-leave:duration-75 data-leave:ease-in"
-                        >
-                          <MenuItem>
-                            <Link href={`/properties/${property.id}`}
-                              className="block px-3 py-1 text-sm/6 text-gray-900 data-focus:bg-gray-50 data-focus:outline-hidden"
-                            >
-                              View
-                              <span className="sr-only">, {property.name}</span>
-                            </Link>
-                          </MenuItem>
-                          <MenuItem>
-                            <a href="#"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                handleEditClick(property);
-                              }}
-                              className="block px-3 py-1 text-sm/6 text-gray-900 data-focus:bg-gray-50 data-focus:outline-hidden"
-                            >
-                              Edit
-                              <span className="sr-only">, {property.name}</span>
-                            </a>
-                          </MenuItem>
-                          <MenuItem>
-                            <a href="#"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                handleAdvertiseClick(property);
-                              }}
-                              className="block px-3 py-1 text-sm/6 text-gray-900 data-focus:bg-gray-50 data-focus:outline-hidden"
-                            >
-                              Advertise
-                              <span className="sr-only">, {property.name}</span>
-                            </a>
-                          </MenuItem>
-                          <MenuItem>
-                            <a href="#"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                if (
-                                  window.confirm(
-                                    "Are you sure you want to delete this property? This action cannot be undone.",
-                                  )
-                                ) {
-                                  handleDeleteProperty(property);
-                                }
-                              }}
-                              className="block px-3 py-1 text-sm/6 text-red-600 data-focus:bg-gray-50 data-focus:outline-hidden"
-                            >
-                              Delete
-                              <span className="sr-only">, {property.name}</span>
-                            </a>
-                          </MenuItem>
-                        </MenuItems>
+                        <div className="absolute z-50" style={{ right: 0, top: '100%', minWidth: '8rem', overflow: 'visible', transformOrigin: 'top right' }}>
+                          <MenuItems className="mt-1 w-32 origin-top-right rounded-md bg-white py-2 ring-1 shadow-lg ring-gray-900/5 focus:outline-none">
+                            <MenuItem>
+                              <Link href={`/properties/${property.id}`}
+                                className="block px-3 py-1 text-sm/6 text-gray-900 data-focus:bg-gray-50 data-focus:outline-hidden"
+                              >
+                                View
+                                <span className="sr-only">, {property.name}</span>
+                              </Link>
+                            </MenuItem>
+                            <MenuItem>
+                              <a href="#"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  handleEditClick(property);
+                                }}
+                                className="block px-3 py-1 text-sm/6 text-gray-900 data-focus:bg-gray-50 data-focus:outline-hidden"
+                              >
+                                Edit
+                                <span className="sr-only">, {property.name}</span>
+                              </a>
+                            </MenuItem>
+                            <MenuItem>
+                              <a href="#"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  handleAdvertiseClick(property);
+                                }}
+                                className="block px-3 py-1 text-sm/6 text-gray-900 data-focus:bg-gray-50 data-focus:outline-hidden"
+                              >
+                                Advertise
+                                <span className="sr-only">, {property.name}</span>
+                              </a>
+                            </MenuItem>
+                            <MenuItem>
+                              <a href="#"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  if (
+                                    window.confirm(
+                                      "Are you sure you want to delete this property? This action cannot be undone.",
+                                    )
+                                  ) {
+                                    handleDeleteProperty(property);
+                                  }
+                                }}
+                                className="block px-3 py-1 text-sm/6 text-red-600 data-focus:bg-gray-50 data-focus:outline-hidden"
+                              >
+                                Delete
+                                <span className="sr-only">, {property.name}</span>
+                              </a>
+                            </MenuItem>
+                          </MenuItems>
+                        </div>
                       </Menu>
                     </div>
                   </div>

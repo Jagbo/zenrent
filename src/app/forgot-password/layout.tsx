@@ -1,3 +1,10 @@
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Forgot Password | ZenRent",
+  description: "Reset your ZenRent password",
+};
+
 export default function ForgotPasswordLayout({
   children,
 }: {
