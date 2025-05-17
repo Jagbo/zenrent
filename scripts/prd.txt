@@ -1,0 +1,69 @@
+# Making Tax Digital (MTD) Migration PRD
+
+## Project Overview
+ZenRent needs to migrate from the traditional Self Assessment API to HMRC's Making Tax Digital (MTD) APIs. MTD is HMRC's initiative to make tax administration more effective, efficient, and easier for taxpayers through a fully digital tax system. This migration is necessary to comply with HMRC's requirements and provide our landlord users with modern tax reporting capabilities.
+
+## Business Objectives
+1. Achieve compliance with HMRC's MTD requirements
+2. Provide a seamless tax reporting experience for landlord users
+3. Enable real-time tax data submission and status tracking
+4. Reduce manual tax reporting burdens for landlords
+5. Maintain data integrity and security throughout the tax reporting process
+
+## Technical Requirements
+
+### MTD API Integration
+- Implement OAuth 2.0 authorization flow with HMRC
+- Integrate with MTD VAT, Income Tax, and Self Assessment APIs
+- Support quarterly and annual tax submissions
+- Handle fraud prevention headers in all API calls
+- Implement proper error handling and user feedback
+
+### User Experience
+- Create an intuitive tax submission dashboard
+- Provide step-by-step guidance for tax filing
+- Display submission history and status
+- Allow editing of draft submissions
+- Send notifications for upcoming deadlines and successful submissions
+
+### Data Management
+- Implement data transformation between ZenRent and HMRC formats
+- Create a reliable data validation system
+- Store and track submission history
+- Maintain secure storage of tax-related documents
+- Implement audit logging for all tax-related activities
+
+### Security & Compliance
+- Implement secure token management
+- Encrypt sensitive tax data
+- Comply with GDPR and data protection regulations
+- Implement proper access controls
+- Provide data retention policies in line with tax requirements
+
+## Technical Architecture
+- Update backend APIs to support MTD endpoints
+- Create middleware for HMRC authentication
+- Implement services for data transformation
+- Update frontend components for tax reporting
+- Develop a robust testing framework for tax submissions
+
+## Implementation Phases
+1. Initial setup and authentication
+2. Data model updates and transformations
+3. API integration with HMRC endpoints
+4. Frontend updates for MTD workflow
+5. Testing and validation
+6. Deployment and monitoring
+
+## Success Criteria
+- Successful end-to-end tax submission via MTD APIs
+- Positive user feedback on the tax filing experience
+- Reduction in tax filing support requests
+- Compliance with all HMRC MTD requirements
+- Secure handling of all tax-related data
+
+## Constraints
+- Must maintain backward compatibility during migration
+- Implementation must be completed before HMRC's MTD enforcement deadline
+- Must handle various property portfolio sizes and complexities
+- Must work across different UK tax jurisdictions 
