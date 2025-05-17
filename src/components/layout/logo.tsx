@@ -15,7 +15,7 @@ interface LogoProps {
 
 export function Logo({ 
   width = 120, 
-  height = 48, 
+  height, // Remove default height to let it scale automatically
   className = "h-auto w-auto object-contain", 
   linkTo = "/dashboard",
   variant = 'default',

@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server';
-// import { supabase } from '@/lib/supabase'; // Don't use the client-side client here
-import { getAuthUser } from '@/lib/auth-helpers';
+import { getServerAuthUser } from '@/lib/server-auth-helpers';
 import { HmrcAuthService } from '@/lib/services/hmrc/hmrcAuthService';
+import { cookies } from 'next/headers';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 
 // Handles both GET and POST requests for checking the HMRC connection status
 async function handler(req: Request) {
   console.log('[API /hmrc/status] Received request');
   
   try {
-    // Get the authenticated user
-    const user = await getAuthUser();
+    // Get the authenticated user using server-side auth method
+    const user = await getServerAuthUser();
     
     if (!user) {
       console.error('[API /hmrc/status] No authenticated user found');

@@ -99,11 +99,43 @@ export const IssueDrawer: React.FC<IssueDrawerProps> = ({
       console.log('Fetching activity logs for issue ID:', issue.id, 'using database ID:', databaseIssueId);
       
       // Query the activity log table
-      const { data: activityData, error: activityError } = await supabase
-        .from("issue_activity_log")
-        .select("*")
-        .eq("issue_id", databaseIssueId)
-        .order("created_at", { ascending: true });
+      try {
+        const { data: activityData, error: activityError } = await supabase
+          .from("issue_activity_log")
+          .select("*")
+          .eq("issue_id", databaseIssueId)
+          .order("created_at", { ascending: true });
+        
+        if (activityError) {
+          console.error("Error fetching activity logs:", activityError);
+          return;
+        }
+        
+        console.log('Activity logs fetched:', activityData);
+        
+        if (activityData && activityData.length > 0) {
+          setActivities(activityData);
+        } else {
+          // If no activities found, create a default one for issue creation
+          setActivities([{
+            id: `default-${issue.id}`,
+            issue_id: databaseIssueId,
+            activity_type: 'issue_created',
+            description: 'Issue was reported',
+            created_at: new Date().toISOString()
+          }]);
+        }
+      } catch (error) {
+        console.error("Error in Supabase activity log query:", error);
+        // Set a default activity even if the query fails
+        setActivities([{
+          id: `default-${issue.id}`,
+          issue_id: databaseIssueId,
+          activity_type: 'issue_created',
+          description: 'Issue was reported',
+          created_at: new Date().toISOString()
+        }]);
+      }
       
       if (activityError) {
         console.error("Error fetching activity logs:", activityError);

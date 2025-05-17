@@ -93,11 +93,12 @@ export default function HmrcConnectButton({
       variant="default"
       onClick={handleConnect}
       disabled={isLoading}
+      className="bg-d9e8ff hover:bg-d9e8ff text-black font-medium !opacity-100 !disabled:opacity-100"
     >
       {isLoading ? (
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        <Loader2 className="mr-2 h-4 w-4 animate-spin text-black" />
       ) : (
-        <LinkIcon className="mr-2 h-4 w-4" />
+        <LinkIcon className="mr-2 h-4 w-4 text-black" />
       )}
       Connect to HMRC
     </Button>

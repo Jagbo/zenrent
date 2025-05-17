@@ -19,6 +19,8 @@ import { UserAvatar } from "./user-avatar";
 import { useAuth } from "@/lib/auth-provider";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
+import { SidebarContent } from "./sidebar-content";
+import { usePathname } from "next/navigation";
 
 // Create client-side only versions of components that use auto-generated IDs
 const UserMenu = dynamic(() => Promise.resolve(({ profile, onSignOut }: { profile: any, onSignOut: () => void }) => (
@@ -90,13 +92,11 @@ function classNames(...classes: string[]) {
 }
 
 export function SidebarLayout({
-  sidebar,
   children,
   searchValue = "",
   onSearchChange,
   isOnboarding = false,
 }: React.PropsWithChildren<{
-  sidebar: React.ReactNode;
   searchValue?: string;
   onSearchChange?: (value: string) => void;
   isOnboarding?: boolean;
@@ -106,6 +106,7 @@ export function SidebarLayout({
   const [localSearchValue, setLocalSearchValue] = useState("");
   const { signOut } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   // Use provided search value and handler if available, otherwise use local state
   const searchText = onSearchChange ? searchValue : localSearchValue;
@@ -130,13 +131,13 @@ export function SidebarLayout({
     <>
       <div>
         <MobileDialog open={sidebarOpen} onClose={setSidebarOpen}>
-          {sidebar}
+          <SidebarContent currentPath={pathname} />
         </MobileDialog>
 
         {/* Static sidebar for desktop */}
         <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
           {/* Sidebar component */}
-          {sidebar}
+          <SidebarContent currentPath={pathname} />
         </div>
 
         <div className="lg:pl-72">

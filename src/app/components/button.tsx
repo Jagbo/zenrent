@@ -57,6 +57,11 @@ const styles = {
     "[--btn-icon:var(--color-zinc-500)] data-active:[--btn-icon:var(--color-zinc-700)] data-hover:[--btn-icon:var(--color-zinc-700)] dark:[--btn-icon:var(--color-zinc-500)] dark:data-active:[--btn-icon:var(--color-zinc-400)] dark:data-hover:[--btn-icon:var(--color-zinc-400)]",
   ],
   colors: {
+    "hmrc": [
+      "text-black [--btn-bg:#D9E8FF] [--btn-border:#D9E8FF] [--btn-hover-overlay:transparent]",
+      "dark:text-black dark:[--btn-bg:#D9E8FF] dark:[--btn-hover-overlay:transparent]",
+      "[--btn-icon:var(--color-black)] data-active:[--btn-icon:var(--color-black)] data-hover:[--btn-icon:var(--color-black)] !opacity-100 !data-disabled:opacity-100",
+    ],
     "dark/zinc": [
       "text-white [--btn-bg:var(--color-zinc-900)] [--btn-border:var(--color-zinc-950)]/90 [--btn-hover-overlay:var(--color-white)]/10",
       "dark:text-white dark:[--btn-bg:var(--color-zinc-600)] dark:[--btn-hover-overlay:var(--color-white)]/5",

@@ -8,7 +8,12 @@ export async function middleware(req: NextRequest) {
   const supabase = createMiddlewareClient({ req, res });
 
   // Refresh session if expired - required for Server Components
-  await supabase.auth.getSession();
+  try {
+    await supabase.auth.getSession();
+  } catch (error) {
+    console.error('Error refreshing auth session in middleware:', error);
+    // Continue execution even if session refresh fails
+  }
 
   // Public routes that don't require authentication
   const publicRoutes = [

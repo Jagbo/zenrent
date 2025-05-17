@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import { User } from '@supabase/supabase-js';
 
 /**
- * Get the currently authenticated user
+ * Get the currently authenticated user in client components
  * @returns The authenticated user or null if not authenticated
  */
 export async function getAuthUser(): Promise<User | null> {
