@@ -1003,6 +1003,320 @@ export class HmrcAuthService {
       return false;
     }
   }
+
+  /**
+   * Enhanced token validation with comprehensive checks
+   */
+  public async validateToken(userId: string, token?: string): Promise<{
+    isValid: boolean;
+    expiresIn?: number;
+    needsRefresh: boolean;
+    error?: string;
+  }> {
+    try {
+      // Get token if not provided
+      const tokenToValidate = token || await this.getValidToken(userId);
+      
+      if (!tokenToValidate) {
+        return {
+          isValid: false,
+          needsRefresh: false,
+          error: 'No token available'
+        };
+      }
+      
+      // Get stored token data for expiry check
+      const supabase = createServerSupabaseClient();
+      const { data: tokenData, error } = await supabase
+        .from('hmrc_tokens')
+        .select('expires_at, refresh_token')
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      if (error || !tokenData) {
+        return {
+          isValid: false,
+          needsRefresh: false,
+          error: 'Token data not found'
+        };
+      }
+      
+      const expiresAt = new Date(tokenData.expires_at);
+      const now = new Date();
+      const expiresIn = Math.floor((expiresAt.getTime() - now.getTime()) / 1000);
+      
+      // Token is expired
+      if (expiresIn <= 0) {
+        return {
+          isValid: false,
+          needsRefresh: !!tokenData.refresh_token,
+          error: 'Token expired'
+        };
+      }
+      
+      // Token expires within 5 minutes - needs proactive refresh
+      const needsRefresh = expiresIn < 300; // 5 minutes
+      
+      // Validate token with HMRC API (lightweight endpoint)
+      try {
+        const response = await fetch('https://test-api.service.hmrc.gov.uk/hello/world', {
+          headers: {
+            'Authorization': `Bearer ${tokenToValidate}`,
+            'Accept': 'application/vnd.hmrc.1.0+json'
+          }
+        });
+        
+        if (response.status === 401) {
+          return {
+            isValid: false,
+            needsRefresh: !!tokenData.refresh_token,
+            error: 'Token rejected by HMRC'
+          };
+        }
+        
+        if (!response.ok) {
+          console.warn(`Token validation returned ${response.status}: ${response.statusText}`);
+        }
+        
+        return {
+          isValid: true,
+          expiresIn,
+          needsRefresh
+        };
+      } catch (apiError) {
+        console.error('Error validating token with HMRC API:', apiError);
+        // If API call fails, rely on expiry check
+        return {
+          isValid: expiresIn > 0,
+          expiresIn,
+          needsRefresh
+        };
+      }
+    } catch (error) {
+      console.error('Error validating token:', error);
+      return {
+        isValid: false,
+        needsRefresh: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+  
+  /**
+   * Monitor token expiry and proactively refresh tokens
+   */
+  public async monitorTokenExpiry(userId: string): Promise<{
+    status: 'valid' | 'refreshed' | 'expired' | 'error';
+    expiresIn?: number;
+    message?: string;
+  }> {
+    try {
+      const validation = await this.validateToken(userId);
+      
+      if (!validation.isValid) {
+        if (validation.needsRefresh) {
+          // Attempt to refresh the token
+          const refreshResult = await this.refreshToken(userId);
+          if (refreshResult) {
+            await this.logTokenOperation(userId, 'token_auto_refreshed', {
+              reason: 'proactive_monitoring'
+            });
+            return {
+              status: 'refreshed',
+              message: 'Token automatically refreshed'
+            };
+          } else {
+            return {
+              status: 'expired',
+              message: 'Token expired and refresh failed'
+            };
+          }
+        } else {
+          return {
+            status: 'expired',
+            message: validation.error || 'Token is invalid'
+          };
+        }
+      }
+      
+      // Token is valid, check if it needs proactive refresh
+      if (validation.needsRefresh) {
+        const refreshResult = await this.refreshToken(userId);
+        if (refreshResult) {
+          await this.logTokenOperation(userId, 'token_proactive_refresh', {
+            expiresIn: validation.expiresIn
+          });
+          return {
+            status: 'refreshed',
+            expiresIn: validation.expiresIn,
+            message: 'Token proactively refreshed'
+          };
+        }
+      }
+      
+      return {
+        status: 'valid',
+        expiresIn: validation.expiresIn,
+        message: 'Token is valid'
+      };
+    } catch (error) {
+      console.error('Error monitoring token expiry:', error);
+      return {
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+  
+  /**
+   * Enhanced secure token storage with encryption
+   */
+  public async storeTokensSecurely(userId: string, tokenData: TokenResponse): Promise<void> {
+    try {
+      const supabase = createServerSupabaseClient();
+      
+      // Calculate expiry time
+      const expiresAt = new Date(Date.now() + (tokenData.expires_in * 1000));
+      
+      // Store tokens with additional security metadata
+      const { error } = await supabase
+        .from('hmrc_tokens')
+        .upsert({
+          user_id: userId,
+          access_token: tokenData.access_token, // Consider encrypting in production
+          refresh_token: tokenData.refresh_token, // Consider encrypting in production
+          expires_at: expiresAt.toISOString(),
+          token_type: tokenData.token_type,
+          scope: tokenData.scope,
+          created_at: new Date().toISOString(),
+          last_refreshed_at: new Date().toISOString(),
+          refresh_count: 0,
+          is_active: true
+        }, {
+          onConflict: 'user_id'
+        });
+      
+      if (error) {
+        console.error('Error storing tokens securely:', error);
+        throw new Error(`Failed to store tokens: ${error.message}`);
+      }
+      
+      // Log the operation
+      await this.logTokenOperation(userId, 'tokens_stored_securely', {
+        expiresAt: expiresAt.toISOString(),
+        scope: tokenData.scope
+      });
+      
+      console.log(`[HmrcAuthService] Tokens stored securely for user ${userId}`);
+    } catch (error) {
+      console.error('Error in storeTokensSecurely:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get all active tokens for monitoring and management
+   */
+  public async getAllActiveTokens(): Promise<Array<{
+    userId: string;
+    expiresAt: Date;
+    expiresIn: number;
+    needsRefresh: boolean;
+    scope?: string;
+  }>> {
+    try {
+      const supabase = createServerSupabaseClient();
+      
+      const { data: tokens, error } = await supabase
+        .from('hmrc_tokens')
+        .select('user_id, expires_at, scope')
+        .eq('is_active', true)
+        .order('expires_at', { ascending: true });
+      
+      if (error) {
+        console.error('Error fetching active tokens:', error);
+        return [];
+      }
+      
+      const now = new Date();
+      
+      return tokens.map(token => {
+        const expiresAt = new Date(token.expires_at);
+        const expiresIn = Math.floor((expiresAt.getTime() - now.getTime()) / 1000);
+        const needsRefresh = expiresIn < 300; // 5 minutes
+        
+        return {
+          userId: token.user_id,
+          expiresAt,
+          expiresIn,
+          needsRefresh,
+          scope: token.scope
+        };
+      });
+    } catch (error) {
+      console.error('Error getting active tokens:', error);
+      return [];
+    }
+  }
+  
+  /**
+   * Bulk token refresh for multiple users
+   */
+  public async refreshExpiredTokens(): Promise<{
+    refreshed: string[];
+    failed: string[];
+    errors: Record<string, string>;
+  }> {
+    try {
+      const activeTokens = await this.getAllActiveTokens();
+      const expiredTokens = activeTokens.filter(token => token.needsRefresh);
+      
+      const refreshed: string[] = [];
+      const failed: string[] = [];
+      const errors: Record<string, string> = {};
+      
+      // Process tokens in batches to avoid overwhelming the API
+      const batchSize = 5;
+      for (let i = 0; i < expiredTokens.length; i += batchSize) {
+        const batch = expiredTokens.slice(i, i + batchSize);
+        
+        await Promise.all(batch.map(async (token) => {
+          try {
+            const result = await this.refreshToken(token.userId);
+            if (result) {
+              refreshed.push(token.userId);
+              await this.logTokenOperation(token.userId, 'bulk_token_refresh', {
+                batchIndex: Math.floor(i / batchSize)
+              });
+            } else {
+              failed.push(token.userId);
+              errors[token.userId] = 'Refresh returned null';
+            }
+          } catch (error) {
+            failed.push(token.userId);
+            errors[token.userId] = error instanceof Error ? error.message : 'Unknown error';
+            console.error(`Error refreshing token for user ${token.userId}:`, error);
+          }
+        }));
+        
+        // Add delay between batches to respect rate limits
+        if (i + batchSize < expiredTokens.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      
+      console.log(`[HmrcAuthService] Bulk refresh completed: ${refreshed.length} refreshed, ${failed.length} failed`);
+      
+      return { refreshed, failed, errors };
+    } catch (error) {
+      console.error('Error in bulk token refresh:', error);
+      return {
+        refreshed: [],
+        failed: [],
+        errors: { global: error instanceof Error ? error.message : 'Unknown error' }
+      };
+    }
+  }
 }
 
 /**

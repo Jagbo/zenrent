@@ -100,7 +100,7 @@ export default function WelcomeScreen() {
             Get Started
           </button>
           {/* Optional link for returning users */}
-          <Button outline onClick={() => router.push("/financial/tax/summary")}>
+          <Button outline className="bg-white text-gray-900 hover:bg-gray-100" onClick={() => router.push("/financial/tax/summary")}>
             Continue where I left off
           </Button>
         </div>

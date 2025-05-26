@@ -79,10 +79,7 @@ export default function Residents() {
         const tenantsWithUI = fetchedTenants.map((tenant: ITenant) => ({
           ...tenant,
           image: tenant.image || getInitialsAvatar(tenant.name),
-          attachments: [
-            { name: "lease_agreement.pdf", size: "1.2mb" },
-            { name: "tenant_application.pdf", size: "2.8mb" },
-          ],
+          attachments: [], // Remove hardcoded attachments - fetch from database when available
           property_name: tenant.property_address || "Unassigned",
         }));
 
@@ -381,38 +378,48 @@ export default function Residents() {
                           Attachments
                         </dt>
                         <dd className="mt-2 text-sm text-gray-900 sm:col-span-2 sm:mt-0">
-                          <ul role="list"
-                            className="divide-y divide-gray-100 rounded-md border border-gray-200"
-                          >
-                            {selectedTenant.attachments.map(
-                              (attachment: Attachment, index: number) => (
-                                <li key={index}
-                                  className="flex items-center justify-between py-4 pr-5 pl-4 text-sm/6"
-                                >
-                                  <div className="flex w-0 flex-1 items-center">
-                                    <PaperClipIcon className="size-5 shrink-0 text-gray-400"
-                                      aria-hidden="true"
-                                    />
-                                    <div className="ml-4 flex min-w-0 flex-1 gap-2">
-                                      <span className="truncate font-medium">
-                                        {attachment.name}
-                                      </span>
-                                      <span className="shrink-0 text-gray-400">
-                                        {attachment.size}
-                                      </span>
+                          {selectedTenant.attachments.length > 0 ? (
+                            <ul role="list"
+                              className="divide-y divide-gray-100 rounded-md border border-gray-200"
+                            >
+                              {selectedTenant.attachments.map(
+                                (attachment: Attachment, index: number) => (
+                                  <li key={index}
+                                    className="flex items-center justify-between py-4 pr-5 pl-4 text-sm/6"
+                                  >
+                                    <div className="flex w-0 flex-1 items-center">
+                                      <PaperClipIcon className="size-5 shrink-0 text-gray-400"
+                                        aria-hidden="true"
+                                      />
+                                      <div className="ml-4 flex min-w-0 flex-1 gap-2">
+                                        <span className="truncate font-medium">
+                                          {attachment.name}
+                                        </span>
+                                        <span className="shrink-0 text-gray-400">
+                                          {attachment.size}
+                                        </span>
+                                      </div>
                                     </div>
-                                  </div>
-                                  <div className="ml-4 shrink-0">
-                                    <a href="#"
-                                      className="font-medium text-gray-900 hover:text-gray-700"
-                                    >
-                                      Download
-                                    </a>
-                                  </div>
-                                </li>
-                              ),
-                            )}
-                          </ul>
+                                    <div className="ml-4 shrink-0">
+                                      <a href="#"
+                                        className="font-medium text-gray-900 hover:text-gray-700"
+                                      >
+                                        Download
+                                      </a>
+                                    </div>
+                                  </li>
+                                ),
+                              )}
+                            </ul>
+                          ) : (
+                            <div className="text-center py-6 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              <p className="mt-2 text-sm text-gray-500">No documents uploaded</p>
+                              <p className="text-xs text-gray-400">Lease agreements and other documents will appear here</p>
+                            </div>
+                          )}
                         </dd>
                       </div>
                     </dl>

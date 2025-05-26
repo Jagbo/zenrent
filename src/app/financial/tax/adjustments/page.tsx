@@ -6,6 +6,7 @@ import { SidebarLayout } from "../../../components/sidebar-layout";
 import { SidebarContent } from "../../../components/sidebar-content";
 import { Button } from "../../../components/button";
 import { Input } from "../../../components/input";
+import { Select } from "../../../components/select";
 import { supabase } from "@/lib/supabase";
 import { getAuthUser } from "@/lib/auth-helpers";
 import { Navbar, NavbarSection, NavbarItem, NavbarLabel } from "../../../components/navbar";
@@ -28,9 +29,21 @@ type TaxAdjustments = {
   mileage_total: number | null;
   use_property_income_allowance: boolean;
   prior_year_losses: number | null;
+  capital_allowances: number | null;
+  wear_and_tear_allowance: number | null;
+  use_wear_and_tear: boolean;
   created_at?: string;
   updated_at?: string;
 };
+
+// Capital allowance types
+const capitalAllowanceTypes = [
+  { value: "furniture", label: "Furniture & Fittings", rate: 0.18 },
+  { value: "equipment", label: "Equipment & Machinery", rate: 0.18 },
+  { value: "cars", label: "Cars (low emission)", rate: 0.18 },
+  { value: "cars_high", label: "Cars (high emission)", rate: 0.06 },
+  { value: "integral", label: "Integral Features", rate: 0.08 },
+];
 
 export default function AdjustmentsForm() {
   const router = useRouter();
@@ -46,11 +59,28 @@ export default function AdjustmentsForm() {
   // Form state
   const [useMileage, setUseMileage] = useState(false);
   const [mileageTotal, setMileageTotal] = useState<string>("");
+  const [mileageType, setMileageType] = useState<"business" | "mixed">("business");
+  const [businessPercentage, setBusinessPercentage] = useState<string>("100");
+  
   const [usePropertyAllowance, setUsePropertyAllowance] = useState(false);
   const [priorYearLosses, setPriorYearLosses] = useState<string>("");
   
+  // Capital allowances state
+  const [capitalAllowances, setCapitalAllowances] = useState<Array<{
+    type: string;
+    description: string;
+    cost: string;
+    allowance: number;
+  }>>([]);
+  
+  // Wear and tear allowance state
+  const [useWearAndTear, setUseWearAndTear] = useState(false);
+  const [furnishedRentalIncome, setFurnishedRentalIncome] = useState<string>("");
+  
   // Financial data for calculations 
   const [totalExpenses, setTotalExpenses] = useState<number>(0);
+  const [totalRentalIncome, setTotalRentalIncome] = useState<number>(0);
+  const [furnishedProperties, setFurnishedProperties] = useState<number>(0);
   
   // Load existing data
   useEffect(() => {
@@ -61,10 +91,10 @@ export default function AdjustmentsForm() {
         if (user) {
           setUserId(user.id);
           
-          // Get tax year
+          // Get tax year and selected properties
           const { data: taxProfile, error: taxError } = await supabase
             .from("tax_profiles")
-            .select("tax_year")
+            .select("tax_year, selected_property_ids")
             .eq("user_id", user.id)
             .single();
             
@@ -97,25 +127,64 @@ export default function AdjustmentsForm() {
           const startDate = `${startYear}-04-06`;
           const endDate = `${endYear}-04-05`;
           
-          // Get total expenses for property allowance calculation
-          const { data: transactions, error: transError } = await supabase
-            .from("bank_transactions")
-            .select("amount, category")
-            .eq("user_id", user.id)
-            .gte("date", startDate)
-            .lte("date", endDate);
-            
-          if (transError) {
-            console.error("Error fetching transactions:", transError);
-          }
+          // Get financial data for calculations
+          const selectedPropertyIds = taxProfile?.selected_property_ids || [];
           
-          if (transactions) {
-            // Calculate total expenses (negative amounts with category != rental_income)
-            const expenses = transactions
-              .filter(t => t.amount < 0 && t.category !== "exclude")
-              .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+          if (selectedPropertyIds.length > 0) {
+            // Get transactions for selected properties
+            const { data: transactions, error: transError } = await supabase
+              .from("bank_transactions")
+              .select("amount, category")
+              .in("property_id", selectedPropertyIds)
+              .gte("date", startDate)
+              .lte("date", endDate);
               
-            setTotalExpenses(expenses);
+            if (transError) {
+              console.error("Error fetching transactions:", transError);
+            }
+            
+            if (transactions) {
+              // Calculate total expenses and income
+              const expenses = transactions
+                .filter(t => {
+                  const categoryString = Array.isArray(t.category) && t.category.length > 0 ? t.category[0] : null;
+                  return t.amount < 0 && categoryString !== "exclude" && categoryString !== "rental_income";
+                })
+                .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+                
+              const income = transactions
+                .filter(t => {
+                  const categoryString = Array.isArray(t.category) && t.category.length > 0 ? t.category[0] : null;
+                  return categoryString === "rental_income" || t.amount > 0;
+                })
+                .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+                
+                             setTotalExpenses(expenses);
+               setTotalRentalIncome(income);
+               
+               // Get property information for furnished properties count
+               const { data: properties, error: propError } = await supabase
+                 .from("properties")
+                 .select("property_type, metadata")
+                 .in("id", selectedPropertyIds);
+                 
+               if (propError) {
+                 console.error("Error fetching properties:", propError);
+               }
+               
+               if (properties) {
+                 const furnished = properties.filter(p => 
+                   p.property_type === 'furnished_holiday_let' || 
+                   (p.metadata && p.metadata.is_furnished)
+                 ).length;
+                 setFurnishedProperties(furnished);
+                 
+                 // Set default furnished rental income for wear and tear calculation
+                 if (furnished > 0 && income > 0) {
+                   setFurnishedRentalIncome((income * 0.8).toString()); // Estimate 80% from furnished properties
+                 }
+               }
+             }
           }
           
           // Load existing adjustments if any
@@ -135,6 +204,21 @@ export default function AdjustmentsForm() {
             setMileageTotal(adjustments.mileage_total?.toString() || "");
             setUsePropertyAllowance(adjustments.use_property_income_allowance || false);
             setPriorYearLosses(adjustments.prior_year_losses?.toString() || "");
+            setUseWearAndTear(adjustments.use_wear_and_tear || false);
+            
+            // Load capital allowances if stored as JSON
+            if (adjustments.capital_allowances) {
+              try {
+                const storedAllowances = typeof adjustments.capital_allowances === 'string' 
+                  ? JSON.parse(adjustments.capital_allowances)
+                  : adjustments.capital_allowances;
+                if (Array.isArray(storedAllowances)) {
+                  setCapitalAllowances(storedAllowances);
+                }
+              } catch (e) {
+                console.error("Error parsing capital allowances:", e);
+              }
+            }
           }
         }
       } catch (error) {
@@ -148,19 +232,71 @@ export default function AdjustmentsForm() {
     loadData();
   }, []);
   
-  // Calculate mileage allowance
+  // Calculate mileage allowance with enhanced logic
   const calculateMileageAllowance = () => {
     if (!mileageTotal) return 0;
     
     const miles = parseFloat(mileageTotal);
     if (isNaN(miles)) return 0;
     
+    // Apply business percentage if mixed use
+    const businessMiles = mileageType === "mixed" 
+      ? miles * (parseFloat(businessPercentage) / 100)
+      : miles;
+    
     // UK mileage allowance: 45p per mile for the first 10,000 miles, 25p thereafter
-    if (miles <= 10000) {
-      return miles * 0.45;
+    if (businessMiles <= 10000) {
+      return businessMiles * 0.45;
     } else {
-      return (10000 * 0.45) + ((miles - 10000) * 0.25);
+      return (10000 * 0.45) + ((businessMiles - 10000) * 0.25);
     }
+  };
+  
+  // Calculate wear and tear allowance (10% of furnished rental income)
+  const calculateWearAndTearAllowance = () => {
+    if (!useWearAndTear || !furnishedRentalIncome) return 0;
+    
+    const income = parseFloat(furnishedRentalIncome);
+    if (isNaN(income)) return 0;
+    
+    return income * 0.10; // 10% of furnished rental income
+  };
+  
+  // Calculate total capital allowances
+  const calculateTotalCapitalAllowances = () => {
+    return capitalAllowances.reduce((total, item) => total + item.allowance, 0);
+  };
+  
+  // Add capital allowance item
+  const addCapitalAllowanceItem = () => {
+    setCapitalAllowances([
+      ...capitalAllowances,
+      { type: "furniture", description: "", cost: "", allowance: 0 }
+    ]);
+  };
+  
+  // Update capital allowance item
+  const updateCapitalAllowanceItem = (index: number, field: string, value: string) => {
+    const updated = [...capitalAllowances];
+    updated[index] = { ...updated[index], [field]: value };
+    
+    // Recalculate allowance if cost or type changed
+    if (field === "cost" || field === "type") {
+      const cost = parseFloat(updated[index].cost);
+      const typeInfo = capitalAllowanceTypes.find(t => t.value === updated[index].type);
+      if (!isNaN(cost) && typeInfo) {
+        updated[index].allowance = cost * typeInfo.rate;
+      } else {
+        updated[index].allowance = 0;
+      }
+    }
+    
+    setCapitalAllowances(updated);
+  };
+  
+  // Remove capital allowance item
+  const removeCapitalAllowanceItem = (index: number) => {
+    setCapitalAllowances(capitalAllowances.filter((_, i) => i !== index));
   };
   
   // Handle form submission
@@ -201,6 +337,9 @@ export default function AdjustmentsForm() {
         mileage_total: mileageTotalNum,
         use_property_income_allowance: usePropertyAllowance,
         prior_year_losses: priorYearLossesNum,
+        capital_allowances: calculateTotalCapitalAllowances(),
+        wear_and_tear_allowance: calculateWearAndTearAllowance(),
+        use_wear_and_tear: useWearAndTear,
         updated_at: new Date().toISOString()
       };
       
@@ -240,7 +379,7 @@ export default function AdjustmentsForm() {
       let mileageTotalNum: number | null = null;
       if (useMileage && mileageTotal) {
         mileageTotalNum = parseFloat(mileageTotal);
-        if (!isNaN(mileageTotalNum)) {
+        if (isNaN(mileageTotalNum)) {
           mileageTotalNum = null;
         }
       }
@@ -261,6 +400,9 @@ export default function AdjustmentsForm() {
         mileage_total: mileageTotalNum,
         use_property_income_allowance: usePropertyAllowance,
         prior_year_losses: priorYearLossesNum,
+        capital_allowances: calculateTotalCapitalAllowances(),
+        wear_and_tear_allowance: calculateWearAndTearAllowance(),
+        use_wear_and_tear: useWearAndTear,
         updated_at: new Date().toISOString()
       };
       
@@ -287,7 +429,6 @@ export default function AdjustmentsForm() {
   
   return (
     <SidebarLayout 
-      sidebar={<SidebarContent currentPath={pathname} />} 
       isOnboarding={false}
       searchValue=""
     >
@@ -371,11 +512,38 @@ export default function AdjustmentsForm() {
         <div className="grid grid-cols-1 gap-x-8 gap-y-8 md:grid-cols-3">
           <div className="px-4 sm:px-0">
             <h2 className="text-base/7 font-cabinet-grotesk font-bold text-gray-900">
-              Additional Details & Adjustments
+              Tax Adjustments & Allowances
             </h2>
             <p className="mt-1 text-sm/6 text-gray-600">
-              Let us know if any additional adjustments apply to you. This information will help us finalize your tax calculation.
+              Configure additional allowances and adjustments that apply to your rental property business. These can significantly reduce your tax liability.
             </p>
+            
+            {/* Summary of potential savings */}
+            <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h3 className="text-sm font-medium text-blue-900 mb-3">
+                Potential Tax Savings
+              </h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-blue-700">Mileage Allowance:</span>
+                  <span className="font-medium text-blue-900">£{calculateMileageAllowance().toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-blue-700">Capital Allowances:</span>
+                  <span className="font-medium text-blue-900">£{calculateTotalCapitalAllowances().toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-blue-700">Wear & Tear:</span>
+                  <span className="font-medium text-blue-900">£{calculateWearAndTearAllowance().toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between border-t border-blue-200 pt-2">
+                  <span className="text-blue-700 font-medium">Total Additional Allowances:</span>
+                  <span className="font-bold text-green-700">
+                    £{(calculateMileageAllowance() + calculateTotalCapitalAllowances() + calculateWearAndTearAllowance()).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
 
           <form 
@@ -395,14 +563,14 @@ export default function AdjustmentsForm() {
               </div>
             ) : (
               <div className="px-4 py-4 sm:p-6">
-                <div className="space-y-6">
-                  {/* Mileage Allowance Section */}
+                <div className="space-y-8">
+                  {/* Enhanced Mileage Allowance Section */}
                   <div className="border-b border-gray-900/10 pb-6">
                     <h3 className="text-base/7 font-cabinet-grotesk font-semibold text-gray-900">
                       Mileage Allowance
                     </h3>
                     <p className="mt-1 text-sm/6 text-gray-600">
-                      If you use your personal vehicle for business purposes related to your rental properties, you can claim a mileage allowance.
+                      Claim for business travel related to your rental properties using the HMRC approved mileage rates.
                     </p>
                     
                     <div className="mt-4">
@@ -425,40 +593,236 @@ export default function AdjustmentsForm() {
                       </div>
                       
                       {useMileage && (
-                        <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-6">
-                          <div className="sm:col-span-3">
-                            <label htmlFor="mileage-total" className="block text-sm font-medium text-gray-700">
-                              Total miles driven for property business:
-                            </label>
-                            <div className="mt-2">
-                              <Input
-                                id="mileage-total"
-                                type="number"
-                                min="0"
-                                value={mileageTotal}
-                                onChange={(e) => setMileageTotal(e.target.value)}
-                                className="block w-full"
-                              />
-                            </div>
-                          </div>
-                          
-                          {mileageTotal && !isNaN(parseFloat(mileageTotal)) && (
-                            <div className="sm:col-span-3 flex items-end">
-                              <div className="text-sm text-gray-700 font-medium mt-2 sm:mt-0">
-                                Estimated allowed expense: <span className="text-blue-600">£{calculateMileageAllowance().toFixed(2)}</span>
+                        <div className="mt-4 space-y-4">
+                          <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-6">
+                            <div className="sm:col-span-3">
+                              <label htmlFor="mileage-total" className="block text-sm font-medium text-gray-700">
+                                Total miles driven:
+                              </label>
+                              <div className="mt-2">
+                                <Input
+                                  id="mileage-total"
+                                  type="number"
+                                  min="0"
+                                  value={mileageTotal}
+                                  onChange={(e) => setMileageTotal(e.target.value)}
+                                  className="block w-full"
+                                />
                               </div>
                             </div>
-                          )}
-                          
-                          <div className="sm:col-span-6">
-                            <p className="text-xs text-gray-500">
-                              The mileage allowance is 45p per mile for the first 10,000 miles, and 25p per mile thereafter. This covers travel to manage or maintain your rental properties.
-                            </p>
+                            
+                            <div className="sm:col-span-3">
+                              <label htmlFor="mileage-type" className="block text-sm font-medium text-gray-700">
+                                Vehicle usage:
+                              </label>
+                              <div className="mt-2">
+                                <Select
+                                  id="mileage-type"
+                                  value={mileageType}
+                                  onChange={(e) => setMileageType(e.target.value as "business" | "mixed")}
+                                  className="block w-full"
+                                >
+                                  <option value="business">Business use only</option>
+                                  <option value="mixed">Mixed business/personal use</option>
+                                </Select>
+                              </div>
+                            </div>
+                            
+                            {mileageType === "mixed" && (
+                              <div className="sm:col-span-3">
+                                <label htmlFor="business-percentage" className="block text-sm font-medium text-gray-700">
+                                  Business use percentage:
+                                </label>
+                                <div className="mt-2">
+                                  <Input
+                                    id="business-percentage"
+                                    type="number"
+                                    min="1"
+                                    max="100"
+                                    value={businessPercentage}
+                                    onChange={(e) => setBusinessPercentage(e.target.value)}
+                                    className="block w-full"
+                                  />
+                                </div>
+                              </div>
+                            )}
+                            
+                            {mileageTotal && !isNaN(parseFloat(mileageTotal)) && (
+                              <div className="sm:col-span-6">
+                                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                                  <div className="text-sm text-green-800">
+                                    <strong>Calculated allowance: £{calculateMileageAllowance().toFixed(2)}</strong>
+                                    <div className="mt-1 text-xs">
+                                      Rate: 45p/mile (first 10,000 miles), 25p/mile thereafter
+                                      {mileageType === "mixed" && ` • Business use: ${businessPercentage}%`}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}
                     </div>
                   </div>
+                  
+                  {/* Capital Allowances Section */}
+                  <div className="border-b border-gray-900/10 pb-6">
+                    <h3 className="text-base/7 font-cabinet-grotesk font-semibold text-gray-900">
+                      Capital Allowances
+                    </h3>
+                    <p className="mt-1 text-sm/6 text-gray-600">
+                      Claim allowances for equipment, furniture, and other capital items used in your rental business.
+                    </p>
+                    
+                    <div className="mt-4 space-y-4">
+                      {capitalAllowances.map((item, index) => (
+                        <div key={index} className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-12 p-4 border border-gray-200 rounded-lg">
+                          <div className="sm:col-span-3">
+                            <label className="block text-sm font-medium text-gray-700">Type</label>
+                            <Select
+                              value={item.type}
+                              onChange={(e) => updateCapitalAllowanceItem(index, "type", e.target.value)}
+                              className="mt-1 block w-full"
+                            >
+                              {capitalAllowanceTypes.map(type => (
+                                <option key={type.value} value={type.value}>
+                                  {type.label}
+                                </option>
+                              ))}
+                            </Select>
+                          </div>
+                          
+                          <div className="sm:col-span-4">
+                            <label className="block text-sm font-medium text-gray-700">Description</label>
+                            <Input
+                              type="text"
+                              value={item.description}
+                              onChange={(e) => updateCapitalAllowanceItem(index, "description", e.target.value)}
+                              className="mt-1 block w-full"
+                              placeholder="e.g., Office desk and chair"
+                            />
+                          </div>
+                          
+                          <div className="sm:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700">Cost (£)</label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={item.cost}
+                              onChange={(e) => updateCapitalAllowanceItem(index, "cost", e.target.value)}
+                              className="mt-1 block w-full"
+                            />
+                          </div>
+                          
+                          <div className="sm:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700">Allowance</label>
+                            <div className="mt-1 text-sm font-medium text-green-600">
+                              £{item.allowance.toFixed(2)}
+                            </div>
+                          </div>
+                          
+                          <div className="sm:col-span-1 flex items-end">
+                            <Button
+                              type="button"
+                              onClick={() => removeCapitalAllowanceItem(index)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                      
+                      <Button
+                        type="button"
+                        onClick={addCapitalAllowanceItem}
+                        className="mt-2"
+                      >
+                        Add Capital Allowance Item
+                      </Button>
+                      
+                      {capitalAllowances.length > 0 && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                          <div className="text-sm text-blue-800">
+                            <strong>Total Capital Allowances: £{calculateTotalCapitalAllowances().toFixed(2)}</strong>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Wear and Tear Allowance Section */}
+                  {furnishedProperties > 0 && (
+                    <div className="border-b border-gray-900/10 pb-6">
+                      <h3 className="text-base/7 font-cabinet-grotesk font-semibold text-gray-900">
+                        Wear and Tear Allowance
+                      </h3>
+                      <p className="mt-1 text-sm/6 text-gray-600">
+                        For furnished rental properties, you can claim 10% of the net rental income as wear and tear allowance.
+                      </p>
+                      
+                      <div className="mt-4">
+                        <div className="flex items-start">
+                          <div className="flex h-6 items-center">
+                            <input
+                              id="use-wear-and-tear"
+                              name="use-wear-and-tear"
+                              type="checkbox"
+                              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
+                              checked={useWearAndTear}
+                              onChange={(e) => setUseWearAndTear(e.target.checked)}
+                            />
+                          </div>
+                          <div className="ml-3 text-sm leading-6">
+                            <label htmlFor="use-wear-and-tear" className="font-medium text-gray-900">
+                              Claim wear and tear allowance for furnished properties
+                            </label>
+                          </div>
+                        </div>
+                        
+                        {useWearAndTear && (
+                          <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-6">
+                            <div className="sm:col-span-3">
+                              <label htmlFor="furnished-rental-income" className="block text-sm font-medium text-gray-700">
+                                Net rental income from furnished properties (£):
+                              </label>
+                              <div className="mt-2">
+                                <Input
+                                  id="furnished-rental-income"
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={furnishedRentalIncome}
+                                  onChange={(e) => setFurnishedRentalIncome(e.target.value)}
+                                  className="block w-full"
+                                />
+                              </div>
+                            </div>
+                            
+                            {furnishedRentalIncome && !isNaN(parseFloat(furnishedRentalIncome)) && (
+                              <div className="sm:col-span-3 flex items-end">
+                                <div className="bg-green-50 border border-green-200 rounded-lg p-3 w-full">
+                                  <div className="text-sm text-green-800">
+                                    <strong>Wear & Tear Allowance: £{calculateWearAndTearAllowance().toFixed(2)}</strong>
+                                    <div className="text-xs mt-1">10% of furnished rental income</div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            
+                            <div className="sm:col-span-6">
+                              <p className="text-xs text-gray-500">
+                                You have {furnishedProperties} furnished {furnishedProperties === 1 ? 'property' : 'properties'} selected for tax calculations.
+                                The wear and tear allowance covers the cost of replacing furniture and furnishings.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   
                   {/* Property Income Allowance Section */}
                   <div className="border-b border-gray-900/10 pb-6">
@@ -521,12 +885,6 @@ export default function AdjustmentsForm() {
                           </div>
                         </div>
                       </fieldset>
-                      
-                      <div className="mt-3">
-                        <p className="text-xs text-gray-500">
-                          The property allowance is a tax-free £1,000 allowance for individuals with property income. You can use this instead of calculating your actual allowable expenses, which may be simpler if you have few expenses.
-                        </p>
-                      </div>
                     </div>
                   </div>
                   
@@ -568,27 +926,31 @@ export default function AdjustmentsForm() {
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-x-6 border-t border-gray-900/10 px-4 py-4 sm:px-6">
-              <button type="button"
+            <div className="flex items-center justify-between gap-x-6 border-t border-gray-900/10 px-4 py-4 sm:px-6">
+              <Button 
+                type="button"
+                outline
                 onClick={() => router.push("/financial/tax/transactions")}
-                className="text-sm/6 font-semibold text-gray-900"
                 disabled={isSubmitting}
               >
                 Back
-              </button>
-              <button type="button"
-                onClick={handleSaveAsDraft}
-                className="text-sm/6 font-semibold text-gray-900"
-                disabled={isSubmitting}
-              >
-                Save as Draft
-              </button>
-              <button type="submit"
-                className="rounded-md bg-d9e8ff px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs hover:bg-d9e8ff-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff disabled:opacity-50"
-                disabled={isSubmitting || loading}
-              >
-                {isSubmitting ? "Saving..." : "Continue to Summary"}
-              </button>
+              </Button>
+              <div className="flex gap-x-3">
+                <Button 
+                  type="button"
+                  outline
+                  onClick={handleSaveAsDraft}
+                  disabled={isSubmitting}
+                >
+                  Save as Draft
+                </Button>
+                <Button 
+                  type="submit"
+                  disabled={isSubmitting || loading}
+                >
+                  {isSubmitting ? "Saving..." : "Continue to Summary"}
+                </Button>
+              </div>
             </div>
           </form>
         </div>

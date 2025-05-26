@@ -62,6 +62,10 @@ export interface ILease {
 
 export interface IPropertyWithTenants extends IProperty {
   tenants: ITenant[];
+  current_valuation?: number;
+  purchase_price?: number;
+  energy_rating?: string;
+  council_tax_band?: string;
 }
 
 // Fetch all properties for a specific user

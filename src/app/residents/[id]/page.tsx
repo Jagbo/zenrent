@@ -6,13 +6,14 @@ import { SidebarContent } from "../../components/sidebar-content";
 import { Heading } from "../../components/heading";
 import { Text } from "../../components/text";
 import { Link } from "../../../components/link";
-import { PaperClipIcon } from "@heroicons/react/20/solid";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { XMarkIcon } from "@heroicons/react/24/solid";
 import { ResidentFormDrawer } from "../../components/ResidentFormDrawer";
 import { getTenantWithLease } from "../../../lib/tenantService";
 import { ITenantWithLease } from "../../../lib/tenantService";
+import TenantDocumentUpload from "../../../components/TenantDocumentUpload";
+import { TenantDocument } from "../../../types/tenant-documents";
 
 // Helper to create placeholder image URLs from name
 const getInitialsAvatar = (name: string) => {
@@ -38,6 +39,10 @@ export default function ResidentDetails() {
   const [isWhatsAppConnected, setIsWhatsAppConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
 
+  // State for tenant documents
+  const [documents, setDocuments] = useState<TenantDocument[]>([]);
+  const [loadingDocuments, setLoadingDocuments] = useState(false);
+
   // Fetch tenant data when component mounts
   useEffect(() => {
     const fetchTenant = async () => {
@@ -53,6 +58,28 @@ export default function ResidentDetails() {
     };
 
     fetchTenant();
+  }, [residentId]);
+
+  // Fetch tenant documents
+  useEffect(() => {
+    const fetchDocuments = async () => {
+      if (!residentId) return;
+      
+      setLoadingDocuments(true);
+      try {
+        const response = await fetch(`/api/tenant-documents?tenantId=${residentId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setDocuments(data.documents || []);
+        }
+      } catch (error) {
+        console.error('Error fetching tenant documents:', error);
+      } finally {
+        setLoadingDocuments(false);
+      }
+    };
+
+    fetchDocuments();
   }, [residentId]);
 
   // Check WhatsApp connection status
@@ -151,6 +178,16 @@ export default function ResidentDetails() {
     setIsEditDrawerOpen(false);
   };
 
+  // Handle document upload
+  const handleDocumentUploaded = (document: TenantDocument) => {
+    setDocuments(prev => [document, ...prev]);
+  };
+
+  // Handle document deletion
+  const handleDocumentDeleted = (documentId: string) => {
+    setDocuments(prev => prev.filter(doc => doc.id !== documentId));
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -191,20 +228,11 @@ export default function ResidentDetails() {
     );
   }
 
-  // Define sample attachments for the tenant
-  const attachments = [
-    { name: "lease_agreement.pdf", size: "1.2mb" },
-    { name: "tenant_application.pdf", size: "2.8mb" },
-  ];
+
 
   return (
     <SidebarLayout sidebar={<SidebarContent currentPath="/residents" />}>
       <div className="space-y-6">
-        <div className="flex items-center justify-between py-4">
-          <Heading level={1} className="text-xl font-semibold">
-            Resident Details
-          </Heading>
-        </div>
 
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
@@ -329,34 +357,15 @@ export default function ResidentDetails() {
                 )}
                 <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                   <dt className="text-sm font-medium text-gray-500">
-                    Attachments
+                    Documents
                   </dt>
                   <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">
-                    <ul role="list"
-                      className="divide-y divide-gray-200 rounded-md border border-gray-200"
-                    >
-                      {attachments.map((attachment, index) => (
-                        <li key={index}
-                          className="flex items-center justify-between py-3 pl-3 pr-4 text-sm"
-                        >
-                          <div className="flex w-0 flex-1 items-center">
-                            <PaperClipIcon className="h-5 w-5 flex-shrink-0 text-gray-400"
-                              aria-hidden="true"
-                            />
-                            <span className="ml-2 w-0 flex-1 truncate">
-                              {attachment.name}
-                            </span>
-                          </div>
-                          <div className="ml-4 flex-shrink-0">
-                            <a href="#"
-                              className="font-medium text-gray-900 hover:text-gray-700"
-                            >
-                              Download
-                            </a>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
+                    <TenantDocumentUpload
+                      tenantId={residentId}
+                      documents={documents}
+                      onDocumentUploaded={handleDocumentUploaded}
+                      onDocumentDeleted={handleDocumentDeleted}
+                    />
                   </dd>
                 </div>
               </dl>
@@ -364,7 +373,7 @@ export default function ResidentDetails() {
           </div>
 
           {/* Communication Panel */}
-          <div className="col-span-1 overflow-hidden bg-white shadow-sm rounded-lg border border-gray-200">
+          <div className="col-span-1 overflow-hidden bg-white shadow-sm rounded-lg border border-gray-200 w-fit max-w-md" data-component-name="ResidentDetails">
             <div className="px-4 py-5 sm:px-6">
               <h3 className="text-base font-semibold leading-6 text-gray-900">
                 Communication
@@ -481,7 +490,7 @@ export default function ResidentDetails() {
                           <p>Call the tenant directly.</p>
                           <div className="mt-2">
                             <a href={`tel:${tenant.phone}`}
-                              className="inline-flex items-center rounded-md bg-[#D9E8FF]/5 px-2 py-1 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-[#D9E8FF]/20"
+                              className="inline-flex items-center rounded-md bg-white px-2 py-1 text-xs font-medium text-indigo-700 border border-indigo-300 shadow-sm" data-component-name="ResidentDetails"
                             >
                               Call Tenant
                             </a>

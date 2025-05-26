@@ -13,13 +13,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No updates provided' }, { status: 400 });
     }
 
+    // Log the updates for debugging
+    console.log('[API] Received category updates:', updates);
+
     // Perform updates in parallel (could be batched for very large sets)
     const results = await Promise.all(
       updates.map(async ({ id, category }) => {
+        // Convert category string to array since the column is ARRAY type
+        const categoryArray = category ? [category] : [];
+        
+        console.log(`[API] Updating transaction ${id} with category:`, categoryArray);
+        
         const { error } = await supabase
           .from('bank_transactions')
-          .update({ category })
+          .update({ category: categoryArray })
           .eq('id', id);
+          
+        if (error) {
+          console.error(`[API] Error updating transaction ${id}:`, error);
+        }
+        
         return { id, success: !error, error: error?.message };
       })
     );

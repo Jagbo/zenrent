@@ -44,6 +44,7 @@ import {
   IPropertyInsurance,
   IPropertyMortgage
 } from "../../../lib/propertyDetailsService";
+import { getPropertyEnergyDataClient } from "../../../services/propertyEnrichmentService";
 
 // Define the Property interface for UI
 interface PropertyForUI {
@@ -69,12 +70,36 @@ interface PropertyForUI {
   image: string;
   images?: string[]; // Optional for backward compatibility
   floorPlan?: string; // Optional for backward compatibility
+  current_valuation?: number; // Property value from database
+  purchase_price?: number; // Purchase price from database
+  energy_rating?: string; // Energy efficiency rating
+  council_tax_band?: string; // Council tax band
+  is_furnished?: boolean; // Whether the property is furnished
   tenants: ITenant[];
   stats: {
     totalRooms: number;
     occupiedRooms: number;
     monthlyRevenue: number;
     maintenanceCosts: number;
+  };
+  // Energy efficiency data from enrichment service
+  energyData?: {
+    epcRating?: string;
+    energyScore?: number;
+    potentialRating?: string;
+    potentialScore?: number;
+    estimatedEnergyCost?: number;
+    heatingCost?: number;
+    hotWaterCost?: number;
+    totalEnergyCost?: number;
+    potentialSaving?: number;
+    co2Emissions?: number;
+    validUntil?: string;
+    recommendations?: Array<{
+      improvement: string;
+      savingEstimate: string;
+      impact: string;
+    }>;
   };
   // Optional properties for backward compatibility
   financials?: {
@@ -84,14 +109,14 @@ interface PropertyForUI {
     occupancyRate: number;
   };
   details?: {
-    mortgage: {
+    mortgage?: {
       lender: string;
       amount: number;
       rate: string;
       term: string;
       monthlyPayment: number;
     };
-    insurance: {
+    insurance?: {
       provider: string;
       coverage: number;
       premium: number;
@@ -186,23 +211,22 @@ const fetchFinancialData = async (propertyId: string) => {
 
 // Convert Supabase property to UI format
 const convertToUIProperty = (property: IPropertyWithTenants): PropertyForUI => {
-  // Default image if not available
-  const defaultImage =
-    "https://images.unsplash.com/photo-1580587771525-78b9dba3b914";
+  // Use actual property image or null - no default fallback
+  const propertyImage = property.image || null;
 
-  // Calculate stats
-  const totalRooms = property.units || 1;
+  // Calculate stats based on actual data
+  const totalRooms = property.bedrooms || 0;
+  // Calculate occupied rooms from actual tenants
   const occupiedRooms = property.tenants?.length || 0;
-  const occupancyRate =
-    totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
-  const monthlyRevenue =
-    property.tenants?.reduce(
+  const occupancyRate = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
+  
+  const monthlyRevenue = property.tenants?.reduce(
       (sum, tenant) => sum + (tenant.rent_amount || 0),
       0,
     ) || 0;
 
-  // Maintenance costs are not in the database yet, using a placeholder
-  const maintenanceCosts = Math.round(monthlyRevenue * 0.1); // 10% of revenue as placeholder
+  // Don't calculate placeholder maintenance costs - leave empty if not in database
+  const maintenanceCosts = 0; // Will be populated from actual financial data if available
 
   return {
     id: property.id,
@@ -219,14 +243,19 @@ const convertToUIProperty = (property: IPropertyWithTenants): PropertyForUI => {
     rentAmount: property.rentAmount || 0,
     description: property.description || "",
     amenities: property.amenities || [],
+    current_valuation: property.current_valuation ?? undefined,
+    purchase_price: property.purchase_price ?? undefined,
+    energy_rating: property.energy_rating ?? undefined,
+    council_tax_band: property.council_tax_band ?? undefined,
+    is_furnished: property.is_furnished || false,
     yearBuilt: property.yearBuilt || 0,
     parkingSpots: property.parkingSpots || 0,
     units: totalRooms,
     occupancyRate: occupancyRate,
     monthlyRevenue: monthlyRevenue,
-    image: property.image || defaultImage,
-    images: [property.image || defaultImage], // Create array with single image
-    floorPlan: "/sample-floor-plan.png", // Default floor plan
+    image: propertyImage || "https://images.unsplash.com/photo-1580587771525-78b9dba3b914", // Keep minimal fallback for UI
+    images: propertyImage ? [propertyImage] : [], // Empty array if no image
+    floorPlan: undefined, // Remove hardcoded floor plan
     tenants: property.tenants || [],
     stats: {
       totalRooms: totalRooms,
@@ -241,101 +270,9 @@ const convertToUIProperty = (property: IPropertyWithTenants): PropertyForUI => {
       netIncome: monthlyRevenue - maintenanceCosts,
       occupancyRate: occupancyRate,
     },
-    details: {
-      mortgage: {
-        lender: "ABC Bank",
-        amount: 2500000,
-        rate: "3.5%",
-        term: "30 years",
-        monthlyPayment: 11220,
-      },
-      insurance: {
-        provider: "XYZ Insurance",
-        coverage: 3000000,
-        premium: 1200,
-        expiryDate: "2025-03-15",
-      },
-    },
+    // Remove hardcoded details - these will be populated from database if available
+    details: undefined,
   };
-};
-
-// Sample data - used as fallback if property not found in database
-const sampleProperty: PropertyForUI = {
-  id: "123-main",
-  name: "123 Main Street",
-  address: "123 Main Street",
-  city: "Manchester",
-  state: "Greater Manchester",
-  zipCode: "M1 1AA",
-  type: "Apartment Building",
-  status: "available",
-  bedrooms: 2,
-  bathrooms: 1,
-  squareFeet: 800,
-  rentAmount: 1200,
-  description: "Modern apartment building in Manchester city center",
-  amenities: ["Parking", "Elevator", "Security"],
-  yearBuilt: 2010,
-  parkingSpots: 12,
-  units: 24,
-  occupancyRate: 92,
-  monthlyRevenue: 52000,
-  image: "https://images.unsplash.com/photo-1580587771525-78b9dba3b914",
-  images: [
-    "https://images.unsplash.com/photo-1580587771525-78b9dba3b914",
-    "https://images.unsplash.com/photo-1568605114967-8130f3a36994",
-    "https://images.unsplash.com/photo-1570129477492-45c003edd2be",
-  ],
-  floorPlan: "/sample-floor-plan.png",
-  tenants: [
-    {
-      id: "1",
-      name: "Leslie Abbott",
-      email: "leslie.abbott@example.com",
-      phone: "123-456-7890",
-      image:
-        "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-      about: "Excellent tenant who always pays on time.",
-      rent_amount: 1200,
-    },
-    {
-      id: "2",
-      name: "Michael Foster",
-      email: "michael.foster@example.com",
-      phone: "123-456-7891",
-      image:
-        "https://images.unsplash.com/photo-1519244703995-f4e0f30006d5?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-      about: "Good tenant, occasionally late with payments.",
-      rent_amount: 1300,
-    },
-  ],
-  stats: {
-    totalRooms: 24,
-    occupiedRooms: 22,
-    monthlyRevenue: 52000,
-    maintenanceCosts: 3200,
-  },
-  financials: {
-    monthlyIncome: 52000,
-    expenses: 12000,
-    netIncome: 40000,
-    occupancyRate: 91.6,
-  },
-  details: {
-    mortgage: {
-      lender: "ABC Bank",
-      amount: 2500000,
-      rate: "3.5%",
-      term: "30 years",
-      monthlyPayment: 11220,
-    },
-    insurance: {
-      provider: "XYZ Insurance",
-      coverage: 3000000,
-      premium: 1200,
-      expiryDate: "2025-03-15",
-    },
-  },
 };
 
 export default function PropertyDetails() {
@@ -343,7 +280,7 @@ export default function PropertyDetails() {
   const [property, setProperty] = useState<PropertyForUI | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("images");
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isAdvertiseDrawerOpen, setIsAdvertiseDrawerOpen] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState<PropertyForEdit | null>(null);
@@ -362,7 +299,12 @@ export default function PropertyDetails() {
   const [propertyInsurance, setPropertyInsurance] = useState<IPropertyInsurance | null>(null);
   const [propertyMortgage, setPropertyMortgage] = useState<IPropertyMortgage | null>(null);
   const [propertyAmenities, setPropertyAmenities] = useState<string[]>([]);
+  const [leaseRentAmount, setLeaseRentAmount] = useState<number | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(true);
+  
+  // State for energy efficiency data
+  const [energyData, setEnergyData] = useState<any>(null);
+  const [energyDataLoading, setEnergyDataLoading] = useState(true);
 
   // Update tabs to use state
   const tabs = [
@@ -373,17 +315,25 @@ export default function PropertyDetails() {
       current: activeTab === "floor-plan",
     },
     {
-      name: "Financials",
-      value: "financials",
-      current: activeTab === "financials",
+      name: "Mortgage",
+      value: "mortgage",
+      current: activeTab === "mortgage",
     },
-    { name: "Details", value: "details", current: activeTab === "details" },
+    {
+      name: "Insurance",
+      value: "insurance",
+      current: activeTab === "insurance",
+    },
+    {
+      name: "Certificates",
+      value: "certificates",
+      current: activeTab === "certificates",
+    },
     {
       name: "Documents",
       value: "documents",
       current: activeTab === "documents",
     },
-    { name: "Overview", value: "overview", current: activeTab === "overview" },
   ];
 
   const handleTabChange = (value: string) => {
@@ -422,6 +372,27 @@ export default function PropertyDetails() {
 
       console.log("Fetching property details for ID:", propertyId);
 
+      // Fetch lease information for this property
+      try {
+        const supabase = createClientComponentClient();
+        const { data: leaseData, error: leaseError } = await supabase
+          .from('leases')
+          .select('rent_amount')
+          .eq('property_id', propertyId)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        
+        if (leaseError) {
+          console.error('Error fetching lease data:', leaseError);
+        } else if (leaseData && leaseData.length > 0) {
+          setLeaseRentAmount(parseFloat(leaseData[0].rent_amount));
+          console.log('Lease rent amount:', leaseData[0].rent_amount);
+        }
+      } catch (error) {
+        console.error('Error in lease data fetch:', error);
+      }
+      
       try {
         const data = await getPropertyWithTenants(propertyId);
         console.log("Property data received:", data ? "yes" : "no");
@@ -433,6 +404,25 @@ export default function PropertyDetails() {
           
           // Fetch property details from database (images, floor plans, insurance, mortgage, amenities)
           await fetchPropertyDetails(propertyId);
+          
+          // Update property with database details if available
+          if (propertyInsurance || propertyMortgage) {
+            uiProperty.details = {
+              mortgage: propertyMortgage ? {
+                lender: propertyMortgage.lender,
+                amount: propertyMortgage.amount,
+                rate: `${propertyMortgage.interest_rate}%`,
+                term: `${propertyMortgage.term_years} years`,
+                monthlyPayment: propertyMortgage.monthly_payment,
+              } : undefined,
+              insurance: propertyInsurance ? {
+                provider: propertyInsurance.provider,
+                coverage: propertyInsurance.coverage,
+                premium: propertyInsurance.premium,
+                expiryDate: propertyInsurance.expiry_date,
+              } : undefined,
+            };
+          }
           
           // Fetch financial data
           setFinancialDataLoading(true);
@@ -447,6 +437,38 @@ export default function PropertyDetails() {
               netIncome: financials.netIncome,
               occupancyRate: financials.occupancyRate || uiProperty.occupancyRate
             };
+          }
+          
+          // Fetch energy efficiency data
+          setEnergyDataLoading(true);
+          try {
+            const energyInfo = await getPropertyEnergyDataClient(propertyId);
+            if (energyInfo) {
+              console.log('Energy data fetched:', energyInfo);
+              setEnergyData(energyInfo);
+              
+              // Update property with energy data - map actual field names from PropertyData API
+              uiProperty.energyData = {
+                epcRating: energyInfo.current_energy_rating,
+                energyScore: energyInfo.current_energy_efficiency,
+                potentialRating: energyInfo.potential_energy_rating,
+                potentialScore: energyInfo.potential_energy_efficiency,
+                heatingCost: energyInfo.heating_cost_current,
+                hotWaterCost: energyInfo.hot_water_cost_current,
+                totalEnergyCost: (energyInfo.heating_cost_current || 0) + (energyInfo.hot_water_cost_current || 0) + (energyInfo.lighting_cost_current || 0),
+                potentialSaving: ((energyInfo.heating_cost_current || 0) + (energyInfo.hot_water_cost_current || 0) + (energyInfo.lighting_cost_current || 0)) - 
+                                ((energyInfo.heating_cost_potential || 0) + (energyInfo.hot_water_cost_potential || 0) + (energyInfo.lighting_cost_potential || 0)),
+                co2Emissions: energyInfo.co2_emissions_current,
+                validUntil: energyInfo.lodgement_date ? new Date(new Date(energyInfo.lodgement_date).getTime() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : undefined,
+                recommendations: [] // PropertyData API doesn't provide recommendations in this format
+              };
+            } else {
+              console.log('No energy data found for property');
+            }
+          } catch (error) {
+            console.error('Error fetching energy data:', error);
+          } finally {
+            setEnergyDataLoading(false);
           }
           
           // Update property with database amenities if available
@@ -485,31 +507,7 @@ export default function PropertyDetails() {
         setError(
           `Error loading property: ${error instanceof Error ? error.message : String(error)}`,
         );
-
-        // In development mode, use sample data as fallback
-        if (process.env.NODE_ENV === "development") {
-          console.log("Using sample data as fallback after error");
-          setProperty(sampleProperty);
-          setSelectedProperty({
-            id: sampleProperty.id,
-            name: sampleProperty.name,
-            address: sampleProperty.address,
-            city: sampleProperty.city,
-            state: sampleProperty.state || "",
-            zipCode: sampleProperty.zipCode || "",
-            type: sampleProperty.type,
-            status: sampleProperty.status || "available",
-            bedrooms: sampleProperty.bedrooms || 0,
-            bathrooms: sampleProperty.bathrooms || 0,
-            squareFeet: sampleProperty.squareFeet || 0,
-            rentAmount: sampleProperty.rentAmount || 0,
-            description: sampleProperty.description || "",
-            amenities: sampleProperty.amenities || [],
-            yearBuilt: sampleProperty.yearBuilt || 0,
-            parkingSpots: sampleProperty.parkingSpots || 0,
-          });
-          setError(null);
-        }
+        // Remove sample property fallback - only show error state
       } finally {
         setLoading(false);
       }
@@ -575,30 +573,7 @@ export default function PropertyDetails() {
       } catch (err) {
         console.error("Property details: Error fetching property issues:", err);
         setIssuesError("Failed to load property issues");
-
-        // In development mode, use sample data as fallback
-        if (process.env.NODE_ENV === "development") {
-          // Sample issues data for development fallback
-          const sampleIssues = [
-            {
-              id: 1,
-              title: "Leaking roof",
-              priority: "High",
-              status: "Open",
-              reported: "2024-03-08",
-            },
-            {
-              id: 2,
-              title: "Broken heating",
-              priority: "Medium",
-              status: "In Progress",
-              reported: "2024-03-07",
-            },
-          ];
-          console.log("Property details: Using sample issues as fallback");
-          setIssues(sampleIssues);
-          setIssuesError(null);
-        }
+        // Remove sample issues fallback - only show error state
       } finally {
         setIssuesLoading(false);
       }
@@ -617,7 +592,7 @@ export default function PropertyDetails() {
     setIsDrawerOpen(true);
   };
 
-  const handleEditSave = (updatedProperty: PropertyForEdit) => {
+  const handleEditSave = (updatedProperty: any) => {
     console.log("Updated property:", updatedProperty);
     setIsDrawerOpen(false);
   };
@@ -631,7 +606,7 @@ export default function PropertyDetails() {
     setIsNewIssueDrawerOpen(true);
   };
 
-  const handleIssueSubmit = async (formData: unknown) => {
+  const handleIssueSubmit = async (formData: any) => {
     try {
       console.log("Creating new issue for property:", propertyId);
 
@@ -685,7 +660,7 @@ export default function PropertyDetails() {
 
   if (loading) {
     return (
-      <SidebarLayout sidebar={<SidebarContent currentPath="/properties" />}>
+      <SidebarLayout>
         <div className="flex justify-center items-center py-12">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
         </div>
@@ -695,7 +670,7 @@ export default function PropertyDetails() {
 
   if (error && !property) {
     return (
-      <SidebarLayout sidebar={<SidebarContent currentPath="/properties" />}>
+      <SidebarLayout>
         <div className="space-y-6">
           <div className="text-center py-12">
             <h3 className="text-base font-semibold text-gray-900">
@@ -722,7 +697,7 @@ export default function PropertyDetails() {
   }
 
   return (
-    <SidebarLayout sidebar={<SidebarContent currentPath="/properties" />}>
+    <SidebarLayout>
       <div className="space-y-8">
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
@@ -792,7 +767,7 @@ export default function PropertyDetails() {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">
-                      Occupied Rooms
+                      Bathrooms
                     </dt>
                     <dd className="flex items-baseline">
                       <div className="text-2xl font-semibold text-gray-900">
@@ -816,11 +791,11 @@ export default function PropertyDetails() {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">
-                      Monthly Revenue
+                      Monthly Rent
                     </dt>
                     <dd className="flex items-baseline">
                       <div className="text-2xl font-semibold text-gray-900">
-                        £{property.stats.monthlyRevenue.toLocaleString()}
+                        £{leaseRentAmount ? leaseRentAmount.toLocaleString() : property.rentAmount ? property.rentAmount.toLocaleString() : '0'}
                       </div>
                     </dd>
                   </dl>
@@ -839,13 +814,13 @@ export default function PropertyDetails() {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">
-                      Maintenance Costs
+                      Property Value
                     </dt>
                     <dd className="flex items-baseline">
                       <div className="text-2xl font-semibold text-gray-900">
-                        £{property.stats.maintenanceCosts.toLocaleString()}
+                        £{(property.current_valuation || property.purchase_price || 0).toLocaleString()}
                       </div>
-                      <div className="ml-2 text-sm text-gray-500">/mo</div>
+                      <div className="ml-2 text-sm text-gray-500"></div>
                     </dd>
                   </dl>
                 </div>
@@ -867,6 +842,14 @@ export default function PropertyDetails() {
                 <p className="mt-1 max-w-2xl text-sm/6 text-gray-500">
                   Basic details about the property.
                 </p>
+                <div className="mt-4 p-4 bg-gray-50 text-left rounded border border-gray-200">
+                  <h4 className="text-sm font-medium text-gray-900 mb-1">Full Address</h4>
+                  <p className="text-sm text-gray-700">
+                    {property.name}<br />
+                    {property.address}<br />
+                    {property.city}, {property.state} {property.zipCode}
+                  </p>
+                </div>
               </div>
               <div className="border-t border-gray-100">
                 <dl className="divide-y divide-gray-100">
@@ -891,12 +874,47 @@ export default function PropertyDetails() {
                       Occupancy Rate
                     </dt>
                     <dd className="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">
-                      {(
-                        (property.stats.occupiedRooms /
-                          property.stats.totalRooms) *
-                        100
-                      ).toFixed(1)}
-                      %
+                      {property.occupancyRate}%
+                    </dd>
+                  </div>
+                  <div className="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt className="text-sm font-medium text-gray-900">
+                      Energy Rating
+                    </dt>
+                    <dd className="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">
+                      {property.energy_rating || 'Not available'}
+                    </dd>
+                  </div>
+                  <div className="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt className="text-sm font-medium text-gray-900">
+                      Council Tax Band
+                    </dt>
+                    <dd className="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">
+                      {property.council_tax_band || 'Not available'}
+                    </dd>
+                  </div>
+                  <div className="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt className="text-sm font-medium text-gray-900">
+                      Furnished
+                    </dt>
+                    <dd className="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">
+                      {property.is_furnished ? 'Yes' : 'No'}
+                    </dd>
+                  </div>
+                  <div className="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt className="text-sm font-medium text-gray-900">
+                      Purchase Price
+                    </dt>
+                    <dd className="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">
+                      {property.purchase_price ? `£${property.purchase_price.toLocaleString()}` : 'Not available'}
+                    </dd>
+                  </div>
+                  <div className="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                    <dt className="text-sm font-medium text-gray-900">
+                      Current Valuation
+                    </dt>
+                    <dd className="mt-1 text-sm text-gray-700 sm:col-span-2 sm:mt-0">
+                      {property.current_valuation ? `£${property.current_valuation.toLocaleString()}` : 'Not available'}
                     </dd>
                   </div>
                 </dl>
@@ -960,158 +978,251 @@ export default function PropertyDetails() {
                 >
                   {/* Tab Content */}
                     <TabsContent value="images" className="mt-0">
+                      {propertyImages && propertyImages.length > 0 ? (
                       <div className="rounded-md border p-4 bg-white">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {property.images && property.images.length > 0 ? (
-                            property.images.map(
-                              (image: string, index: number) => (
-                                <div key={index}
+                            {propertyImages.map((image, index) => (
+                              <div key={image.id}
                                   className="aspect-[4/3] relative overflow-hidden rounded-lg"
                                 >
-                                  <Image src={image}
+                                <Image src={image.image_url}
                                     alt={`Property image ${index + 1}`}
                                     fill
                                     className="object-cover"
                                   />
+                                {image.is_primary && (
+                                  <div className="absolute top-2 left-2">
+                                    <span className="px-2 py-1 bg-blue-600 text-white text-xs font-medium rounded">
+                                      Primary
+                                    </span>
                                 </div>
-                              ),
-                            )
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                           ) : (
-                            <div className="aspect-[4/3] relative overflow-hidden rounded-lg">
-                              <Image src={property.image}
-                                alt="Property image"
-                                fill
-                                className="object-cover"
-                              />
+                        <div className="rounded-md border p-4 bg-white">
+                          <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                              <h4 className="text-sm font-medium text-gray-900">
+                                Add Property Images
+                              </h4>
                             </div>
-                          )}
+                            <div className="bg-gray-50 p-6 rounded-lg border border-dashed border-gray-300">
+                              <div className="text-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <h3 className="mt-2 text-sm font-medium text-gray-900">Upload property images</h3>
+                                <p className="mt-1 text-sm text-gray-500">
+                                  Add photos to showcase your property and attract potential tenants
+                                </p>
+                                <div className="mt-6">
+                                  <label htmlFor="images-file-upload" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-black bg-[#D9E8FF] hover:bg-[#C5DAFF] cursor-pointer" data-component-name="PropertyDetails">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                    </svg>
+                                    Upload Images
+                                  </label>
+                                  <input id="images-file-upload" name="images-file-upload" type="file" multiple accept="image/*" className="sr-only" />
                         </div>
                       </div>
+                            </div>
+                            <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                              <h5 className="text-sm font-medium text-blue-900">Tips for great property photos:</h5>
+                              <ul className="mt-2 text-sm text-blue-700 list-disc list-inside space-y-1">
+                                <li>Take photos in good lighting (natural light works best)</li>
+                                <li>Include shots of all rooms, exterior, and key features</li>
+                                <li>Make sure rooms are clean and tidy</li>
+                                <li>Consider wide-angle shots to show room size</li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </TabsContent>
 
                     <TabsContent value="floor-plan" className="mt-0">
+                      {propertyFloorPlans && propertyFloorPlans.length > 0 ? (
                       <div className="rounded-md border p-4 bg-white">
+                          <div className="space-y-4">
+                            {propertyFloorPlans.map((floorPlan, index) => (
+                              <div key={floorPlan.id} className="space-y-2">
                         <div className="aspect-[16/9] relative overflow-hidden rounded-lg">
-                          {property.floorPlan ? (
-                            <Image src={property.floorPlan as string}
-                              alt="Floor plan"
+                                  <Image src={floorPlan.floor_plan_url}
+                                    alt={floorPlan.description || `Floor plan ${index + 1}`}
                               fill
                               className="object-contain"
                             />
-                          ) : (
-                            <div className="flex items-center justify-center h-full w-full bg-gray-100">
-                              <p className="text-gray-500">
-                                No floor plan available
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="financials" className="mt-0">
-                      <div className="rounded-md border p-4 bg-white">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="bg-white p-4 rounded-lg border border-gray-200" data-component-name="PropertyDetails">
-                            <h4 className="text-sm font-medium text-gray-900" data-component-name="PropertyDetails">
-                              Monthly Income
-                            </h4>
-                            <p className="mt-2 text-2xl font-semibold text-gray-900" data-component-name="PropertyDetails">
-                              {financialDataLoading ? (
-                                <span className="text-gray-400">Loading...</span>
-                              ) : (
-                                <>£{(property.financials?.monthlyIncome || 0).toLocaleString()}</>  
-                              )}
-                            </p>
-                          </div>
-                          <div className="bg-white p-4 rounded-lg border border-gray-200">
-                            <h4 className="text-sm font-medium text-gray-900">
-                              Monthly Expenses
-                            </h4>
-                            <p className="mt-2 text-2xl font-semibold text-gray-900">
-                              {financialDataLoading ? (
-                                <span className="text-gray-400">Loading...</span>
-                              ) : (
-                                <>£{(property.financials?.expenses || 0).toLocaleString()}</>  
-                              )}
-                            </p>
-                          </div>
-                          <div className="bg-white p-4 rounded-lg border border-gray-200" data-component-name="PropertyDetails">
-                            <h4 className="text-sm font-medium text-gray-900" data-component-name="PropertyDetails">
-                              Net Income
-                            </h4>
-                            <p className="mt-2 text-2xl font-semibold text-gray-900">
-                              {financialDataLoading ? (
-                                <span className="text-gray-400">Loading...</span>
-                              ) : (
-                                <>£{(property.financials?.netIncome || 0).toLocaleString()}</>  
-                              )}
-                            </p>
-                          </div>
-                          <div className="bg-white p-4 rounded-lg border border-gray-200" data-component-name="PropertyDetails">
-                            <h4 className="text-sm font-medium text-gray-900">
-                              Occupancy Rate
-                            </h4>
-                            <p className="mt-2 text-2xl font-semibold text-gray-900" data-component-name="PropertyDetails">
-                              {financialDataLoading ? (
-                                <span className="text-gray-400">Loading...</span>
-                              ) : (
-                                <>{property.financials?.occupancyRate || property.occupancyRate || 0}%</>  
-                              )}
-                            </p>
+                                </div>
+                                {floorPlan.description && (
+                                  <p className="text-sm text-gray-600">{floorPlan.description}</p>
+                                )}
+                              </div>
+                            ))}
                           </div>
                         </div>
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="details" className="mt-0">
-                      {property.details ? (
+                      ) : (
                         <div className="rounded-md border p-4 bg-white">
-                          <div className="space-y-6">
-                            {/* Mortgage Information */}
-                            <div>
-                              <h4 className="text-sm font-medium text-gray-900 mb-4">
-                                Mortgage Information
+                          <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                              <h4 className="text-sm font-medium text-gray-900">
+                                Add Floor Plan
                               </h4>
-                              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="bg-white p-4 rounded-lg border border-gray-200">
-                                  <dt className="text-sm font-medium text-gray-500">
-                                    Lender
-                                  </dt>
-                                  <dd className="mt-1 text-sm text-gray-900">
-                                    {property.details.mortgage.lender}
-                                  </dd>
-                                </div>
-                                <div className="bg-white p-4 rounded-lg border border-gray-200">
-                                  <dt className="text-sm font-medium text-gray-500">
-                                    Amount
-                                  </dt>
-                                  <dd className="mt-1 text-sm text-gray-900">
-                                    £
-                                    {property.details.mortgage.amount.toLocaleString()}
-                                  </dd>
-                                </div>
-                                <div className="bg-white p-4 rounded-lg border border-gray-200">
-                                  <dt className="text-sm font-medium text-gray-500">
-                                    Interest Rate
-                                  </dt>
-                                  <dd className="mt-1 text-sm text-gray-900">
-                                    {property.details.mortgage.rate}
-                                  </dd>
-                                </div>
-                                <div className="bg-white p-4 rounded-lg border border-gray-200">
-                                  <dt className="text-sm font-medium text-gray-500">
-                                    Monthly Payment
-                                  </dt>
-                                  <dd className="mt-1 text-sm text-gray-900">
-                                    £
-                                    {property.details.mortgage.monthlyPayment.toLocaleString()}
-                                  </dd>
-                                </div>
-                              </dl>
                             </div>
-                            {/* Insurance Information */}
-                            <div>
+                            <div className="bg-gray-50 p-6 rounded-lg border border-dashed border-gray-300">
+                              <div className="text-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                                <h3 className="mt-2 text-sm font-medium text-gray-900">Upload floor plan</h3>
+                                <p className="mt-1 text-sm text-gray-500">
+                                  Add a floor plan to help tenants understand the property layout
+                                </p>
+                                <div className="mt-6">
+                                  <label htmlFor="floorplan-file-upload" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-black bg-[#D9E8FF] hover:bg-[#C5DAFF] cursor-pointer" data-component-name="PropertyDetails">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                    </svg>
+                                    Upload Floor Plan
+                                  </label>
+                                  <input id="floorplan-file-upload" name="floorplan-file-upload" type="file" accept="image/*,.pdf" className="sr-only" />
+                            </div>
+                        </div>
+                      </div>
+                            <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                              <h5 className="text-sm font-medium text-blue-900">Floor plan tips:</h5>
+                              <ul className="mt-2 text-sm text-blue-700 list-disc list-inside space-y-1">
+                                <li>Upload high-resolution images or PDF files</li>
+                                <li>Include room dimensions if available</li>
+                                <li>Show the flow between rooms clearly</li>
+                                <li>Consider including outdoor spaces and parking</li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </TabsContent>
+
+
+
+
+                    
+                    <TabsContent value="mortgage" className="mt-0">
+                      {property.details?.mortgage ? (
+                        <div className="rounded-md border p-4 bg-white">
+                          <div className="space-y-4">
+                            <h4 className="text-sm font-medium text-gray-900 mb-4">
+                              Mortgage Information
+                            </h4>
+                            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                <dt className="text-sm font-medium text-gray-500">
+                                  Lender
+                                </dt>
+                                <dd className="mt-1 text-sm text-gray-900">
+                                  {property.details.mortgage.lender}
+                                </dd>
+                              </div>
+                              <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                <dt className="text-sm font-medium text-gray-500">
+                                  Amount
+                                </dt>
+                                <dd className="mt-1 text-sm text-gray-900">
+                                  £{property.details.mortgage.amount.toLocaleString()}
+                                </dd>
+                              </div>
+                              <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                <dt className="text-sm font-medium text-gray-500">
+                                  Interest Rate
+                                </dt>
+                                <dd className="mt-1 text-sm text-gray-900">
+                                  {property.details.mortgage.rate}
+                                </dd>
+                              </div>
+                              <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                <dt className="text-sm font-medium text-gray-500">
+                                  Term
+                                </dt>
+                                <dd className="mt-1 text-sm text-gray-900">
+                                  {property.details.mortgage.term}
+                                </dd>
+                              </div>
+                              <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                <dt className="text-sm font-medium text-gray-500">
+                                  Monthly Payment
+                                </dt>
+                                <dd className="mt-1 text-sm text-gray-900">
+                                  £{property.details.mortgage.monthlyPayment.toLocaleString()}
+                                </dd>
+                              </div>
+                              <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                <dt className="text-sm font-medium text-gray-500">
+                                  Purchase Price
+                                </dt>
+                                <dd className="mt-1 text-sm text-gray-900">
+                                  {property.purchase_price ? `£${property.purchase_price.toLocaleString()}` : 'Not available'}
+                                </dd>
+                              </div>
+                              <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                <dt className="text-sm font-medium text-gray-500">
+                                  Current Valuation
+                                </dt>
+                                <dd className="mt-1 text-sm text-gray-900">
+                                  {property.current_valuation ? `£${property.current_valuation.toLocaleString()}` : 'Not available'}
+                                </dd>
+                              </div>
+                            </dl>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="rounded-md border p-4 bg-white">
+                          <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                              <h4 className="text-sm font-medium text-gray-900">
+                                Add Mortgage Information
+                              </h4>
+                            </div>
+                            <div className="bg-gray-50 p-6 rounded-lg border border-dashed border-gray-300">
+                              <div className="text-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <h3 className="mt-2 text-sm font-medium text-gray-900">Upload mortgage documents</h3>
+                                <p className="mt-1 text-sm text-gray-500">
+                                  Upload your mortgage agreement to keep track of your financial details
+                                </p>
+                                <div className="mt-6">
+                                  <label htmlFor="mortgage-file-upload" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-black bg-[#D9E8FF] hover:bg-[#C5DAFF] cursor-pointer" data-component-name="PropertyDetails">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                    </svg>
+                                    Upload Document
+                                  </label>
+                                  <input id="mortgage-file-upload" name="mortgage-file-upload" type="file" className="sr-only" />
+                                </div>
+                              </div>
+                            </div>
+                            <div className="mt-4">
+                              <h5 className="text-sm font-medium text-gray-700 mb-2">Or enter details manually</h5>
+                              <button
+                                type="button"
+                                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50"
+                              >
+                                Add Mortgage Details
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </TabsContent>
+                    
+                    <TabsContent value="insurance" className="mt-0">
+                      {property.details?.insurance ? (
+                        <div className="space-y-6">
+                          <div className="rounded-md border p-4 bg-white">
+                            <div className="space-y-4">
                               <h4 className="text-sm font-medium text-gray-900 mb-4">
                                 Insurance Information
                               </h4>
@@ -1129,8 +1240,7 @@ export default function PropertyDetails() {
                                     Coverage Amount
                                   </dt>
                                   <dd className="mt-1 text-sm text-gray-900">
-                                    £
-                                    {property.details.insurance.coverage.toLocaleString()}
+                                    £{property.details.insurance.coverage.toLocaleString()}
                                   </dd>
                                 </div>
                                 <div className="bg-white p-4 rounded-lg border border-gray-200">
@@ -1138,8 +1248,7 @@ export default function PropertyDetails() {
                                     Monthly Premium
                                   </dt>
                                   <dd className="mt-1 text-sm text-gray-900">
-                                    £
-                                    {property.details.insurance.premium.toLocaleString()}
+                                    £{property.details.insurance.premium.toLocaleString()}
                                   </dd>
                                 </div>
                                 <div className="bg-white p-4 rounded-lg border border-gray-200">
@@ -1147,24 +1256,263 @@ export default function PropertyDetails() {
                                     Expiry Date
                                   </dt>
                                   <dd className="mt-1 text-sm text-gray-900">
-                                    {new Date(
-                                      property.details.insurance.expiryDate,
-                                    ).toLocaleDateString()}
+                                    {new Date(property.details.insurance.expiryDate).toLocaleDateString()}
                                   </dd>
                                 </div>
                               </dl>
                             </div>
                           </div>
+                          
+                          {/* Insurance Upsell Opportunity */}
+                          <div className="rounded-md border p-4 bg-[#F0F7FF] border-[#D9E8FF]">
+                            <div className="flex items-start">
+                              <div className="flex-shrink-0 mt-0.5">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                              <div className="ml-3">
+                                <h3 className="text-sm font-medium text-blue-800">Save up to 15% on your landlord insurance</h3>
+                                <div className="mt-2 text-sm text-blue-700">
+                                  <p>ZenRent has partnered with top insurance providers to offer exclusive discounts for our users. Compare quotes and potentially save £{Math.round(property.details.insurance.premium * 0.15 * 12)} annually.</p>
+                                </div>
+                                <div className="mt-4">
+                                  <button
+                                    type="button"
+                                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-black bg-[#D9E8FF] hover:bg-blue-100"
+                                  >
+                                    Compare Insurance Quotes
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       ) : (
                         <div className="rounded-md border p-4 bg-white">
-                          <div className="flex items-center justify-center h-40 w-full">
-                            <p className="text-gray-500">
-                              No mortgage or insurance details available
-                            </p>
+                          <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                              <h4 className="text-sm font-medium text-gray-900">
+                                Add Insurance Information
+                              </h4>
+                            </div>
+                            <div className="bg-gray-50 p-6 rounded-lg border border-dashed border-gray-300">
+                              <div className="text-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <h3 className="mt-2 text-sm font-medium text-gray-900">Upload insurance documents</h3>
+                                <p className="mt-1 text-sm text-gray-500">
+                                  Upload your landlord insurance policy to keep track of coverage details
+                                </p>
+                                <div className="mt-6">
+                                  <label htmlFor="insurance-file-upload" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-black bg-[#D9E8FF] hover:bg-[#C5DAFF] cursor-pointer" data-component-name="PropertyDetails">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                    </svg>
+                                    Upload Document
+                                  </label>
+                                  <input id="insurance-file-upload" name="insurance-file-upload" type="file" className="sr-only" />
+                                </div>
+                              </div>
+                            </div>
+                            <div className="mt-4">
+                              <h5 className="text-sm font-medium text-gray-700 mb-2">Or enter details manually</h5>
+                              <button
+                                type="button"
+                                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50"
+                              >
+                                Add Insurance Details
+                              </button>
+                            </div>
+                            
+                            {/* Insurance Upsell Opportunity */}
+                            <div className="mt-6 rounded-md border p-4 bg-[#F0F7FF] border-[#D9E8FF]">
+                              <div className="flex items-start">
+                                <div className="flex-shrink-0 mt-0.5">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clipRule="evenodd" />
+                                  </svg>
+                                </div>
+                                <div className="ml-3">
+                                  <h3 className="text-sm font-medium text-blue-800">Save up to 15% on your landlord insurance</h3>
+                                  <div className="mt-2 text-sm text-blue-700">
+                                    <p>ZenRent has partnered with top insurance providers to offer exclusive discounts for our users. Compare quotes and potentially save hundreds of pounds annually.</p>
+                                  </div>
+                                  <div className="mt-4">
+                                    <button
+                                      type="button"
+                                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-black bg-[#D9E8FF] hover:bg-blue-100"
+                                    >
+                                      Compare Insurance Quotes
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       )}
+                    </TabsContent>
+                    
+                    <TabsContent value="certificates" className="mt-0">
+                      <div className="rounded-md border p-4 bg-white">
+                        <div className="space-y-6">
+                          <div className="flex justify-between items-center">
+                            <h4 className="text-sm font-medium text-gray-900">
+                              Property Certificates
+                            </h4>
+                            <button className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-gray-900 hover:bg-gray-800">
+                              <PlusIcon className="h-4 w-4 mr-1" />
+                              Upload Certificate
+                            </button>
+                          </div>
+                          
+                          {/* EPC Certificate */}
+                          <div className="bg-white p-4 rounded-lg border border-gray-200">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <h5 className="text-sm font-medium text-gray-900">Energy Performance Certificate (EPC)</h5>
+                                
+                                {energyDataLoading ? (
+                                  <div className="mt-2">
+                                    <div className="animate-pulse">
+                                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                                    </div>
+                                  </div>
+                                ) : property.energyData ? (
+                                  <div className="mt-2 space-y-2">
+                                    <div className="flex items-center space-x-4">
+                                      <div>
+                                        <p className="text-sm text-gray-500">
+                                          Energy Rating: <span className="font-medium text-gray-900">{property.energyData.epcRating}</span>
+                                        </p>
+                                        {property.energyData.energyScore && (
+                                          <p className="text-sm text-gray-500">
+                                            Energy Score: <span className="font-medium text-gray-900">{property.energyData.energyScore}</span>
+                                          </p>
+                                        )}
+                                      </div>
+                                      {property.energyData.potentialRating && (
+                                        <div>
+                                          <p className="text-sm text-gray-500">
+                                            Potential Rating: <span className="font-medium text-gray-900">{property.energyData.potentialRating}</span>
+                                          </p>
+                                          {property.energyData.potentialScore && (
+                                            <p className="text-sm text-gray-500">
+                                              Potential Score: <span className="font-medium text-gray-900">{property.energyData.potentialScore}</span>
+                                            </p>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                    
+                                    {property.energyData.totalEnergyCost && (
+                                      <p className="text-sm text-gray-500">
+                                        Annual Energy Cost: <span className="font-medium text-gray-900">£{property.energyData.totalEnergyCost}</span>
+                                      </p>
+                                    )}
+                                    
+                                    {property.energyData.co2Emissions && (
+                                      <p className="text-sm text-gray-500">
+                                        CO2 Emissions: <span className="font-medium text-gray-900">{property.energyData.co2Emissions} tonnes/year</span>
+                                      </p>
+                                    )}
+                                    
+                                    <p className="text-xs text-gray-500">
+                                      {property.energyData.validUntil 
+                                        ? `Valid until: ${new Date(property.energyData.validUntil).toLocaleDateString('en-GB')}`
+                                        : 'Certificate validity date not available'
+                                      }
+                                    </p>
+                                    
+                                    {property.energyData.recommendations && property.energyData.recommendations.length > 0 && (
+                                      <div className="mt-3 p-3 bg-green-50 rounded-md">
+                                        <h6 className="text-xs font-medium text-green-800 mb-2">Energy Efficiency Recommendations:</h6>
+                                        <ul className="text-xs text-green-700 space-y-1">
+                                          {property.energyData.recommendations.slice(0, 3).map((rec, index) => (
+                                            <li key={index} className="flex justify-between">
+                                              <span>{rec.improvement}</span>
+                                              <span className="font-medium">{rec.savingEstimate}</span>
+                                            </li>
+                                          ))}
+                                          {property.energyData.recommendations.length > 3 && (
+                                            <li className="text-green-600 font-medium">
+                                              +{property.energyData.recommendations.length - 3} more recommendations
+                                            </li>
+                                          )}
+                                        </ul>
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="mt-2">
+                                    <p className="text-sm text-gray-500">
+                                  Energy Rating: {property.energy_rating || 'Not available'}
+                                </p>
+                                    <p className="text-xs text-gray-500">
+                                      {property.energy_rating ? 'Certificate details not enriched' : 'No certificate on file'}
+                                </p>
+                              </div>
+                                )}
+                              </div>
+                              
+                              {!property.energyData && !property.energy_rating && (
+                                <button className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-black bg-[#D9E8FF] hover:bg-blue-100">
+                                  Book Inspection
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Gas Safety Certificate */}
+                          <div className="bg-white p-4 rounded-lg border border-gray-200">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h5 className="text-sm font-medium text-gray-900">Gas Safety Certificate</h5>
+                                <p className="mt-1 text-sm text-gray-500">
+                                  Last inspection: Not available
+                                </p>
+                                <p className="mt-1 text-xs text-gray-500">
+                                  No certificate on file
+                                </p>
+                              </div>
+                              <button className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-black bg-[#D9E8FF] hover:bg-blue-100">
+                                Book Inspection
+                              </button>
+                            </div>
+                          </div>
+                          
+                          {/* Electrical Safety Certificate */}
+                          <div className="bg-white p-4 rounded-lg border border-gray-200">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h5 className="text-sm font-medium text-gray-900">Electrical Installation Condition Report (EICR)</h5>
+                                <p className="mt-1 text-sm text-gray-500">
+                                  Last inspection: Not available
+                                </p>
+                                <p className="mt-1 text-xs text-gray-500">
+                                  No certificate on file
+                                </p>
+                              </div>
+                              <button className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-black bg-[#D9E8FF] hover:bg-blue-100">
+                                Book Inspection
+                              </button>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <h5 className="text-sm font-medium text-gray-900">Need to book an inspection?</h5>
+                            <p className="mt-1 text-sm text-gray-500">
+                              We can arrange certified inspectors to visit your property and provide all necessary certificates to ensure legal compliance.
+                            </p>
+                            <button className="mt-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-black bg-[#D9E8FF] hover:bg-blue-100">
+                              Schedule Inspections
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     </TabsContent>
 
                     <TabsContent value="documents" className="mt-0">
@@ -1180,216 +1528,36 @@ export default function PropertyDetails() {
                             </button>
                           </div>
 
-                          {/* Mobile responsive table */}
-                          <div className="overflow-x-auto -mx-4 sm:mx-0 sm:rounded-lg" data-component-name="PropertyDetails">
-                            <table className="min-w-full divide-y divide-gray-200">
-                              <thead className="bg-gray-50">
-                                <tr>
-                                  <th scope="col"
-                                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell"
-                                    data-component-name="PropertyDetails"
-                                  >
-                                    Document Name
-                                  </th>
-                                  <th scope="col"
-                                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sm:table-cell hidden"
-                                    data-component-name="PropertyDetails"
-                                  >
-                                    Type
-                                  </th>
-                                  <th scope="col"
-                                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell"
-                                  >
-                                    Upload Date
-                                  </th>
-                                  <th scope="col"
-                                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell"
-                                  >
-                                    Size
-                                  </th>
-                                  <th scope="col"
-                                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                  >
-                                    <span className="sr-only">Actions</span>
-                                  </th>
-                                </tr>
-                              </thead>
-                              <tbody className="bg-white divide-y divide-gray-200">
-                                <tr>
-                                  <td className="px-4 py-3 text-sm text-gray-900 sm:whitespace-nowrap" data-component-name="PropertyDetails">
-                                    <div className="flex flex-col sm:hidden mb-2">
-                                      <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 self-start mb-1">
-                                        Mortgage
-                                      </span>
-                                      <span className="text-xs text-gray-500 mb-1">Jan 15, 2024 • 2.3 MB</span>
-                                    </div>
-                                    Mortgage Document.pdf
-                                  </td>
-                                  <td className="px-4 py-3 whitespace-nowrap text-sm hidden sm:table-cell">
-                                    <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                      Mortgage
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                    Jan 15, 2024
-                                  </td>
-                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                    2.3 MB
-                                  </td>
-                                  <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                                    <div className="flex justify-end sm:justify-start space-x-3">
-                                      <a href="#"
-                                        className="text-blue-600 hover:text-blue-900"
-                                      >
-                                        View
-                                      </a>
-                                      <a href="#"
-                                        className="text-blue-600 hover:text-blue-900"
-                                      >
-                                        Download
-                                      </a>
-                                    </div>
-                                  </td>
-                                </tr>
-                                <tr>
-                                  <td className="px-4 py-3 text-sm text-gray-900 sm:whitespace-nowrap">
-                                    <div className="flex flex-col sm:hidden mb-2">
-                                      <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 self-start mb-1">
-                                        Insurance
-                                      </span>
-                                      <span className="text-xs text-gray-500 mb-1">Feb 10, 2024 • 3.1 MB</span>
-                                    </div>
-                                    Insurance Policy.pdf
-                                  </td>
-                                  <td className="px-4 py-3 whitespace-nowrap text-sm hidden sm:table-cell">
-                                    <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                      Insurance
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                    Feb 10, 2024
-                                  </td>
-                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                    3.1 MB
-                                  </td>
-                                  <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                                    <div className="flex justify-end sm:justify-start space-x-3">
-                                      <a href="#"
-                                        className="text-blue-600 hover:text-blue-900"
-                                      >
-                                        View
-                                      </a>
-                                      <a href="#"
-                                        className="text-blue-600 hover:text-blue-900"
-                                      >
-                                        Download
-                                      </a>
-                                    </div>
-                                  </td>
-                                </tr>
-                                <tr>
-                                  <td className="px-4 py-3 text-sm text-gray-900 sm:whitespace-nowrap">
-                                    <div className="flex flex-col sm:hidden mb-2">
-                                      <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800 self-start mb-1">
-                                        EPC
-                                      </span>
-                                      <span className="text-xs text-gray-500 mb-1">Nov 5, 2023 • 1.5 MB</span>
-                                    </div>
-                                    Energy Performance Certificate.pdf
-                                  </td>
-                                  <td className="px-4 py-3 whitespace-nowrap text-sm hidden sm:table-cell">
-                                    <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                      EPC
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                    Nov 5, 2023
-                                  </td>
-                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                                    1.5 MB
-                                  </td>
-                                  <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                                    <div className="flex justify-end sm:justify-start space-x-3">
-                                      <a href="#"
-                                        className="text-blue-600 hover:text-blue-900"
-                                      >
-                                        View
-                                      </a>
-                                      <a href="#"
-                                        className="text-blue-600 hover:text-blue-900"
-                                      >
-                                        Download
-                                      </a>
-                                    </div>
-                                  </td>
-                                </tr>
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      </div>
-                    </TabsContent>
-                    
-                    {/* Overview Tab */}
-                    <TabsContent value="overview" className="mt-0">
-                      <div className="bg-white shadow-sm rounded-lg border border-gray-200">
-                        <div className="px-4 py-5 sm:p-6">
-                          <h3 className="text-lg font-medium leading-6 text-gray-900">Property Overview</h3>
-                          <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                            <div className="bg-white overflow-hidden shadow-sm rounded-lg">
-                              <div className="px-4 py-5 sm:p-6">
-                                <dt className="text-sm font-medium text-gray-500 truncate">Property Type</dt>
-                                <dd className="mt-1 text-3xl font-semibold text-gray-900">{property?.type}</dd>
-                              </div>
-                            </div>
-                            <div className="bg-white overflow-hidden shadow-sm rounded-lg">
-                              <div className="px-4 py-5 sm:p-6">
-                                <dt className="text-sm font-medium text-gray-500 truncate">Bedrooms</dt>
-                                <dd className="mt-1 text-3xl font-semibold text-gray-900">{property?.bedrooms}</dd>
-                              </div>
-                            </div>
-                            <div className="bg-white overflow-hidden shadow-sm rounded-lg">
-                              <div className="px-4 py-5 sm:p-6">
-                                <dt className="text-sm font-medium text-gray-500 truncate">Bathrooms</dt>
-                                <dd className="mt-1 text-3xl font-semibold text-gray-900">{property?.bathrooms}</dd>
-                              </div>
-                            </div>
-                            <div className="bg-white overflow-hidden shadow-sm rounded-lg">
-                              <div className="px-4 py-5 sm:p-6">
-                                <dt className="text-sm font-medium text-gray-500 truncate">Square Feet</dt>
-                                <dd className="mt-1 text-3xl font-semibold text-gray-900">{property?.squareFeet}</dd>
-                              </div>
-                            </div>
-                            <div className="bg-white overflow-hidden shadow-sm rounded-lg">
-                              <div className="px-4 py-5 sm:p-6">
-                                <dt className="text-sm font-medium text-gray-500 truncate">Rent Amount</dt>
-                                <dd className="mt-1 text-3xl font-semibold text-gray-900">£{property?.rentAmount}</dd>
-                              </div>
-                            </div>
-                            <div className="bg-white overflow-hidden shadow-sm rounded-lg">
-                              <div className="px-4 py-5 sm:p-6">
-                                <dt className="text-sm font-medium text-gray-500 truncate">Status</dt>
-                                <dd className="mt-1 text-3xl font-semibold text-gray-900">{property?.status}</dd>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="mt-8">
-                            <h4 className="text-md font-medium text-gray-900">Description</h4>
-                            <p className="mt-2 text-sm text-gray-500">{property?.description}</p>
-                          </div>
-                          
-                          <div className="mt-8">
-                            <h4 className="text-md font-medium text-gray-900">Amenities</h4>
-                            <ul className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                              {property?.amenities?.map((amenity, index) => (
-                                <li key={index} className="flex items-center text-sm text-gray-500">
-                                  <svg className="flex-shrink-0 mr-1.5 h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          {/* No documents found - show upload interface */}
+                          <div className="bg-gray-50 p-6 rounded-lg border border-dashed border-gray-300">
+                            <div className="text-center">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              <h3 className="mt-2 text-sm font-medium text-gray-900">No documents uploaded</h3>
+                              <p className="mt-1 text-sm text-gray-500">
+                                Upload important property documents like deeds, surveys, or contracts
+                              </p>
+                              <div className="mt-6">
+                                <label htmlFor="document-file-upload" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-black bg-[#D9E8FF] hover:bg-[#C5DAFF] cursor-pointer" data-component-name="PropertyDetails">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                                   </svg>
-                                  {amenity}
-                                </li>
-                              ))}
+                                  Upload Documents
+                                </label>
+                                <input id="document-file-upload" name="document-file-upload" type="file" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" className="sr-only" />
+                                    </div>
+                                    </div>
+                                    </div>
+                          
+                          <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                            <h5 className="text-sm font-medium text-blue-900">Recommended documents to upload:</h5>
+                            <ul className="mt-2 text-sm text-blue-700 list-disc list-inside space-y-1">
+                              <li>Property deed or title documents</li>
+                              <li>Building survey or structural reports</li>
+                              <li>Planning permissions or building regulations</li>
+                              <li>Warranty information for appliances</li>
+                              <li>Service contracts (heating, security, etc.)</li>
                             </ul>
                           </div>
                         </div>
@@ -1406,7 +1574,7 @@ export default function PropertyDetails() {
             <div className="bg-white shadow-sm sm:rounded-lg border border-gray-200">
               <div className="p-4 sm:px-6 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 gap-4">
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900">
+                  <h3 className="text-lg font-cabinet-grotesk font-bold text-gray-900">
                     Open Issues
                   </h3>
                   <p className="text-sm text-gray-500 mt-1">
@@ -1416,7 +1584,6 @@ export default function PropertyDetails() {
                 <button className="w-full sm:w-auto px-4 py-2 bg-gray-900 rounded-md text-sm font-medium text-white hover:bg-gray-800 flex items-center justify-center"
                   onClick={openNewIssueDrawer}
                 >
-                  <PlusIcon className="h-4 w-4 mr-1.5" />
                   Add issue
                 </button>
               </div>
@@ -1521,7 +1688,7 @@ export default function PropertyDetails() {
                         <div className="flex-shrink-0">
                           <Image src={
                               tenant.image ||
-                              "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+                              "/images/default/user-placeholder.png"
                             }
                             alt={tenant.name}
                             width={40}

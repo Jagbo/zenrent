@@ -34,42 +34,7 @@ type Issue = {
   assignedTo?: string;
 };
 
-const mockIssues: Issue[] = [
-  {
-    id: "TASK-8782",
-    title:
-      "You can't compress the program without quantifying the open-source SSD...",
-    type: "Documentation",
-    status: "In Progress",
-    priority: "Medium",
-    property: "Frontend",
-    reported: "2024-03-20",
-    assignedTo: "JS",
-  },
-  {
-    id: "TASK-7878",
-    title:
-      "Try to calculate the EXE feed, maybe it will index the multi-byte pixel!",
-    type: "Documentation",
-    status: "Backlog",
-    priority: "Medium",
-    property: "Backend",
-    reported: "2024-03-19",
-    assignedTo: "RW",
-  },
-  {
-    id: "TASK-7839",
-    title: "We need to bypass the neural TCP card!",
-    type: "Bug",
-    status: "Todo",
-    priority: "High",
-    property: "API",
-    reported: "2024-03-18",
-    assignedTo: "SJ",
-  },
-];
-
-export function IssuesList() {
+export function IssuesList({ issues }: { issues: Issue[] }) {
   const [selectedIssues, setSelectedIssues] = useState<string[]>([]);
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -84,9 +49,9 @@ export function IssuesList() {
 
   const toggleAll = () => {
     setSelectedIssues((current) =>
-      current.length === mockIssues.length
+      current.length === issues.length
         ? []
-        : mockIssues.map((issue) => issue.id),
+        : issues.map((issue) => issue.id),
     );
   };
 
@@ -123,6 +88,25 @@ export function IssuesList() {
     setIsDrawerOpen(true);
   };
 
+  // Remove mock issues data - use only real data from props
+  const displayIssues = issues || [];
+
+  if (displayIssues.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <div className="mx-auto h-12 w-12 text-gray-400">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        </div>
+        <h3 className="mt-2 text-sm font-medium text-gray-900">No issues found</h3>
+        <p className="mt-1 text-sm text-gray-500">
+          No maintenance issues have been reported for this property yet.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-4">
@@ -140,7 +124,7 @@ export function IssuesList() {
           <TableHeader>
             <TableRow>
               <TableHead className="w-12">
-                <Checkbox checked={selectedIssues.length === mockIssues.length}
+                <Checkbox checked={selectedIssues.length === displayIssues.length}
                   onCheckedChange={toggleAll}
                 />
               </TableHead>
@@ -151,7 +135,7 @@ export function IssuesList() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {mockIssues.map((issue) => (
+            {displayIssues.map((issue) => (
               <TableRow key={issue.id}
                 className="cursor-pointer hover:bg-muted/50"
               >

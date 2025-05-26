@@ -76,7 +76,6 @@ const getOccupancyStatus = (rate: number) => {
 
 // Convert IProperty from Supabase to PropertyForUI for display
 const convertToUIProperty = (property: IProperty): PropertyForUI => {
-  // Default images based on property type
   const getDefaultImageByType = (type: string) => {
     const typeToLower = (type || "").toLowerCase();
     
@@ -88,8 +87,8 @@ const convertToUIProperty = (property: IProperty): PropertyForUI => {
       return "/images/default/House-image.png";
     }
     
-    // Default fallback image
-    return "https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=800&h=400";
+    // Use local placeholder instead of Unsplash
+    return "/images/default/property-placeholder.png";
   };
 
   // Log the property for debugging purposes
@@ -144,148 +143,6 @@ const convertToUIProperty = (property: IProperty): PropertyForUI => {
     image: property.photo_url || property.image || defaultImage,
   };
 };
-
-// Sample data for fallback
-const sampleProperties: PropertyForUI[] = [
-  {
-    id: "123-main",
-    name: "123 Main Street",
-    address: "Manchester, M1 1AA",
-    city: "Manchester",
-    state: "Greater Manchester",
-    zipCode: "M1 1AA",
-    type: "Apartment Building",
-    status: "available",
-    units: 12,
-    occupancyRate: 92,
-    monthlyRevenue: 15000,
-    rentAmount: 15000,
-    bedrooms: 2,
-    bathrooms: 1,
-    squareFeet: 800,
-    description: "Modern apartment building in Manchester city center",
-    amenities: ["Parking", "Elevator", "Security"],
-    yearBuilt: 2010,
-    parkingSpots: 12,
-    image:
-      "https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=800&h=400",
-  },
-  {
-    id: "456-park",
-    name: "456 Park Avenue",
-    address: "Liverpool, L1 1AA",
-    city: "Liverpool",
-    state: "Merseyside",
-    zipCode: "L1 1AA",
-    type: "Townhouse Complex",
-    status: "available",
-    units: 8,
-    occupancyRate: 100,
-    monthlyRevenue: 12000,
-    rentAmount: 12000,
-    bedrooms: 3,
-    bathrooms: 2,
-    squareFeet: 1200,
-    description: "Modern townhouse complex in Liverpool",
-    amenities: ["Garden", "Parking", "Pet Friendly"],
-    yearBuilt: 2015,
-    parkingSpots: 10,
-    image:
-      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&h=400",
-  },
-  {
-    id: "789-ocean",
-    name: "789 Ocean Drive",
-    address: "Brighton, BN1 1AA",
-    city: "Brighton",
-    state: "East Sussex",
-    zipCode: "BN1 1AA",
-    type: "Apartment Building",
-    status: "available",
-    units: 15,
-    occupancyRate: 87,
-    monthlyRevenue: 18000,
-    rentAmount: 18000,
-    bedrooms: 2,
-    bathrooms: 1,
-    squareFeet: 750,
-    description: "Seafront apartment complex in Brighton",
-    amenities: ["Sea View", "Balcony", "Gym"],
-    yearBuilt: 2008,
-    parkingSpots: 15,
-    image:
-      "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&h=400",
-  },
-  {
-    id: "321-victoria",
-    name: "321 Victoria Road",
-    address: "Edinburgh, EH1 1AA",
-    city: "Edinburgh",
-    state: "Midlothian",
-    zipCode: "EH1 1AA",
-    type: "Victorian Houses",
-    status: "available",
-    units: 6,
-    occupancyRate: 100,
-    monthlyRevenue: 9000,
-    rentAmount: 9000,
-    bedrooms: 4,
-    bathrooms: 2,
-    squareFeet: 1500,
-    description: "Charming Victorian houses in Edinburgh",
-    amenities: ["Garden", "Fireplace", "High Ceilings"],
-    yearBuilt: 1890,
-    parkingSpots: 6,
-    image:
-      "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?auto=format&fit=crop&w=800&h=400",
-  },
-  {
-    id: "654-royal",
-    name: "654 Royal Crescent",
-    address: "Bath, BA1 1AA",
-    city: "Bath",
-    state: "Somerset",
-    zipCode: "BA1 1AA",
-    type: "Heritage Building",
-    status: "available",
-    units: 10,
-    occupancyRate: 90,
-    monthlyRevenue: 14000,
-    rentAmount: 14000,
-    bedrooms: 3,
-    bathrooms: 2,
-    squareFeet: 1300,
-    description: "Stunning heritage building in Bath city center",
-    amenities: ["Period Features", "Communal Garden", "Parking"],
-    yearBuilt: 1820,
-    parkingSpots: 8,
-    image:
-      "https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&w=800&h=400",
-  },
-  {
-    id: "987-kings",
-    name: "987 Kings Road",
-    address: "London, SW3 1AA",
-    city: "London",
-    state: "Greater London",
-    zipCode: "SW3 1AA",
-    type: "Luxury Apartments",
-    status: "available",
-    units: 20,
-    occupancyRate: 95,
-    monthlyRevenue: 45000,
-    rentAmount: 45000,
-    bedrooms: 3,
-    bathrooms: 3,
-    squareFeet: 2000,
-    description: "High-end luxury apartments in Chelsea",
-    amenities: ["Concierge", "Gym", "Spa", "Underground Parking"],
-    yearBuilt: 2018,
-    parkingSpots: 25,
-    image:
-      "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=800&h=400",
-  },
-];
 
 export default function Properties() {
   const { user } = useAuth();
@@ -698,9 +555,9 @@ export default function Properties() {
                       <dd className="text-gray-700">{property.type}</dd>
                     </div>
                     <div className="flex justify-between gap-x-4 py-3">
-                      <dt className="text-gray-500">Monthly Revenue</dt>
-                      <dd className="font-medium text-gray-900">
-                        £{property.monthlyRevenue.toLocaleString()}
+                      <dt className="text-gray-500" data-component-name="Properties">Monthly Rent</dt>
+                      <dd className="font-medium text-gray-900" data-component-name="Properties">
+                        £{property.rentAmount > 0 ? property.rentAmount.toLocaleString() : property.monthlyRevenue.toLocaleString()}
                       </dd>
                     </div>
                   </dl>

@@ -137,11 +137,19 @@ async function fillFormFields(pdfDoc: PDFDocument, userData: UserTaxData) {
   const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
   try {
+    // NOTE: The following field names are placeholders and need to be replaced
+    // with actual field names from the PDF templates when they become available
+    
     // --- Fill Common Fields (Apply to both SA100 and SA105 where applicable) ---
-    // Replace 'FIELD_NAME' with actual field names from your PDF templates
-    form.getTextField('FIELD_NAME_UTR')?.setText(userData.utr || '');
-    form.getTextField('FIELD_NAME_FullName')?.setText(userData.fullName || '');
-    form.getTextField('FIELD_NAME_TaxYear')?.setText(userData.taxYear || '');
+    // TODO: Replace placeholder field names with actual PDF form field names
+    const utrField = form.getTextField('utr_number');
+    if (utrField) utrField.setText(userData.utr || '');
+    
+    const nameField = form.getTextField('full_name');
+    if (nameField) nameField.setText(userData.fullName || '');
+    
+    const taxYearField = form.getTextField('tax_year');
+    if (taxYearField) taxYearField.setText(userData.taxYear || '');
     
     // --- Fill SA105 Specific Fields (Property Income) --- 
     // Note: This assumes a single property for simplicity in the example.
@@ -149,12 +157,16 @@ async function fillFormFields(pdfDoc: PDFDocument, userData: UserTaxData) {
     
     const property = userData.properties?.[0]; // Get first property
     if (property) {
-        form.getTextField('SA105_PropertyAddress_Line1')?.setText(property.address || ''); // Adjust field names
-        form.getTextField('SA105_PropertyPostcode')?.setText(property.postcode || ''); // Adjust field names
+        const addressField = form.getTextField('property_address');
+        if (addressField) addressField.setText(property.address || '');
+        
+        const postcodeField = form.getTextField('property_postcode');
+        if (postcodeField) postcodeField.setText(property.postcode || '');
     }
     
     // Box 20: Total rents and other income from property
-    form.getTextField('SA105_TotalIncome')?.setText(userData.totalIncome?.toFixed(2) || '0.00');
+    const totalIncomeField = form.getTextField('total_income');
+    if (totalIncomeField) totalIncomeField.setText(userData.totalIncome?.toFixed(2) || '0.00');
 
     // --- Expense Boxes (Calculate totals from transactions) ---
     const expenses = {
@@ -166,45 +178,58 @@ async function fillFormFields(pdfDoc: PDFDocument, userData: UserTaxData) {
         travel: calculateExpenseTotal(userData.transactions, 'travel'),
         officeAdmin: calculateExpenseTotal(userData.transactions, 'office_admin'),
         legalProfessional: calculateExpenseTotal(userData.transactions, 'legal_professional'),
-        mortgageInterest: calculateExpenseTotal(userData.transactions, 'mortgage_interest'), // Typically box 29 if allowable
+        mortgageInterest: calculateExpenseTotal(userData.transactions, 'mortgage_interest'),
         other: calculateExpenseTotal(userData.transactions, 'other_expense'),
-        // Add other relevant HMRC expense categories if needed (e.g., Rent/Rates - Box 24)
     };
 
-    // Map calculated expenses to form fields (Replace FIELD_NAME placeholders)
-    form.getTextField('SA105_RepairsMaintenance')?.setText(expenses.repairsMaintenance.toFixed(2)); // Box 25
-    form.getTextField('SA105_Insurance')?.setText(expenses.insurance.toFixed(2)); // Box 26
-    form.getTextField('SA105_AgentFees')?.setText(expenses.agentFees.toFixed(2)); // Box 28 (part of legal/prof/other)
-    form.getTextField('SA105_Utilities')?.setText(expenses.utilities.toFixed(2)); // Box 27 (part of services)
-    form.getTextField('SA105_CouncilTax')?.setText(expenses.councilTax.toFixed(2)); // Box 24 (part of rent/rates/ground rent)
-    form.getTextField('SA105_LegalProfessional')?.setText(expenses.legalProfessional.toFixed(2)); // Box 28
-    form.getTextField('SA105_FinanceCharges')?.setText(expenses.mortgageInterest.toFixed(2)); // Box 29
-    form.getTextField('SA105_OtherExpenses')?.setText(expenses.other.toFixed(2)); // Box 30
-    // You'll need to sum appropriate categories for HMRC boxes like Rent/Rates (24), Services (27), Legal/Prof/Other (28)
+    // Map calculated expenses to form fields (TODO: Replace with actual field names)
+    const repairsField = form.getTextField('repairs_maintenance');
+    if (repairsField) repairsField.setText(expenses.repairsMaintenance.toFixed(2));
+    
+    const insuranceField = form.getTextField('insurance_costs');
+    if (insuranceField) insuranceField.setText(expenses.insurance.toFixed(2));
+    
+    const agentFeesField = form.getTextField('agent_fees');
+    if (agentFeesField) agentFeesField.setText(expenses.agentFees.toFixed(2));
+    
+    const utilitiesField = form.getTextField('utilities');
+    if (utilitiesField) utilitiesField.setText(expenses.utilities.toFixed(2));
+    
+    const councilTaxField = form.getTextField('council_tax');
+    if (councilTaxField) councilTaxField.setText(expenses.councilTax.toFixed(2));
+    
+    const legalProfField = form.getTextField('legal_professional');
+    if (legalProfField) legalProfField.setText(expenses.legalProfessional.toFixed(2));
+    
+    const financeChargesField = form.getTextField('finance_charges');
+    if (financeChargesField) financeChargesField.setText(expenses.mortgageInterest.toFixed(2));
+    
+    const otherExpensesField = form.getTextField('other_expenses');
+    if (otherExpensesField) otherExpensesField.setText(expenses.other.toFixed(2));
 
-    // Box 31: Total Expenses (Sum of relevant expense boxes as per form instructions)
-    // This should match userData.totalExpenses if calculation is correct
-    form.getTextField('SA105_TotalExpenses')?.setText(userData.totalExpenses?.toFixed(2) || '0.00');
+    // Box 31: Total Expenses
+    const totalExpensesField = form.getTextField('total_expenses');
+    if (totalExpensesField) totalExpensesField.setText(userData.totalExpenses?.toFixed(2) || '0.00');
     
     // Box 32: Net Profit (or Loss)
     const netProfit = userData.totalIncome - userData.totalExpenses;
-    const netProfitField = form.getTextField('SA105_NetProfit');
-    const netLossField = form.getTextField('SA105_NetLoss');
+    const netProfitField = form.getTextField('net_profit');
+    const netLossField = form.getTextField('net_loss');
+    
     if (netProfit >= 0) {
-      netProfitField?.setText(netProfit.toFixed(2));
-      netLossField?.setText(''); // Clear loss field
+      if (netProfitField) netProfitField.setText(netProfit.toFixed(2));
+      if (netLossField) netLossField.setText(''); // Clear loss field
     } else {
-      netLossField?.setText(Math.abs(netProfit).toFixed(2));
-      netProfitField?.setText(''); // Clear profit field
+      if (netLossField) netLossField.setText(Math.abs(netProfit).toFixed(2));
+      if (netProfitField) netProfitField.setText(''); // Clear profit field
     }
 
     // --- Fill SA100 Specific Fields (Example) ---
-    // You would add logic here to fill SA100 fields if formType is SA100
-    // form.getTextField('SA100_SomeField')?.setText(...);
+    // TODO: Add SA100 field mappings when template is available
 
   } catch (error) {
     console.error("Error filling PDF form fields:", error);
-    firstPage.drawText('Error filling form fields. Check logs.', {
+    firstPage.drawText('Error filling form fields. Check logs for details.', {
       x: 50, y: height - 50, size: 10, font: helveticaFont, color: rgb(1, 0, 0)
     });
   }

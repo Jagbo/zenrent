@@ -1,0 +1,335 @@
+// ... (rest of the code remains the same)
+
+  return (
+    <SidebarLayout>
+      <div className="space-y-6">
+        {/* Page header */}
+        <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Self Assessment Tax Filing</h1>
+            <p className="mt-1 text-sm text-gray-500">
+              Submit your Self Assessment tax return and manage your Making Tax Digital compliance
+            </p>
+          </div>
+        </div>
+        
+        {/* Tax Summary Navigation */}
+        <div className="py-0">
+          <nav aria-label="Progress" className="overflow-x-auto">
+            <ol role="list"
+              className="divide-y divide-gray-300 rounded-md border border-gray-300 md:flex md:divide-y-0 bg-white min-w-full w-max md:w-full"
+            >
+              {steps.map((step, stepIdx) => (
+                <li key={step.name} className="relative md:flex md:flex-1">
+                  {step.status === "complete" ? (
+                    <a href={step.href}
+                      className="group flex w-full items-center"
+                    >
+                      <span className="flex items-center px-3 py-3 md:px-6 md:py-4 text-sm font-medium">
+                        <span className="flex size-8 md:size-10 shrink-0 items-center justify-center rounded-full bg-[#D9E8FF] group-hover:bg-[#D9E8FF]/80">
+                          <svg className="h-5 w-5 md:h-6 md:w-6 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </span>
+                        <span className="ml-3 md:ml-4 text-xs md:text-sm font-cabinet-grotesk font-bold text-gray-900">
+                          {step.name}
+                        </span>
+                      </span>
+                    </a>
+                  ) : step.status === "current" ? (
+                    <a href={step.href}
+                      aria-current="step"
+                      className="flex items-center px-3 py-3 md:px-6 md:py-4 text-sm font-medium"
+                    >
+                      <span className="flex size-8 md:size-10 shrink-0 items-center justify-center rounded-full border-2 border-[#D9E8FF]">
+                        <span className="text-xs md:text-sm text-gray-900">{step.id}</span>
+                      </span>
+                      <span className="ml-3 md:ml-4 text-xs md:text-sm font-cabinet-grotesk font-bold text-gray-900">
+                        {step.name}
+                      </span>
+                    </a>
+                  ) : (
+                    <a href={step.href} className="group flex items-center">
+                      <span className="flex items-center px-3 py-3 md:px-6 md:py-4 text-sm font-medium">
+                        <span className="flex size-8 md:size-10 shrink-0 items-center justify-center rounded-full border-2 border-gray-300 group-hover:border-gray-400">
+                          <span className="text-xs md:text-sm text-gray-500 group-hover:text-gray-900">{step.id}</span>
+                        </span>
+                        <span className="ml-3 md:ml-4 text-xs md:text-sm font-cabinet-grotesk font-medium text-gray-500 group-hover:text-gray-900">
+                          {step.name}
+                        </span>
+                      </span>
+                    </a>
+                  )}
+                  
+                  {stepIdx !== steps.length - 1 ? (
+                    <div aria-hidden="true" className="absolute top-0 right-0 hidden h-full w-5 md:block">
+                      <svg
+                        fill="none"
+                        viewBox="0 0 22 80"
+                        preserveAspectRatio="none"
+                        className="size-full text-gray-300"
+                      >
+                        <path
+                          d="M0 -2L20 40L0 82"
+                          stroke="currentcolor"
+                          vectorEffect="non-scaling-stroke"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </div>
+                  ) : null}
+                </li>
+              ))}
+            </ol>
+          </nav>
+        </div>
+        
+        {/* Main content */}
+        <div className="bg-white shadow sm:rounded-lg overflow-hidden">
+          <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
+            <h3 className="text-base/7 font-cabinet-grotesk font-bold text-gray-900">
+              Tax Filing with Making Tax Digital
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              HMRC now requires digital record keeping and quarterly updates through Making Tax Digital
+            </p>
+          </div>
+          
+          <div className="px-4 py-5 sm:p-6">
+            {loading ? (
+              <div className="flex justify-center py-6">
+                <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-indigo-600 border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+                <p className="ml-2 text-sm text-gray-500">Loading...</p>
+              </div>
+            ) : error ? (
+              <div className="rounded-md bg-red-50 p-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-red-800">Error</h3>
+                    <div className="mt-2 text-sm text-red-700">
+                      <p>{error}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Tax Year Information */}
+                <div className="bg-gray-50 rounded-md p-4">
+                  <dl className="grid grid-cols-1 gap-x-4 gap-y-6">
+                    <div className="sm:col-span-1">
+                      <dt className="text-sm font-medium text-gray-500">Tax Year</dt>
+                      <dd className="mt-1 text-sm text-gray-900">
+                        {currentTaxYear || "Not selected"}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+                
+                {/* Filing Steps Guide */}
+                <div className="border border-gray-200 rounded-md overflow-hidden">
+                  <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                    <h3 className="text-sm font-medium text-gray-900">Filing Process</h3>
+                  </div>
+                  <div className="px-4 py-4 divide-y divide-gray-200">
+                    {/* Step 1 */}
+                    <div className="py-3 flex items-start">
+                      <div className={`flex-shrink-0 flex items-center justify-center size-6 rounded-full ${isHmrcConnected ? 'bg-green-100' : 'bg-blue-100'} mt-1`}>
+                        {isHmrcConnected ? (
+                          <svg className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          <span className="text-xs font-medium text-blue-800">1</span>
+                        )}
+                      </div>
+                      <div className="ml-3">
+                        <h4 className="text-sm font-medium text-gray-900">
+                          {isHmrcConnected ? 'Connected to HMRC' : 'Connect to HMRC'}
+                        </h4>
+                        <p className="mt-1 text-sm text-gray-500">
+                          {isHmrcConnected 
+                            ? 'Your ZenRent account is connected to HMRC for Making Tax Digital.' 
+                            : 'Connect your ZenRent account to HMRC to enable Making Tax Digital submissions.'}
+                        </p>
+                        {!isHmrcConnected && (
+                          <button
+                            type="button"
+                            onClick={handleConnectToHmrc}
+                            className="mt-2 inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-gray-900 bg-[#D9E8FF] hover:bg-[#D9E8FF]/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#D9E8FF]"
+                          >
+                            Connect to HMRC
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Step 2 */}
+                    <div className="py-3 flex items-start">
+                      <div className={`flex-shrink-0 flex items-center justify-center size-6 rounded-full ${mtdObligations.length > 0 ? 'bg-green-100' : 'bg-gray-100'} mt-1`}>
+                        <span className="text-xs font-medium text-gray-800">2</span>
+                      </div>
+                      <div className="ml-3">
+                        <h4 className="text-sm font-medium text-gray-900">View Your Obligations</h4>
+                        <p className="mt-1 text-sm text-gray-500">
+                          {isHmrcConnected 
+                            ? 'Check your quarterly update obligations and submission deadlines.' 
+                            : 'Connect to HMRC first to view your obligations.'}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {/* Step 3 */}
+                    <div className="py-3 flex items-start">
+                      <div className="flex-shrink-0 flex items-center justify-center size-6 rounded-full bg-gray-100 mt-1">
+                        <span className="text-xs font-medium text-gray-800">3</span>
+                      </div>
+                      <div className="ml-3">
+                        <h4 className="text-sm font-medium text-gray-900">Submit Your Return</h4>
+                        <p className="mt-1 text-sm text-gray-500">
+                          {isHmrcConnected 
+                            ? 'Submit your quarterly or annual tax return to HMRC.' 
+                            : 'Connect to HMRC first to enable submissions.'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Information about next steps */}
+                <div className="mt-4">
+                  {!isHmrcConnected ? (
+                    <div className="rounded-md bg-blue-50 p-4">
+                      <div className="flex">
+                        <div className="flex-shrink-0">
+                          <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <h3 className="text-sm font-medium text-blue-800">Next Steps</h3>
+                          <div className="mt-2 text-sm text-blue-700">
+                            <ol className="list-decimal pl-5 space-y-1">
+                              <li>Connect to HMRC using the button below</li>
+                              <li>View your tax obligations</li>
+                              <li>Select an obligation to begin your submission</li>
+                              <li>Complete and submit your tax return</li>
+                            </ol>
+                          </div>
+                          <div className="mt-3">
+                            <button
+                              type="button"
+                              onClick={handleConnectToHmrc}
+                              className="inline-flex items-center rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-black shadow-sm hover:bg-indigo-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-300"
+                            >
+                              Connect to HMRC
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-md bg-green-50 p-4">
+                      <div className="flex">
+                        <div className="flex-shrink-0">
+                          <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM3.707 9.293a1 1 0 00-1.414 1.414L7.586 10l-1.293 1.293a1 1 0 101.414 1.414l-3 3a1 1 0 00-1.414 0l-1-1a1 1 0 00-1.414 1.414L4 11.414V9a1 1 0 00-1-1V6a1 1 0 00-1-1H2a1 1 0 00-1 1v3a1 1 0 001 1h1a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h1a1 1 0 001-1v-3a1 1 0 00-1-1H9a1 1 0 00-1 1v1a1 1 0 001 1h1a1 1 0 001-1v-1a1 1 0 011-1h1a1 1 0 001 1v1a1 1 0 001 1h1a1 1 0 001-1v-1a1 1 0 00-1-1H11a1 1 0 00-1 1v2a1 1 0 001 1h1a1 1 0 001-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v1a1 1 0 001 1h1a1 1 0 001-1V9a1 1 0 001 1h1a1 1 0 001-1V6a1 1 0 001 1h1a1 1 0 001-1h2a1 1 0 001 1v3a1 1 0 001 1h1a1 1 0 001-1v-2a1 1 0 00-1-1H16a1 1 0 00-1 1v2a1 1 0 001 1h1a1 1 0 001-1v-3a1 1 0 00-1-1H9a1 1 0 00-1 1H4a1 1 0 001-1z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <h3 className="text-sm font-medium text-green-800">Connected to HMRC</h3>
+                          <div className="mt-2 text-sm text-green-700">
+                            <p>You are now connected to HMRC's Making Tax Digital service. You can:</p>
+                            <ul className="list-disc pl-5 mt-1 space-y-1">
+                              <li>View your tax obligations below</li>
+                              <li>Select an obligation to begin your submission</li>
+                              <li>Track your submission status</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Action buttons */}
+          <div className="px-4 py-4 sm:px-6 border-t border-gray-200 flex justify-between">
+            <button type="button"
+              onClick={() => router.push("/financial/tax/summary")}
+              className="text-sm/6 font-semibold text-gray-900"
+            >
+              Back to Summary
+            </button>
+            
+            <button type="button"
+              onClick={() => router.push("/dashboard")}
+              className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs border border-gray-300 hover:bg-gray-50"
+            >
+              Return to Dashboard
+            </button>
+          </div>
+        </div>
+        
+        {/* Tax Type Selector removed as requested */}
+        
+        {/* HMRC Connection Guide */}
+        <HmrcConnectionGuide
+          isConnected={isHmrcConnected === true}
+          onConnect={handleConnectToHmrc}
+        />
+        
+        {/* HMRC Connection Status removed as requested */}
+        
+        {/* Tax Journey Status - shown when connected */}
+        {isHmrcConnected && (
+          <TaxJourneyStatus
+            currentStage={mtdObligations.length > 0 ? 'obligations-received' : 'hmrc-connected'}
+            taxType={selectedTaxType === 'vat' ? 'VAT' : selectedTaxType === 'self-assessment' ? 'Self Assessment' : 'Property Income (SA105)'}
+          />
+        )}
+        
+        {/* Obligations Section */}
+        <ObligationsSection
+          isConnected={isHmrcConnected === true}
+          obligations={mtdObligations.map(obligation => ({
+            ...obligation,
+            taxType: obligation.type.toLowerCase().includes('vat') ? 'vat' : 
+                     obligation.type.toLowerCase().includes('self assessment') ? 'self-assessment' : 'income-tax'
+          }))}
+          compliance={mtdCompliance}
+          timestamp={mtdTimestamp}
+          onConnectClick={handleConnectToHmrc}
+          taxType={selectedTaxType}
+        />
+        
+        {/* Submission Dashboard */}
+        <SubmissionDashboard
+          submissions={submissions}
+          obligations={mtdObligations.map(obligation => ({
+            ...obligation,
+            taxType: obligation.type.toLowerCase().includes('vat') ? 'vat' : 
+                     obligation.type.toLowerCase().includes('self assessment') ? 'self-assessment' : 'income-tax'
+          }))}
+          onStartSubmission={startWizard} // MODIFIED: Use startWizard
+          onViewSubmission={(submissionId) => {
+            // Navigate to the submissions history page
+            router.push('/financial/tax/filing/submissions');
+          }}
+        />
+        
+        {/* Help Section */}
+        <HelpSection />
+      </div>
+    </SidebarLayout>
+  );
+}
+
+// ... (rest of the code remains the same)
