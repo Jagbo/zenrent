@@ -76,27 +76,10 @@ export const IssueDrawer: React.FC<IssueDrawerProps> = ({
     if (!issue) return;
     
     try {
-      // For demo purposes, we'll use hardcoded UUIDs that match our database
-      // In a real app, you'd have proper mapping between UI and database IDs
-      const issueIdMap: Record<string | number, string> = {
-        // Map numeric or string IDs to actual UUIDs in the database
-        '1254': 'a1b2c3d4-e5f6-4a5b-9c8d-7e6f5a4b3c2d', // Leaking Faucet
-        '1253': 'c3d4e5f6-a7b8-4a5b-9c8d-7e6f5a4b3c2f', // Roof Inspection
-        '1252': 'b2c3d4e5-f6a7-4a5b-9c8d-7e6f5a4b3c2e', // Heating Issue
-        1254: 'a1b2c3d4-e5f6-4a5b-9c8d-7e6f5a4b3c2d',
-        1253: 'c3d4e5f6-a7b8-4a5b-9c8d-7e6f5a4b3c2f',
-        1252: 'b2c3d4e5-f6a7-4a5b-9c8d-7e6f5a4b3c2e'
-      };
+      // Use the actual issue ID directly - no hardcoded mapping needed
+      const databaseIssueId = issue.id.toString();
       
-      // Determine the actual UUID to use for the query
-      let databaseIssueId = issue.id.toString();
-      
-      // If we have a mapping for this ID, use it
-      if (issueIdMap[issue.id]) {
-        databaseIssueId = issueIdMap[issue.id];
-      }
-      
-      console.log('Fetching activity logs for issue ID:', issue.id, 'using database ID:', databaseIssueId);
+      console.log('Fetching activity logs for issue ID:', issue.id);
       
       // Query the activity log table
       try {
@@ -122,32 +105,12 @@ export const IssueDrawer: React.FC<IssueDrawerProps> = ({
             issue_id: databaseIssueId,
             activity_type: 'issue_created',
             description: 'Issue was reported',
-            created_at: new Date().toISOString()
+            created_at: issue.reported || new Date().toISOString()
           }]);
         }
       } catch (error) {
         console.error("Error in Supabase activity log query:", error);
         // Set a default activity even if the query fails
-        setActivities([{
-          id: `default-${issue.id}`,
-          issue_id: databaseIssueId,
-          activity_type: 'issue_created',
-          description: 'Issue was reported',
-          created_at: new Date().toISOString()
-        }]);
-      }
-      
-      if (activityError) {
-        console.error("Error fetching activity logs:", activityError);
-        return;
-      }
-      
-      console.log('Activity logs fetched:', activityData);
-      
-      if (activityData && activityData.length > 0) {
-        setActivities(activityData);
-      } else {
-        // If no activities found, create a default one for issue creation
         setActivities([{
           id: `default-${issue.id}`,
           issue_id: databaseIssueId,
@@ -166,29 +129,12 @@ export const IssueDrawer: React.FC<IssueDrawerProps> = ({
     if (!issue) return;
     
     try {
-      // For demo purposes, we'll use hardcoded UUIDs that match our database
-      // In a real app, you'd have proper mapping between UI and database IDs
-      const issueIdMap: Record<string | number, string> = {
-        // Map numeric or string IDs to actual UUIDs in the database
-        '1254': 'a1b2c3d4-e5f6-4a5b-9c8d-7e6f5a4b3c2d', // Leaking Faucet
-        '1253': 'c3d4e5f6-a7b8-4a5b-9c8d-7e6f5a4b3c2f', // Roof Inspection
-        '1252': 'b2c3d4e5-f6a7-4a5b-9c8d-7e6f5a4b3c2e', // Heating Issue
-        1254: 'a1b2c3d4-e5f6-4a5b-9c8d-7e6f5a4b3c2d',
-        1253: 'c3d4e5f6-a7b8-4a5b-9c8d-7e6f5a4b3c2f',
-        1252: 'b2c3d4e5-f6a7-4a5b-9c8d-7e6f5a4b3c2e'
-      };
+      // Use the actual issue ID directly - no hardcoded mapping needed
+      const databaseIssueId = issue.id.toString();
       
-      // Determine the actual UUID to use for the query
-      let databaseIssueId = issue.id.toString();
+      console.log('Fetching comments for issue ID:', issue.id);
       
-      // If we have a mapping for this ID, use it
-      if (issueIdMap[issue.id]) {
-        databaseIssueId = issueIdMap[issue.id];
-      }
-      
-      console.log('Fetching comments for issue ID:', issue.id, 'using database ID:', databaseIssueId);
-      
-      // Direct query to get comments for this issue using the mapped ID
+      // Direct query to get comments for this issue
       const { data: commentsData, error: commentsError } = await supabase
         .from("issue_comments")
         .select("*")
@@ -196,8 +142,8 @@ export const IssueDrawer: React.FC<IssueDrawerProps> = ({
         .order("created_at", { ascending: true });
       
       if (commentsError) {
-        console.error("Error directly fetching comments:", commentsError);
-        throw commentsError;
+        console.error("Error fetching comments:", commentsError);
+        return;
       }
       
       console.log('Comments fetched:', commentsData);
@@ -205,22 +151,8 @@ export const IssueDrawer: React.FC<IssueDrawerProps> = ({
       if (commentsData && commentsData.length > 0) {
         setComments(commentsData);
       } else {
-        // Try all known issue IDs as a fallback
-        console.log('No comments found with mapped ID, trying all known IDs...');
-        
-        // Get all comments and filter client-side
-        const { data: allComments, error: allCommentsError } = await supabase
-          .from("issue_comments")
-          .select("*")
-          .order("created_at", { ascending: true });
-          
-        if (allCommentsError) {
-          console.error("Error fetching all comments:", allCommentsError);
-        } else if (allComments && allComments.length > 0) {
-          console.log('All comments:', allComments);
-          // Show all comments for debugging purposes
-          setComments(allComments);
-        }
+        console.log('No comments found for this issue');
+        setComments([]);
       }
     } catch (error) {
       console.error("Error fetching issue comments:", error);
@@ -514,8 +446,12 @@ export const IssueDrawer: React.FC<IssueDrawerProps> = ({
           <div>
             <h3 className="text-sm font-medium text-gray-500">Description</h3>
             <p className="mt-2 text-sm text-gray-900">
-              Detailed description would go here. For now, this is a placeholder
-              for the issue description.
+              {/* Show actual issue description if available, otherwise show appropriate message */}
+              {(issue as any).description || 
+               (isPropertyIssue(issue) ? 
+                 "No detailed description provided for this maintenance issue." : 
+                 "No detailed description provided for this issue."
+               )}
             </p>
           </div>
 

@@ -306,47 +306,6 @@ export default function Integrations() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Accounting Software */}
-          <Card className="cursor-pointer hover:border-blue-200 transition-colors"
-            onClick={() => setIsAccountingDrawerOpen(true)}
-          >
-            <CardHeader className="pb-3">
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-                <CardTitle className="text-xl">Accounting</CardTitle>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 w-fit">
-                  <CheckCircleIcon className="h-4 w-4 mr-1" />
-                  Connected
-                </span>
-              </div>
-              <CardDescription className="mt-1">
-                Sync financial data with accounting software
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div className="flex items-center">
-                  <Image src="/next.svg"
-                    alt="QuickBooks"
-                    width={32}
-                    height={32}
-                    className="rounded mr-2"
-                  />
-                  <div>
-                    <p className="text-sm font-medium">QuickBooks</p>
-                    <p className="text-xs text-gray-500">
-                      Connected since Jan 2024
-                    </p>
-                  </div>
-                </div>
-                <button className="text-sm text-blue-600 hover:underline w-fit">
-                  Configure
-                </button>
-              </div>
-            </CardContent>
-            <CardFooter className="border-t pt-4 text-xs text-gray-500 flex-wrap">
-              Last sync: 1 day ago
-            </CardFooter>
-          </Card>
 
           {/* Messaging */}
           <Card className="cursor-pointer hover:border-blue-200 transition-colors"

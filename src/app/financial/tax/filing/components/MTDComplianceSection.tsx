@@ -51,26 +51,7 @@ export function MTDComplianceSection({
       </div>
       
       <div className="px-4 py-5 sm:p-6">
-        {/* MTD Status */}
-        <div className="flex items-center mb-4">
-          <div className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center ${isMtdCompliant ? 'bg-green-100' : 'bg-amber-100'}`}>
-            {isMtdCompliant ? (
-              <CheckCircleIcon className="h-6 w-6 text-green-600" />
-            ) : (
-              <ExclamationCircleIcon className="h-6 w-6 text-amber-600" />
-            )}
-          </div>
-          <div className="ml-4">
-            <h4 className="text-lg font-medium text-gray-900">
-              {isMtdCompliant ? 'MTD Compliant' : 'MTD Compliance Required'}
-            </h4>
-            <p className="text-sm text-gray-500">
-              {isMtdCompliant 
-                ? 'Your account is set up for Making Tax Digital submissions.' 
-                : 'You need to connect to HMRC to enable Making Tax Digital submissions.'}
-            </p>
-          </div>
-        </div>
+        {/* MTD Status section removed as requested */}
         
         {/* Connection Status */}
         <div className="bg-gray-50 p-4 rounded-md mb-4">

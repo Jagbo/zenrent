@@ -13,7 +13,7 @@ type Transaction = {
   name: string | null;
   date: string;
   amount: number;
-  category: string | null;
+  category: string[] | null;
   bank_account_id?: string;
   bank_name?: string;
   account_number_end?: string;
@@ -56,10 +56,12 @@ const checkApiValidity = async () => {
 };
 
 // Simple fallback categorization function that doesn't use OpenAI
-function fallbackCategorize(transaction: Transaction): string {
+function fallbackCategorize(transaction: Transaction): string[] {
   const nameStr = (transaction.name || '').toLowerCase();
   const amount = transaction.amount;
   
+  let categoryString = 'exclude'; // Default to exclude
+
   // Simple pattern matching for common transactions
   
   // Check for rental income
@@ -70,22 +72,20 @@ function fallbackCategorize(transaction: Transaction): string {
      nameStr.includes('transfer from') || 
      nameStr.includes('deposit'))
   ) {
-    return 'rental_income';
+    categoryString = 'rental_income';
   }
-  
   // Check for insurance
-  if (
+  else if (
     nameStr.includes('insurance') || 
     nameStr.includes('protect') ||
     nameStr.includes('aviva') ||
     nameStr.includes('axa') ||
     nameStr.includes('policy')
   ) {
-    return 'insurance';
+    categoryString = 'insurance';
   }
-  
   // Check for utilities
-  if (
+  else if (
     nameStr.includes('energy') ||
     nameStr.includes('electric') ||
     nameStr.includes('gas') ||
@@ -97,11 +97,10 @@ function fallbackCategorize(transaction: Transaction): string {
     nameStr.includes('anglian water') ||
     nameStr.includes('scottish power')
   ) {
-    return 'utilities';
+    categoryString = 'utilities';
   }
-  
   // Check for mortgage/interest
-  if (
+  else if (
     nameStr.includes('mortgage') ||
     nameStr.includes('interest') ||
     nameStr.includes('loan payment') ||
@@ -110,102 +109,81 @@ function fallbackCategorize(transaction: Transaction): string {
     nameStr.includes('natwest mortgage') ||
     nameStr.includes('hsbc mortgage')
   ) {
-    return 'mortgage_interest';
+    categoryString = 'mortgage_interest';
   }
-  
   // Check for agent fees
-  if (
+  else if (
     nameStr.includes('agent') ||
     nameStr.includes('letting') ||
     nameStr.includes('management fee') ||
     nameStr.includes('agency')
   ) {
-    return 'agent_fees';
+    categoryString = 'agent_fees';
   }
-  
   // Check for council tax
-  if (
+  else if (
     nameStr.includes('council tax') ||
     nameStr.includes('council') ||
-    nameStr.includes('local authority')
+    nameStr.includes('local authority') ||
+    nameStr.includes('borough council')
   ) {
-    return 'council_tax';
+    categoryString = 'council_tax';
   }
-
   // Check for repairs and maintenance
-  if (
+  else if (
     nameStr.includes('repair') ||
-    nameStr.includes('maint') ||
-    nameStr.includes('plumb') ||
-    nameStr.includes('electric') ||
+    nameStr.includes('maintenance') ||
+    nameStr.includes('fix') ||
+    nameStr.includes('service') ||
+    nameStr.includes('plumber') ||
+    nameStr.includes('electrician') ||
     nameStr.includes('handyman') ||
     nameStr.includes('builder') ||
-    nameStr.includes('home depot') ||
-    nameStr.includes('b&q') ||
     nameStr.includes('wickes') ||
-    nameStr.includes('screwfix') ||
-    nameStr.includes('tools')
+    nameStr.includes('b&q') ||
+    nameStr.includes('homebase') ||
+    nameStr.includes('screwfix')
   ) {
-    return 'repairs_maintenance';
+    categoryString = 'repairs_maintenance';
   }
-  
-  // Check for travel
-  if (
+  // Check for travel expenses
+  else if (
     nameStr.includes('travel') ||
-    nameStr.includes('taxi') ||
-    nameStr.includes('uber') ||
-    nameStr.includes('train') ||
-    nameStr.includes('rail') ||
-    nameStr.includes('transport') ||
+    nameStr.includes('fuel') ||
     nameStr.includes('petrol') ||
-    nameStr.includes('gas station') ||
-    nameStr.includes('parking')
+    nameStr.includes('diesel') ||
+    nameStr.includes('train') ||
+    nameStr.includes('bus') ||
+    nameStr.includes('mileage')
   ) {
-    return 'travel';
+    categoryString = 'travel';
   }
-  
-  // Check for office/admin
-  if (
-    nameStr.includes('office') ||
-    nameStr.includes('admin') ||
+  // Check for office/admin expenses
+  else if (
     nameStr.includes('stationery') ||
-    nameStr.includes('phone') ||
-    nameStr.includes('mobile') ||
+    nameStr.includes('office supplies') ||
     nameStr.includes('software') ||
-    nameStr.includes('subscription') ||
-    nameStr.includes('printer') ||
-    nameStr.includes('computer') ||
-    nameStr.includes('laptop')
+    nameStr.includes('admin') ||
+    nameStr.includes('postage')
   ) {
-    return 'office_admin';
+    categoryString = 'office_admin';
   }
-
-  // Check for legal/professional
-  if (
+  // Check for legal & professional fees
+  else if (
     nameStr.includes('legal') ||
     nameStr.includes('solicitor') ||
     nameStr.includes('accountant') ||
-    nameStr.includes('lawyer') ||
-    nameStr.includes('conveyancing') ||
-    nameStr.includes('tax adviser') ||
-    nameStr.includes('surveyor')
+    nameStr.includes('surveyor') ||
+    nameStr.includes('professional fee')
   ) {
-    return 'legal_professional';
+    categoryString = 'legal_professional';
+  }
+  // Default to other expense if amount is negative and not matched
+  else if (amount < 0) {
+    categoryString = 'other_expense';
   }
   
-  // For any other property-related expenses
-  if (
-    nameStr.includes('property') ||
-    nameStr.includes('house') ||
-    nameStr.includes('flat') ||
-    nameStr.includes('apartment') ||
-    nameStr.includes('tenant')
-  ) {
-    return 'other_expense';
-  }
-  
-  // Default to exclude for other transactions
-  return 'exclude';
+  return categoryString ? [categoryString] : []; 
 }
 
 export async function POST(req: Request) {
@@ -437,25 +415,27 @@ async function processBatch(transactions: Transaction[]): Promise<Transaction[]>
       // Find the corresponding transaction from the AI response
       const aiTx = categorizedTransactionsFromAI.find(catTx => catTx.id === originalTx.id);
       
-      let finalCategory = originalTx.category; // Default to original category if available
+      let finalCategoryArray: string[] | null = originalTx.category; // Default to original category (which is already string[] | null)
 
       if (aiTx && aiTx.category) {
-          // If the AI provided a category, check if it's valid
-          if (validCategoryValues.has(aiTx.category)) {
-              finalCategory = aiTx.category;
+          // aiTx.category is a string from OpenAI's response
+          const aiCategoryString = aiTx.category;
+          if (validCategoryValues.has(aiCategoryString)) {
+              finalCategoryArray = [aiCategoryString]; // Convert valid string to string array
           } else {
-              // If AI provided an INVALID category, log it and default to 'exclude'
-              console.warn(`[API /openai/categorize-transactions] Invalid category '${aiTx.category}' received from AI for transaction ID ${originalTx.id}. Defaulting to 'exclude'.`);
-              finalCategory = 'exclude';
+              // If AI provided an INVALID category, log it and default to ['exclude']
+              console.warn(`[API /openai/categorize-transactions] Invalid category '${aiCategoryString}' received from AI for transaction ID ${originalTx.id}. Defaulting to ['exclude'].`);
+              finalCategoryArray = ['exclude'];
           }
       } else {
-          // If AI didn't provide a category OR didn't find the transaction, keep original or default to 'exclude'
-          finalCategory = finalCategory ?? 'exclude'; // Use 'exclude' if original was null/undefined
+          // If AI didn't provide a category OR didn't find the transaction, 
+          // ensure finalCategoryArray is at least ['exclude'] if it was null/undefined from originalTx.category
+          finalCategoryArray = finalCategoryArray ?? ['exclude']; 
       }
 
       return {
         ...originalTx,
-        category: finalCategory, 
+        category: finalCategoryArray, // Ensure this is string[] | null
       };
     });
     
@@ -475,7 +455,8 @@ async function processBatch(transactions: Transaction[]): Promise<Transaction[]>
     // Use fallback categorization instead
     return transactions.map(t => ({
       ...t,
-      category: t.category || fallbackCategorize(t)
+      // Ensure fallbackCategorize returns string[] and t.category is also string[] or null
+      category: t.category || fallbackCategorize(t) 
     }));
   }
 } 

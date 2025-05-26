@@ -59,7 +59,6 @@ export default function DirectoryPage() {
     Integrations: [{ path: "/integrations", name: "Integrations" }],
     Development: [
       { path: "/supabase-test", name: "Supabase Test" },
-      { path: "/sidebar-demo", name: "Sidebar Demo" },
       { path: "/dir/icon", name: "Icon Directory" },
       { path: "/dir/colour", name: "Colour Directory" },
     ],

@@ -11,6 +11,14 @@ import { Select } from "../../../components/select";
 import { AddressAutocomplete } from "../../../components/address-autocomplete";
 import { supabase } from "@/lib/supabase";
 import { getAuthUser } from "@/lib/auth-helpers";
+import { 
+  validateNINumber, 
+  formatNINumber, 
+  validateUTR, 
+  formatUTR,
+  validatePostcode
+} from "@/utils/validation";
+import { getCurrentTaxYear, getTaxYearOptions } from "@/services/tax-calculator";
 
 // Tax wizard progress steps
 const steps = [
@@ -36,13 +44,17 @@ export default function PersonalDetailsForm() {
   const [townCity, setTownCity] = useState("");
   const [county, setCounty] = useState("");
   const [postcode, setPostcode] = useState("");
-  const [taxYear, setTaxYear] = useState("2024/2025");
+  const [taxYear, setTaxYear] = useState(getCurrentTaxYear());
   
   // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [userId, setUserId] = useState<string | null>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
+
+  // Get tax year options for dropdown
+  const taxYearOptions = getTaxYearOptions();
 
   // Get the current user and existing profile data on component mount
   useEffect(() => {
@@ -90,11 +102,8 @@ export default function PersonalDetailsForm() {
             console.error("Error fetching tax profile:", taxError);
           }
 
-          if (taxData) {
-            // If we have a tax profile, set the tax year
-            if (taxData.tax_year) {
+          if (taxData && taxData.tax_year) {
               setTaxYear(taxData.tax_year);
-            }
           }
         }
 
@@ -113,25 +122,98 @@ export default function PersonalDetailsForm() {
     loadProfile();
   }, []);
 
+  // Validate individual fields
+  const validateField = (fieldName: string, value: string): string | null => {
+    switch (fieldName) {
+      case 'firstName':
+        return !value.trim() ? 'First name is required' : null;
+      case 'lastName':
+        return !value.trim() ? 'Last name is required' : null;
+      case 'utr':
+        if (!value.trim()) return 'UTR is required';
+        if (!validateUTR(value)) return 'Invalid UTR format or check digit';
+        return null;
+      case 'niNumber':
+        if (value && !validateNINumber(value)) return 'Invalid National Insurance number format';
+        return null;
+      case 'addressLine1':
+        return !value.trim() ? 'Address line 1 is required' : null;
+      case 'townCity':
+        return !value.trim() ? 'Town/City is required' : null;
+      case 'postcode':
+        if (!value.trim()) return 'Postcode is required';
+        if (!validatePostcode(value)) return 'Invalid postcode format';
+        return null;
+      default:
+        return null;
+    }
+  };
+
+  // Handle field blur for real-time validation
+  const handleFieldBlur = (fieldName: string, value: string) => {
+    const error = validateField(fieldName, value);
+    setFieldErrors(prev => ({
+      ...prev,
+      [fieldName]: error || ''
+    }));
+  };
+
+  // Handle UTR input with formatting
+  const handleUtrChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, ''); // Only allow digits
+    if (value.length <= 10) {
+      setUtr(value);
+      handleFieldBlur('utr', value);
+    }
+  };
+
+  // Handle NI number input with formatting
+  const handleNiNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (value.length <= 9) {
+      setNiNumber(value);
+      handleFieldBlur('niNumber', value);
+    }
+  };
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation
-    if (!firstName || !lastName || !utr || !addressLine1 || !townCity || !postcode) {
-      setError("Please fill in all required fields");
-      return;
+    // Clear previous errors
+    setError(null);
+    setFieldErrors({});
+
+    // Validate all required fields
+    const errors: Record<string, string> = {};
+    
+    const requiredFields = {
+      firstName,
+      lastName,
+      utr,
+      addressLine1,
+      townCity,
+      postcode
+    };
+
+    Object.entries(requiredFields).forEach(([field, value]) => {
+      const error = validateField(field, value);
+      if (error) {
+        errors[field] = error;
+    }
+    });
+
+    // Validate optional NI number if provided
+    if (niNumber) {
+      const niError = validateField('niNumber', niNumber);
+      if (niError) {
+        errors.niNumber = niError;
+      }
     }
 
-    // Validate UTR (should be 10 digits)
-    if (!/^\d{10}$/.test(utr)) {
-      setError("UTR must be exactly 10 digits");
-      return;
-    }
-
-    // Validate NI number if provided
-    if (niNumber && !/^[A-Z]{2}\d{6}[A-Z]$/.test(niNumber)) {
-      setError("National Insurance number format should be like AB123456C");
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setError("Please correct the errors below");
       return;
     }
 
@@ -146,7 +228,6 @@ export default function PersonalDetailsForm() {
     }
 
     setIsSubmitting(true);
-    setError(null);
 
     try {
       // Update or insert the user profile first
@@ -163,7 +244,7 @@ export default function PersonalDetailsForm() {
             county: county,
             postcode: postcode,
             utr: utr,
-            national_insurance_number: niNumber,
+            national_insurance_number: niNumber || null,
             updated_at: new Date().toISOString(),
           },
           { 
@@ -232,7 +313,7 @@ export default function PersonalDetailsForm() {
               county: county,
               postcode: postcode,
               utr: utr,
-              national_insurance_number: niNumber,
+              national_insurance_number: niNumber || null,
               updated_at: new Date().toISOString(),
             },
             { 
@@ -281,7 +362,6 @@ export default function PersonalDetailsForm() {
   if (!profileLoaded) {
     return (
       <SidebarLayout 
-        sidebar={<SidebarContent currentPath={pathname} />} 
         isOnboarding={false}
         searchValue=""
       >
@@ -294,7 +374,6 @@ export default function PersonalDetailsForm() {
 
   return (
     <SidebarLayout 
-      sidebar={<SidebarContent currentPath={pathname} />} 
       isOnboarding={false}
       searchValue=""
     >
@@ -421,8 +500,12 @@ export default function PersonalDetailsForm() {
                           required
                           value={firstName}
                           onChange={(e) => setFirstName(e.target.value)}
-                          className="block w-full"
+                          onBlur={(e) => handleFieldBlur('firstName', e.target.value)}
+                          className={`block w-full ${fieldErrors.firstName ? 'border-red-500' : ''}`}
                         />
+                        {fieldErrors.firstName && (
+                          <p className="mt-1 text-sm text-red-600">{fieldErrors.firstName}</p>
+                        )}
                       </div>
                     </div>
 
@@ -440,8 +523,12 @@ export default function PersonalDetailsForm() {
                           required
                           value={lastName}
                           onChange={(e) => setLastName(e.target.value)}
-                          className="block w-full"
+                          onBlur={(e) => handleFieldBlur('lastName', e.target.value)}
+                          className={`block w-full ${fieldErrors.lastName ? 'border-red-500' : ''}`}
                         />
+                        {fieldErrors.lastName && (
+                          <p className="mt-1 text-sm text-red-600">{fieldErrors.lastName}</p>
+                        )}
                       </div>
                     </div>
 
@@ -458,14 +545,19 @@ export default function PersonalDetailsForm() {
                           type="text"
                           required
                           value={utr}
-                          onChange={(e) => setUtr(e.target.value)}
-                          className="block w-full"
+                          onChange={handleUtrChange}
+                          onBlur={(e) => handleFieldBlur('utr', e.target.value)}
+                          className={`block w-full ${fieldErrors.utr ? 'border-red-500' : ''}`}
                           maxLength={10}
+                          placeholder="1234567890"
                         />
-                      </div>
+                        {fieldErrors.utr && (
+                          <p className="mt-1 text-sm text-red-600">{fieldErrors.utr}</p>
+                        )}
                       <p className="mt-1 text-sm text-gray-500">
                         You can find this on any HMRC letter regarding your tax return.
                       </p>
+                      </div>
                     </div>
 
                     <div className="sm:col-span-4">
@@ -480,13 +572,19 @@ export default function PersonalDetailsForm() {
                           name="ni-number"
                           type="text"
                           value={niNumber}
-                          onChange={(e) => setNiNumber(e.target.value)}
-                          className="block w-full"
+                          onChange={handleNiNumberChange}
+                          onBlur={(e) => handleFieldBlur('niNumber', e.target.value)}
+                          className={`block w-full ${fieldErrors.niNumber ? 'border-red-500' : ''}`}
+                          maxLength={9}
+                          placeholder="AB123456C"
                         />
-                      </div>
+                        {fieldErrors.niNumber && (
+                          <p className="mt-1 text-sm text-red-600">{fieldErrors.niNumber}</p>
+                        )}
                       <p className="mt-1 text-sm text-gray-500">
                         Format: Two letters, six numbers, one letter (e.g. AB123456C).
                       </p>
+                      </div>
                     </div>
 
                     <div className="sm:col-span-3">
@@ -498,59 +596,63 @@ export default function PersonalDetailsForm() {
                       <div className="mt-2">
                         <Select
                           id="tax-year"
-                          name="tax-year"
                           value={taxYear}
                           onChange={(e) => setTaxYear(e.target.value)}
                           className="block w-full"
-                          required
                         >
-                          <option value="2024/2025">2024/2025</option>
-                          <option value="2023/2024">2023/2024</option>
-                          <option value="2022/2023">2022/2023</option>
+                          {taxYearOptions.map((option: { value: string; label: string }) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
                         </Select>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Contact Address */}
-                <div>
+                {/* Address Details */}
+                <div className="border-b border-gray-900/10 pb-6">
                   <h3 className="text-base/7 font-cabinet-grotesk font-bold text-gray-900">
-                    Contact Address
+                    Address Information
                   </h3>
                   <p className="mt-1 text-sm/6 text-gray-600">
-                    Your current contact address for HMRC correspondence.
+                    Your current address for tax correspondence.
                   </p>
                   <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-6">
                     <div className="sm:col-span-6">
-                      <label htmlFor="address-line-1"
+                      <label htmlFor="address-line1"
                         className="block text-sm/6 font-medium text-gray-900"
                       >
-                        Address line 1 *
+                        Address Line 1 *
                       </label>
                       <div className="mt-2">
-                        <AddressAutocomplete addressLine1={addressLine1}
-                          onAddressSelect={(address) => {
-                            setAddressLine1(address.addressLine1);
-                            setAddressLine2(address.addressLine2);
-                            setTownCity(address.townCity);
-                            setCounty(address.county);
-                            setPostcode(address.postcode);
-                          }}
+                        <Input 
+                          id="address-line1"
+                          name="address-line1"
+                          type="text"
+                          required
+                          value={addressLine1}
+                          onChange={(e) => setAddressLine1(e.target.value)}
+                          onBlur={(e) => handleFieldBlur('addressLine1', e.target.value)}
+                          className={`block w-full ${fieldErrors.addressLine1 ? 'border-red-500' : ''}`}
                         />
+                        {fieldErrors.addressLine1 && (
+                          <p className="mt-1 text-sm text-red-600">{fieldErrors.addressLine1}</p>
+                        )}
                       </div>
                     </div>
 
                     <div className="sm:col-span-6">
-                      <label htmlFor="address-line-2"
+                      <label htmlFor="address-line2"
                         className="block text-sm/6 font-medium text-gray-900"
                       >
-                        Address line 2 (optional)
+                        Address Line 2
                       </label>
                       <div className="mt-2">
                         <Input 
-                          id="address-line-2"
-                          name="address-line-2"
+                          id="address-line2"
+                          name="address-line2"
                           type="text"
                           value={addressLine2}
                           onChange={(e) => setAddressLine2(e.target.value)}
@@ -559,7 +661,7 @@ export default function PersonalDetailsForm() {
                       </div>
                     </div>
 
-                    <div className="sm:col-span-2">
+                    <div className="sm:col-span-3">
                       <label htmlFor="town-city"
                         className="block text-sm/6 font-medium text-gray-900"
                       >
@@ -573,12 +675,16 @@ export default function PersonalDetailsForm() {
                           required
                           value={townCity}
                           onChange={(e) => setTownCity(e.target.value)}
-                          className="block w-full"
+                          onBlur={(e) => handleFieldBlur('townCity', e.target.value)}
+                          className={`block w-full ${fieldErrors.townCity ? 'border-red-500' : ''}`}
                         />
+                        {fieldErrors.townCity && (
+                          <p className="mt-1 text-sm text-red-600">{fieldErrors.townCity}</p>
+                        )}
                       </div>
                     </div>
 
-                    <div className="sm:col-span-2">
+                    <div className="sm:col-span-3">
                       <label htmlFor="county"
                         className="block text-sm/6 font-medium text-gray-900"
                       >
@@ -609,9 +715,14 @@ export default function PersonalDetailsForm() {
                           type="text"
                           required
                           value={postcode}
-                          onChange={(e) => setPostcode(e.target.value)}
-                          className="block w-full"
+                          onChange={(e) => setPostcode(e.target.value.toUpperCase())}
+                          onBlur={(e) => handleFieldBlur('postcode', e.target.value)}
+                          className={`block w-full ${fieldErrors.postcode ? 'border-red-500' : ''}`}
+                          placeholder="SW1A 1AA"
                         />
+                        {fieldErrors.postcode && (
+                          <p className="mt-1 text-sm text-red-600">{fieldErrors.postcode}</p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -619,27 +730,21 @@ export default function PersonalDetailsForm() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-x-6 border-t border-gray-900/10 px-4 py-4 sm:px-6">
-              <button type="button"
-                onClick={() => router.push("/financial/tax/company-or-personal")}
-                className="text-sm/6 font-semibold text-gray-900"
-                disabled={isSubmitting}
-              >
-                Back
-              </button>
-              <button type="button"
+            <div className="flex items-center justify-between gap-x-6 border-t border-gray-900/10 px-4 py-4 sm:px-8">
+              <Button 
+                type="button" 
+                outline
                 onClick={handleSaveAsDraft}
-                className="text-sm/6 font-semibold text-gray-900"
                 disabled={isSubmitting}
               >
                 Save as Draft
-              </button>
-              <button type="submit"
-                className="rounded-md bg-d9e8ff px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs hover:bg-d9e8ff-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff disabled:opacity-50"
+              </Button>
+              <Button 
+                type="submit"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? "Saving..." : "Continue"}
-              </button>
+                {isSubmitting ? 'Saving...' : 'Continue to Properties'}
+              </Button>
             </div>
           </form>
         </div>

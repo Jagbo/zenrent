@@ -1,0 +1,847 @@
+"use client";
+
+import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { SidebarLayout } from "../../components/sidebar-layout";
+import { SidebarContent } from "../../components/sidebar-content";
+import { Heading } from "../../components/heading";
+import { Text } from "../../components/text";
+import { Link } from "../../../components/link";
+import Image from "next/image";
+import {
+  BuildingOffice2Icon,
+  CurrencyDollarIcon,
+  ExclamationCircleIcon,
+  UserGroupIcon,
+  KeyIcon,
+  PlusIcon,
+} from "@heroicons/react/24/outline";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { classNames } from "../../../utils/classNames";
+import {
+  PencilIcon,
+  XMarkIcon,
+  MegaphoneIcon,
+} from "@heroicons/react/24/solid";
+import { IssueDrawer, Issue } from "../../components/IssueDrawer";
+import { PropertyFormDrawer } from "../../components/PropertyFormDrawer";
+import { EditPropertyDrawer } from "../../components/EditPropertyDrawer";
+import { AdvertisePropertyDrawer } from "../../components/AdvertisePropertyDrawer";
+import { IssueFormDrawer } from "../../components/IssueFormDrawer";
+import {
+  getPropertyWithTenants,
+  IPropertyWithTenants,
+  ITenant,
+} from "../../../lib/propertyService";
+import { getPropertyIssues, createIssue } from "../../../lib/issueService";
+import { supabase } from "../../../lib/supabase";
+import { ChevronDownIcon } from "@heroicons/react/24/solid";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import {
+  getAllPropertyDetails,
+  IPropertyImage,
+  IPropertyFloorPlan,
+  IPropertyInsurance,
+  IPropertyMortgage
+} from "../../../lib/propertyDetailsService";
+
+// Define the Property interface for UI
+interface PropertyForUI {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  type: string;
+  status: string;
+  bedrooms: number;
+  bathrooms: number;
+  squareFeet: number;
+  rentAmount: number;
+  description: string;
+  amenities: string[];
+  yearBuilt: number;
+  parkingSpots: number;
+  units: number;
+  occupancyRate: number;
+  monthlyRevenue: number;
+  image: string;
+  images?: string[]; // Optional for backward compatibility
+  floorPlan?: string; // Optional for backward compatibility
+  current_valuation?: number; // Property value from database
+  purchase_price?: number; // Purchase price from database
+  energy_rating?: string; // Energy efficiency rating
+  council_tax_band?: string; // Council tax band
+  is_furnished?: boolean; // Whether the property is furnished
+  tenants: ITenant[];
+  stats: {
+    totalRooms: number;
+    occupiedRooms: number;
+    monthlyRevenue: number;
+    maintenanceCosts: number;
+  };
+  // Optional properties for backward compatibility
+  financials?: {
+    monthlyIncome: number;
+    expenses: number;
+    netIncome: number;
+    occupancyRate: number;
+  };
+  details?: {
+    mortgage: {
+      lender: string;
+      amount: number;
+      rate: string;
+      term: string;
+      monthlyPayment: number;
+    };
+    insurance: {
+      provider: string;
+      coverage: number;
+      premium: number;
+      expiryDate: string;
+    };
+  };
+}
+
+// Define the Property interface expected by EditPropertyDrawer
+interface PropertyForEdit {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  type: string;
+  status: string;
+  bedrooms: number;
+  bathrooms: number;
+  squareFeet: number;
+  rentAmount: number;
+  description: string;
+  amenities: string[];
+  yearBuilt: number;
+  parkingSpots: number;
+}
+
+// Fetch financial data for a property from Supabase
+const fetchFinancialData = async (propertyId: string) => {
+  const supabase = createClientComponentClient();
+  const currentDate = new Date();
+  const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+  const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+  
+  // Format dates for SQL query
+  const startDate = firstDayOfMonth.toISOString();
+  const endDate = lastDayOfMonth.toISOString();
+  
+  try {
+    // Get total income for the current month
+    const { data: incomeData, error: incomeError } = await supabase
+      .from('income')
+      .select('amount')
+      .eq('property_id', propertyId)
+      .gte('date', startDate)
+      .lte('date', endDate);
+      
+    if (incomeError) throw incomeError;
+    
+    // Get total expenses for the current month
+    const { data: expenseData, error: expenseError } = await supabase
+      .from('expenses')
+      .select('amount')
+      .eq('property_id', propertyId)
+      .gte('date', startDate)
+      .lte('date', endDate);
+      
+    if (expenseError) throw expenseError;
+    
+    // Get latest financial metrics
+    const { data: metricsData, error: metricsError } = await supabase
+      .from('financial_metrics')
+      .select('*')
+      .eq('property_id', propertyId)
+      .order('period_end', { ascending: false })
+      .limit(1);
+      
+    if (metricsError) throw metricsError;
+    
+    // Calculate totals
+    const totalIncome = incomeData.reduce((sum, item) => sum + Number(item.amount), 0);
+    const totalExpenses = expenseData.reduce((sum, item) => sum + Number(item.amount), 0);
+    const netIncome = totalIncome - totalExpenses;
+    
+    // Get occupancy rate from metrics or calculate default
+    const occupancyRate = metricsData && metricsData.length > 0 
+      ? Number(metricsData[0].occupancy_rate) 
+      : null;
+    
+    return {
+      monthlyIncome: totalIncome,
+      expenses: totalExpenses,
+      netIncome: netIncome,
+      occupancyRate: occupancyRate
+    };
+  } catch (error) {
+    console.error('Error fetching financial data:', error);
+    return null;
+  }
+};
+
+// Convert Supabase property to UI format
+const convertToUIProperty = (property: IPropertyWithTenants): PropertyForUI => {
+  // Default image if not available
+  const defaultImage =
+    "https://images.unsplash.com/photo-1580587771525-78b9dba3b914";
+
+  // Calculate stats
+  const totalRooms = property.bedrooms || 1;
+  const occupiedRooms = property.bathrooms || 0;
+  const occupancyRate =
+    totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
+  const monthlyRevenue =
+    property.tenants?.reduce(
+      (sum, tenant) => sum + (tenant.rent_amount || 0),
+      0,
+    ) || 0;
+
+  // Maintenance costs are not in the database yet, using a placeholder
+  const maintenanceCosts = Math.round(monthlyRevenue * 0.1); // 10% of revenue as placeholder
+
+  return {
+    id: property.id,
+    name: property.name || property.address,
+    address: property.address,
+    city: property.city,
+    state: property.state || "",
+    zipCode: property.zipCode || "",
+    type: property.property_type,
+    status: property.status || "available",
+    bedrooms: property.bedrooms || 0,
+    bathrooms: property.bathrooms || 0,
+    squareFeet: property.squareFeet || 0,
+    rentAmount: property.rentAmount || 0,
+    description: property.description || "",
+    amenities: property.amenities || [],
+    current_valuation: property.current_valuation || null,
+    purchase_price: property.purchase_price || null,
+    energy_rating: property.energy_rating || null,
+    council_tax_band: property.council_tax_band || null,
+    is_furnished: property.is_furnished || false,
+    yearBuilt: property.yearBuilt || 0,
+    parkingSpots: property.parkingSpots || 0,
+    units: totalRooms,
+    occupancyRate: occupancyRate,
+    monthlyRevenue: monthlyRevenue,
+    image: property.image || defaultImage,
+    images: [property.image || defaultImage], // Create array with single image
+    floorPlan: "/sample-floor-plan.png", // Default floor plan
+    tenants: property.tenants || [],
+    stats: {
+      totalRooms: totalRooms,
+      occupiedRooms: occupiedRooms,
+      monthlyRevenue: monthlyRevenue,
+      maintenanceCosts: maintenanceCosts,
+    },
+    // Add these for backward compatibility
+    financials: {
+      monthlyIncome: monthlyRevenue,
+      expenses: maintenanceCosts,
+      netIncome: monthlyRevenue - maintenanceCosts,
+      occupancyRate: occupancyRate,
+    },
+    details: {
+      mortgage: {
+        lender: "ABC Bank",
+        amount: 2500000,
+        rate: "3.5%",
+        term: "30 years",
+        monthlyPayment: 11220,
+      },
+      insurance: {
+        provider: "XYZ Insurance",
+        coverage: 3000000,
+        premium: 1200,
+        expiryDate: "2025-03-15",
+
+export default function PropertyDetails() {
+  const { id: propertyId } = useParams<{ id: string }>();
+  const [property, setProperty] = useState<PropertyForUI | null>(null);
+  const [loading, setLoading] = useState(true);
+  // ... (rest of the code remains the same)
+
+  // Fetch property data when component mounts
+  useEffect(() => {
+    const fetchProperty = async () => {
+      setLoading(true);
+      setError(null);
+
+      console.log("Fetching property details for ID:", propertyId);
+
+      try {
+        const data = await getPropertyWithTenants(propertyId);
+        console.log("Property data received:", data ? "yes" : "no");
+
+        if (data) {
+          console.log("Property found:", data.id);
+          // Convert to UI format
+          const uiProperty = convertToUIProperty(data);
+          
+          // Fetch property details from database (images, floor plans, insurance, mortgage, amenities)
+          await fetchPropertyDetails(propertyId);
+          
+          // Fetch financial data
+          setFinancialDataLoading(true);
+          const financials = await fetchFinancialData(propertyId);
+          if (financials) {
+            setFinancialData(financials);
+            
+            // Update property with financial data
+            uiProperty.financials = {
+              monthlyIncome: financials.monthlyIncome,
+              expenses: financials.expenses,
+              netIncome: financials.netIncome,
+              occupancyRate: financials.occupancyRate || uiProperty.occupancyRate
+            };
+          }
+          
+          // Update property with database amenities if available
+          if (propertyAmenities.length > 0) {
+            uiProperty.amenities = propertyAmenities;
+          }
+          
+          setProperty(uiProperty);
+          setFinancialDataLoading(false);
+
+          // Set selected property for edit drawer
+          setSelectedProperty({
+            id: uiProperty.id,
+            name: uiProperty.name,
+            address: uiProperty.address,
+            city: uiProperty.city,
+            state: uiProperty.state || "",
+            zipCode: uiProperty.zipCode || "",
+            type: uiProperty.type,
+            status: uiProperty.status || "available",
+            bedrooms: uiProperty.bedrooms || 0,
+            bathrooms: uiProperty.bathrooms || 0,
+            squareFeet: uiProperty.squareFeet || 0,
+            rentAmount: uiProperty.rentAmount || 0,
+            description: uiProperty.description || "",
+            amenities: uiProperty.amenities || [],
+            yearBuilt: uiProperty.yearBuilt || 0,
+            parkingSpots: uiProperty.parkingSpots || 0,
+          });
+        } else {
+          console.log("No property found with ID:", propertyId);
+          setError("Property not found. Please check the URL and try again.");
+        }
+      } catch (error) {
+        console.error(`Error fetching property ${propertyId}:`, error);
+        setError(
+          `Error loading property: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (propertyId) {
+      fetchProperty();
+    } else {
+      setError("No property ID provided");
+      setLoading(false);
+    }
+  }, [propertyId]);
+
+  // ... (rest of the code remains the same)
+}
+                          
+                          {/* Insurance Upsell Opportunity */}
+                          <div className="rounded-md border p-4 bg-[#F0F7FF] border-[#D9E8FF]">
+                            <div className="flex items-start">
+                              <div className="flex-shrink-0 mt-0.5">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                              <div className="ml-3">
+                                <h3 className="text-sm font-medium text-blue-800">Save up to 15% on your landlord insurance</h3>
+                                <div className="mt-2 text-sm text-blue-700">
+                                  <p>ZenRent has partnered with top insurance providers to offer exclusive discounts for our users. Compare quotes and potentially save hundreds of pounds annually.</p>
+                                </div>
+                                <div className="mt-4">
+                                  <button
+                                    type="button"
+                                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-black bg-[#D9E8FF] hover:bg-blue-100"
+                                  >
+                                    Compare Insurance Quotes
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="rounded-md border p-4 bg-white">
+                          <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                              <h4 className="text-sm font-medium text-gray-900">
+                                Add Insurance Information
+                              </h4>
+                            </div>
+                            <div className="bg-gray-50 p-6 rounded-lg border border-dashed border-gray-300">
+                              <div className="text-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <h3 className="mt-2 text-sm font-medium text-gray-900">Upload insurance documents</h3>
+                                <p className="mt-1 text-sm text-gray-500">
+                                  Upload your landlord insurance policy to keep track of coverage details
+                                </p>
+                                <div className="mt-6">
+                                  <label htmlFor="insurance-file-upload" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 cursor-pointer">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                    </svg>
+                                    Upload Document
+                                  </label>
+                                  <input id="insurance-file-upload" name="insurance-file-upload" type="file" className="sr-only" />
+                                </div>
+                              </div>
+                            </div>
+                            <div className="mt-4">
+                              <h5 className="text-sm font-medium text-gray-700 mb-2">Or enter details manually</h5>
+                              <button
+                                type="button"
+                                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50"
+                              >
+                                Add Insurance Details
+                              </button>
+                            </div>
+                            
+                            {/* Insurance Upsell Opportunity */}
+                            <div className="mt-6 rounded-md border p-4 bg-[#F0F7FF] border-[#D9E8FF]">
+                              <div className="flex items-start">
+                                <div className="flex-shrink-0 mt-0.5">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clipRule="evenodd" />
+                                  </svg>
+                                </div>
+                                <div className="ml-3">
+                                  <h3 className="text-sm font-medium text-blue-800">Save up to 15% on your landlord insurance</h3>
+                                  <div className="mt-2 text-sm text-blue-700">
+                                    <p>ZenRent has partnered with top insurance providers to offer exclusive discounts for our users. Compare quotes and potentially save hundreds of pounds annually.</p>
+                                  </div>
+                                  <div className="mt-4">
+                                    <button
+                                      type="button"
+                                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-black bg-[#D9E8FF] hover:bg-blue-100"
+                                    >
+                                      Compare Insurance Quotes
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </TabsContent>
+                    
+                    <TabsContent value="certificates" className="mt-0">
+                      <div className="rounded-md border p-4 bg-white">
+                        <div className="space-y-6">
+                          <div className="flex justify-between items-center">
+                            <h4 className="text-sm font-medium text-gray-900">
+                              Property Certificates
+                            </h4>
+                            <button className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-gray-900 hover:bg-gray-800">
+                              <PlusIcon className="h-4 w-4 mr-1" />
+                              Upload Certificate
+                            </button>
+                          </div>
+                          
+                          {/* EPC Certificate */}
+                          <div className="bg-white p-4 rounded-lg border border-gray-200">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h5 className="text-sm font-medium text-gray-900">Energy Performance Certificate (EPC)</h5>
+                                <p className="mt-1 text-sm text-gray-500">
+                                  Energy Rating: {property.energy_rating || 'Not available'}
+                                </p>
+                                <p className="mt-1 text-xs text-gray-500">
+                                  {property.energy_rating ? 'Valid until: 15 May 2030' : 'No certificate on file'}
+                                </p>
+                              </div>
+                              {!property.energy_rating && (
+                                <button className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-black bg-[#D9E8FF] hover:bg-blue-100">
+                                  Book Inspection
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Gas Safety Certificate */}
+                          <div className="bg-white p-4 rounded-lg border border-gray-200">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h5 className="text-sm font-medium text-gray-900">Gas Safety Certificate</h5>
+                                <p className="mt-1 text-sm text-gray-500">
+                                  Last inspection: Not available
+                                </p>
+                                <p className="mt-1 text-xs text-gray-500">
+                                  No certificate on file
+                                </p>
+                              </div>
+                              <button className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-black bg-[#D9E8FF] hover:bg-blue-100">
+                                Book Inspection
+                              </button>
+                            </div>
+                          </div>
+                          
+                          {/* Electrical Safety Certificate */}
+                          <div className="bg-white p-4 rounded-lg border border-gray-200">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h5 className="text-sm font-medium text-gray-900">Electrical Installation Condition Report (EICR)</h5>
+                                <p className="mt-1 text-sm text-gray-500">
+                                  Last inspection: Not available
+                                </p>
+                                <p className="mt-1 text-xs text-gray-500">
+                                  No certificate on file
+                                </p>
+                              </div>
+                              <button className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-black bg-[#D9E8FF] hover:bg-blue-100">
+                                Book Inspection
+                              </button>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <h5 className="text-sm font-medium text-gray-900">Need to book an inspection?</h5>
+                            <p className="mt-1 text-sm text-gray-500">
+                              We can arrange certified inspectors to visit your property and provide all necessary certificates to ensure legal compliance.
+                            </p>
+                            <button className="mt-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-black bg-[#D9E8FF] hover:bg-blue-100">
+                              Schedule Inspections
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="documents" className="mt-0">
+                      <div className="rounded-md border p-4 bg-white">
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center" data-component-name="PropertyDetails">
+                            <h4 className="text-sm font-medium text-gray-900" data-component-name="PropertyDetails">
+                              Property Documents
+                            </h4>
+                            <button className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-gray-900 hover:bg-gray-800">
+                              <PlusIcon className="h-4 w-4 mr-1" />
+                              Upload Document
+                            </button>
+                          </div>
+
+                          {/* Mobile responsive table */}
+                          <div className="overflow-x-auto -mx-4 sm:mx-0 sm:rounded-lg" data-component-name="PropertyDetails">
+                            <table className="min-w-full divide-y divide-gray-200">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  <th scope="col"
+                                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell"
+                                    data-component-name="PropertyDetails"
+                                  >
+                                    Document Name
+                                  </th>
+                                  <th scope="col"
+                                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sm:table-cell hidden"
+                                    data-component-name="PropertyDetails"
+                                  >
+                                    Type
+                                  </th>
+                                  <th scope="col"
+                                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell"
+                                  >
+                                    Upload Date
+                                  </th>
+                                  <th scope="col"
+                                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell"
+                                  >
+                                    Size
+                                  </th>
+
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                <tr className="cursor-pointer hover:bg-gray-50" onClick={() => window.open('#', '_blank')}>
+                                  <td className="px-4 py-3 text-sm text-gray-900 sm:whitespace-nowrap" data-component-name="PropertyDetails">
+                                    <div className="flex flex-col sm:hidden mb-2">
+                                      <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 self-start mb-1">
+                                        Mortgage
+                                      </span>
+                                      <span className="text-xs text-gray-500 mb-1">Jan 15, 2024 • 2.3 MB</span>
+                                    </div>
+                                    Mortgage Document.pdf
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm hidden sm:table-cell">
+                                    <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                      Mortgage
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                    Jan 15, 2024
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                    2.3 MB
+                                  </td>
+
+                                </tr>
+                                <tr className="cursor-pointer hover:bg-gray-50" onClick={() => window.open('#', '_blank')}>
+                                  <td className="px-4 py-3 text-sm text-gray-900 sm:whitespace-nowrap">
+                                    <div className="flex flex-col sm:hidden mb-2">
+                                      <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 self-start mb-1">
+                                        Insurance
+                                      </span>
+                                      <span className="text-xs text-gray-500 mb-1">Feb 10, 2024 • 3.1 MB</span>
+                                    </div>
+                                    Insurance Policy.pdf
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm hidden sm:table-cell">
+                                    <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                      Insurance
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                    Feb 10, 2024
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                    3.1 MB
+                                  </td>
+
+                                </tr>
+                                <tr className="cursor-pointer hover:bg-gray-50" onClick={() => window.open('#', '_blank')}>
+                                  <td className="px-4 py-3 text-sm text-gray-900 sm:whitespace-nowrap">
+                                    <div className="flex flex-col sm:hidden mb-2">
+                                      <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800 self-start mb-1">
+                                        EPC
+                                      </span>
+                                      <span className="text-xs text-gray-500 mb-1">Nov 5, 2023 • 1.5 MB</span>
+                                    </div>
+                                    Energy Performance Certificate.pdf
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm hidden sm:table-cell">
+                                    <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                      EPC
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                    Nov 5, 2023
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                                    1.5 MB
+                                  </td>
+
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </TabsContent>
+                    
+
+                  </Tabs>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column - Issues & Tenants (1/3 width) */}
+          <div className="col-span-1 space-y-6">
+            {/* Open Issues */}
+            <div className="bg-white shadow-sm sm:rounded-lg border border-gray-200">
+              <div className="p-4 sm:px-6 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 gap-4">
+                <div>
+                  <h3 className="text-lg font-cabinet-grotesk font-bold text-gray-900">
+                    Open Issues
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Current maintenance and repair issues.
+                  </p>
+                </div>
+                <button className="w-full sm:w-auto px-4 py-2 bg-gray-900 rounded-md text-sm font-medium text-white hover:bg-gray-800 flex items-center justify-center"
+                  onClick={openNewIssueDrawer}
+                >
+                  Add issue
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                {issuesLoading ? (
+                  <div className="flex justify-center items-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                  </div>
+                ) : issuesError ? (
+                  <div className="text-center py-8 text-red-500">
+                    {issuesError}
+                  </div>
+                ) : issues.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    No issues found for this property
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto -mx-4 sm:mx-0 sm:rounded-lg" data-component-name="PropertyDetails">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th scope="col"
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            data-component-name="PropertyDetails"
+                          >
+                            Issue
+                          </th>
+                          <th scope="col"
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell"
+                            data-component-name="PropertyDetails"
+                          >
+                            Priority
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {issues.map((issue) => (
+                          <tr key={issue.id}
+                            onClick={() => openIssueDrawer(issue)}
+                            className="cursor-pointer hover:bg-gray-50"
+                          >
+                            <td className="px-6 py-4 text-sm text-gray-900" data-component-name="PropertyDetails">
+                              <div className="flex items-center">
+                                <div className="sm:hidden mr-2">
+                                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                    issue.priority === "High"
+                                      ? "bg-red-100 text-red-800"
+                                      : issue.priority === "Medium"
+                                        ? "bg-blue-100 text-blue-800"
+                                        : "bg-green-100 text-green-800"
+                                  }`}
+                                  >
+                                    {issue.priority}
+                                  </span>
+                                </div>
+                                <span className="truncate">{issue.title}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap hidden sm:table-cell">
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                  issue.priority === "High"
+                                    ? "bg-red-100 text-red-800"
+                                    : issue.priority === "Medium"
+                                      ? "bg-blue-100 text-blue-800"
+                                      : "bg-green-100 text-green-800"
+                                }`}
+                              >
+                                {issue.priority}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+              <div className="px-6 py-4 border-t border-gray-200">
+                <a href="/issues"
+                  className="text-sm text-gray-900 hover:text-indigo-900"
+                >
+                  View all issues →
+                </a>
+              </div>
+            </div>
+
+            {/* Tenants Table */}
+            <div className="bg-white shadow-sm sm:rounded-lg border border-gray-200">
+              <div className="px-4 py-5 sm:px-6">
+                <h3 className="text-base font-semibold text-gray-900">
+                  Current Tenants
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  List of tenants and their rooms.
+                </p>
+              </div>
+              <div className="border-t border-gray-200">
+                <ul role="list" className="divide-y divide-gray-200">
+                  {property.tenants.map((tenant) => (
+                    <li key={tenant.id} className="px-4 py-4">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex-shrink-0">
+                          <Image src={
+                              tenant.image ||
+                              "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+                            }
+                            alt={tenant.name}
+                            width={40}
+                            height={40}
+                            className="rounded-full"
+                          />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-gray-900">
+                            {tenant.name}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {tenant.email || "No email available"}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {(tenant as any).lease_end_date
+                              ? `Lease ends ${new Date((tenant as any).lease_end_date).toLocaleDateString()}`
+                              : "No lease end date available"}
+                          </p>
+                        </div>
+                        <div>
+                          <Link href={`/residents/${tenant.id}`}
+                            className="text-sm text-gray-900 hover:text-indigo-900"
+                          >
+                            View
+                          </Link>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Edit Property Drawer */}
+        <EditPropertyDrawer isOpen={isDrawerOpen}
+          onClose={() => setIsDrawerOpen(false)}
+          property={selectedProperty}
+          onSave={handleEditSave}
+        />
+
+        {/* Advertise Property Drawer */}
+        <AdvertisePropertyDrawer isOpen={isAdvertiseDrawerOpen}
+          onClose={() => setIsAdvertiseDrawerOpen(false)}
+          propertyName={property.name}
+        />
+
+        {/* Issue Drawer */}
+        <IssueDrawer isOpen={isIssueDrawerOpen}
+          issue={selectedIssue}
+          onClose={() => setIsIssueDrawerOpen(false)}
+        />
+
+        {/* New Issue Form Drawer */}
+        <IssueFormDrawer isOpen={isNewIssueDrawerOpen}
+          onClose={() => setIsNewIssueDrawerOpen(false)}
+          onSubmit={handleIssueSubmit}
+          title="Report New Issue"
+          preSelectedPropertyId={propertyId}
+        />
+      </div>
+    </SidebarLayout>
+  );
+}

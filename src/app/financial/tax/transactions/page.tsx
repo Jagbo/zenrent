@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/lib/supabase";
 import { getAuthUser } from "@/lib/auth-helpers";
 import { Navbar, NavbarSection, NavbarItem, NavbarLabel } from "../../../components/navbar";
-import { toast } from 'sonner'; // Import toast for notifications
+import { toast } from 'sonner';
+import { getCurrentTaxYear } from "@/services/tax-calculator";
 
 // Tax wizard progress steps
 const steps = [
@@ -38,21 +39,13 @@ const categories = [
   { value: "exclude", label: "Exclude", type: "exclude" },
 ];
 
-// Helper function to get category options for Select component
-const getCategoryOptions = () => {
-  return categories.map(category => ({
-    value: category.value,
-    label: category.label
-  }));
-};
-
 // Transaction type
 type Transaction = {
   id: string;
   name: string | null;
   date: string;
   amount: number;
-  category: string | null;
+  category: string[] | null;
   bank_account_id?: string;
   bank_name?: string;
   account_number_end?: string;
@@ -68,17 +61,70 @@ const isDateInTaxYear = (date: Date, taxYear: string): boolean => {
   return date >= taxYearStart && date <= taxYearEnd;
 };
 
+// Helper function to check if a date falls within a custom date range
+const isDateInRange = (date: Date, startDate: string, endDate: string): boolean => {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  return date >= start && date <= end;
+};
+
+// Export transactions to CSV
+const exportToCSV = (transactions: Transaction[], filename: string = 'transactions.csv') => {
+  const headers = ['Date', 'Description', 'Amount', 'Category', 'Type', 'Bank', 'Account'];
+  
+  const csvContent = [
+    headers.join(','),
+    ...transactions.map(transaction => {
+      const categoryString = transaction.category && transaction.category.length > 0 ? transaction.category[0] : '';
+      const categoryInfo = categoryString ? categories.find(c => c.value === categoryString) : null;
+      const type = categoryInfo?.type || '';
+      
+      return [
+        transaction.date,
+        `"${transaction.name || ''}"`,
+        transaction.amount,
+        `"${categoryInfo?.label || ''}"`,
+        type,
+        `"${transaction.bank_name || ''}"`,
+        `"${transaction.account_number_end || ''}"`,
+      ].join(',');
+    })
+  ].join('\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
 export default function TransactionReview() {
   const router = useRouter();
   const pathname = usePathname();
   
   // State
   const [userId, setUserId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true); // Initial data loading
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [filter, setFilter] = useState<"all" | "income" | "expense">("all");
   const [currentTaxYear, setCurrentTaxYear] = useState<string>("");
+  
+  // Enhanced filtering state
+  const [searchTerm, setSearchTerm] = useState("");
+  const [dateFilter, setDateFilter] = useState<"tax_year" | "custom">("tax_year");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  
+  // Bulk operations state
+  const [selectedTransactions, setSelectedTransactions] = useState<Set<string>>(new Set());
+  const [bulkCategory, setBulkCategory] = useState("");
+  const [showBulkActions, setShowBulkActions] = useState(false);
   
   // Modal state for adding manual transaction
   const [showModal, setShowModal] = useState(false);
@@ -89,10 +135,19 @@ export default function TransactionReview() {
     category: "",
     is_manually_added: true
   });
-  const [isSubmitting, setIsSubmitting] = useState(false); // For manual add modal
-  const [isCategorizing, setIsCategorizing] = useState(false); // For auto-categorization loading
-  const [categorizationProgress, setCategorizationProgress] = useState<string>(""); // For detailed progress updates
-  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCategorizing, setIsCategorizing] = useState(false);
+  const [categorizationProgress, setCategorizationProgress] = useState<string>("");
+
+  // Initialize date filters based on current tax year
+  useEffect(() => {
+    if (currentTaxYear) {
+      const year = parseInt(currentTaxYear);
+      setCustomStartDate(`${year}-04-06`);
+      setCustomEndDate(`${year + 1}-04-05`);
+    }
+  }, [currentTaxYear]);
+
   // Fetch transactions on mount
   useEffect(() => {
     async function fetchData() {
@@ -100,11 +155,9 @@ export default function TransactionReview() {
       setError(null);
       try {
         const user = await getAuthUser();
-        console.log('[TaxTransactions] Fetched User:', user);
 
         if (user) {
           setUserId(user.id);
-          console.log('[TaxTransactions] User ID:', user.id);
 
           // Fetch user's active tax year AND selected properties
           const { data: taxProfile, error: taxError } = await supabase
@@ -112,7 +165,6 @@ export default function TransactionReview() {
             .select("tax_year, selected_property_ids")
             .eq("user_id", user.id)
             .single();
-          console.log('[TaxTransactions] Tax Profile fetched:', taxProfile, 'Error:', taxError);
 
           let startDate: string | null = null;
           let endDate: string | null = null;
@@ -121,42 +173,26 @@ export default function TransactionReview() {
           if (taxProfile?.tax_year) {
             resolvedTaxYear = taxProfile.tax_year;
             setCurrentTaxYear(taxProfile.tax_year);
-            console.log('[TaxTransactions] Using tax year from profile:', resolvedTaxYear);
             // Calculate date range for the tax year (Apr 6 - Apr 5)
             const [startYear, endYear] = taxProfile.tax_year.split("/");
             startDate = `${startYear}-04-06`;
             endDate = `${endYear}-04-05`;
           } else {
-            console.log('[TaxTransactions] No tax year found in profile, calculating default.');
             // Default to current tax year if not set
-            const now = new Date();
-            const currentYear = now.getFullYear();
-            const month = now.getMonth(); // 0-based (Jan = 0, Apr = 3)
-            const day = now.getDate();
-
-            // If before April 6th, use previous tax year
-            const taxYearStart = month < 3 || (month === 3 && day < 6)
-              ? currentYear - 1
-              : currentYear;
-
-            resolvedTaxYear = `${taxYearStart}/${taxYearStart + 1}`;
+            resolvedTaxYear = getCurrentTaxYear();
             setCurrentTaxYear(resolvedTaxYear);
-            startDate = `${taxYearStart}-04-06`;
-            endDate = `${taxYearStart + 1}-04-05`;
-            console.log('[TaxTransactions] Default tax year calculated:', resolvedTaxYear);
+            const year = parseInt(resolvedTaxYear);
+            startDate = `${year}-04-06`;
+            endDate = `${year + 1}-04-05`;
           }
 
-          console.log(`[TaxTransactions] Fetching transactions for user ${user.id} between ${startDate} and ${endDate}`);
-          
           if (startDate && endDate) {
             const selectedPropertyIds = taxProfile?.selected_property_ids;
-            console.log('[TaxTransactions] Filtering by selected property IDs:', selectedPropertyIds);
 
             if (!selectedPropertyIds || selectedPropertyIds.length === 0) {
-              console.log('[TaxTransactions] No properties selected for this tax year. Showing no transactions.');
               setTransactions([]);
               setLoading(false);
-              return; // Exit early if no properties selected
+              return;
             }
 
             // Fetch transactions for the tax year, filtered by selected properties
@@ -167,33 +203,27 @@ export default function TransactionReview() {
               .gte("date", startDate)
               .lte("date", endDate)
               .order("date", { ascending: false });
-            
-            console.log('[TaxTransactions] Supabase query result:', { data, dbError });
 
             if (dbError) {
               throw new Error(`Error fetching transactions: ${dbError.message}`);
             }
 
             if (data) {
-              console.log(`[TaxTransactions] Found ${data.length} transactions.`);
               setTransactions(data as Transaction[]);
             } else {
-              console.log('[TaxTransactions] No transaction data returned from Supabase.');
               setTransactions([]);
             }
           } else {
-            console.error('[TaxTransactions] Could not determine start/end date for query.');
             setTransactions([]);
           }
         } else {
-          console.log('[TaxTransactions] No authenticated user found.');
           setError("User not authenticated.");
           setTransactions([]);
         }
       } catch (error) {
         console.error("Error loading transactions:", error);
         setError(error instanceof Error ? error.message : "Failed to load transactions");
-        setTransactions([]); // Clear transactions on error
+        setTransactions([]);
       } finally {
         setLoading(false);
       }
@@ -201,13 +231,62 @@ export default function TransactionReview() {
 
     fetchData();
   }, []);
+
+  // Bulk select/deselect functions
+  const toggleTransactionSelection = (transactionId: string) => {
+    const newSelected = new Set(selectedTransactions);
+    if (newSelected.has(transactionId)) {
+      newSelected.delete(transactionId);
+    } else {
+      newSelected.add(transactionId);
+    }
+    setSelectedTransactions(newSelected);
+    setShowBulkActions(newSelected.size > 0);
+  };
+
+  const selectAllVisible = () => {
+    const visibleIds = new Set(filteredTransactions.map(t => t.id));
+    setSelectedTransactions(visibleIds);
+    setShowBulkActions(visibleIds.size > 0);
+  };
+
+  const clearSelection = () => {
+    setSelectedTransactions(new Set());
+    setShowBulkActions(false);
+  };
+
+  // Bulk categorization
+  const applyBulkCategory = async () => {
+    if (!bulkCategory || selectedTransactions.size === 0) {
+      toast.error("Please select a category and transactions");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const updatePromises = Array.from(selectedTransactions).map(transactionId =>
+        updateCategoryInDb(transactionId, bulkCategory)
+      );
+
+      await Promise.all(updatePromises);
+      
+      toast.success(`Updated ${selectedTransactions.size} transactions`);
+      clearSelection();
+      setBulkCategory("");
+    } catch (error) {
+      console.error("Error applying bulk category:", error);
+      toast.error("Failed to update some transactions");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   
   // Update transaction category (local only version for when AI updates)
   const updateLocalCategory = (transactionId: string, category: string) => {
     setTransactions(prevTransactions => 
       prevTransactions.map(transaction => 
         transaction.id === transactionId 
-          ? { ...transaction, category: category }
+          ? { ...transaction, category: category ? [category] : [] }
           : transaction
       )
     );
@@ -219,21 +298,22 @@ export default function TransactionReview() {
       // Update local state first for immediate UI feedback
       updateLocalCategory(transactionId, category);
       
+      // Convert to array for storage
+      const categoryArray = category ? [category] : [];
+      
       // Update in database
       const { error } = await supabase
         .from("bank_transactions")
-        .update({ category: category })
+        .update({ category: categoryArray })
         .eq("id", transactionId);
       
       if (error) {
         throw new Error(`Failed to update transaction: ${error.message}`);
       }
-      toast.success("Transaction category updated.");
     } catch (error) {
       console.error("Error updating transaction:", error);
       setError(error instanceof Error ? error.message : "Failed to update transaction");
-      toast.error("Failed to update transaction category.");
-      // Revert local state change on error? (Optional, depends on desired UX)
+      throw error; // Re-throw for bulk operations
     }
   };
   
@@ -276,7 +356,7 @@ export default function TransactionReview() {
           name: newTransaction.description,
           date: newTransaction.date,
           amount: finalAmount,
-          category: newTransaction.category,
+          category: [newTransaction.category],
           is_manually_added: true,
           created_at: new Date().toISOString(),
         })
@@ -300,6 +380,7 @@ export default function TransactionReview() {
           is_manually_added: true
         });
         setShowModal(false);
+        toast.success("Transaction added successfully");
       }
     } catch (error) {
       console.error("Error adding transaction:", error);
@@ -328,13 +409,14 @@ export default function TransactionReview() {
       
       // Update local state
       setTransactions(transactions.filter(transaction => transaction.id !== transactionId));
+      toast.success("Transaction deleted");
     } catch (error) {
       console.error("Error deleting transaction:", error);
       setError(error instanceof Error ? error.message : "Failed to delete transaction");
     }
   };
   
-  // Add new function to save categorized transactions
+  // Save categorizations to database
   const saveCategorizationsToDb = async () => {
     if (transactions.length === 0) {
       toast.info("No transactions to save.");
@@ -343,11 +425,15 @@ export default function TransactionReview() {
     
     setIsSubmitting(true);
     setError(null);
-    toast.loading("Saving categorized transactions to database...");
 
     try {
       // Prepare payload with all transactions to update categories
-      const updatePayload = transactions.map(tx => ({ id: tx.id, category: tx.category || "exclude" }));
+      const updatePayload = transactions.map(tx => ({
+        id: tx.id,
+        category: Array.isArray(tx.category) && tx.category.length > 0 
+          ? tx.category[0] 
+          : tx.category || "exclude"
+      }));
       
       // Send to API endpoint to update in bulk
       const dbRes = await fetch('/api/financial/tax/update-categories', {
@@ -356,23 +442,25 @@ export default function TransactionReview() {
         body: JSON.stringify(updatePayload),
       });
       
+      const responseData = await dbRes.json();
+      
       if (!dbRes.ok) {
-        const err = await dbRes.json();
-        throw new Error(`Some categories failed to update in the database: ${err.error || dbRes.status}`);
+        throw new Error(`Some categories failed to update in the database: ${responseData.error || dbRes.status}`);
       }
       
-      toast.success("All transaction categories saved to database successfully!");
+      toast.success("All transaction categories saved successfully!");
+      return responseData;
     } catch (error) {
       console.error("Error saving transaction categories:", error);
       setError(error instanceof Error ? error.message : "Failed to save transaction categories");
       toast.error(error instanceof Error ? error.message : "An unknown error occurred while saving.");
+      throw error;
     } finally {
       setIsSubmitting(false);
-      toast.dismiss(); // Dismiss loading toast
     }
   };
 
-  // Update handleAutoCategorize to not automatically save to database at the end
+  // Auto-categorize transactions
   const handleAutoCategorize = async () => {
     if (transactions.length === 0) {
       toast.info("No transactions to categorize.");
@@ -382,10 +470,8 @@ export default function TransactionReview() {
     setIsCategorizing(true);
     setError(null);
     setCategorizationProgress("Starting categorization process...");
-    toast.loading("Auto-categorizing transactions... This may take a few minutes for large datasets.");
 
     try {
-      // Show batch information if there are many transactions
       if (transactions.length > 100) {
         const batchSize = 50;
         const batchCount = Math.ceil(transactions.length / batchSize);
@@ -400,7 +486,6 @@ export default function TransactionReview() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ transactions }),
-        // Increase timeout for the fetch request
         signal: AbortSignal.timeout(360000), // 6 minutes timeout
       });
 
@@ -418,8 +503,6 @@ export default function TransactionReview() {
       setCategorizationProgress("Updating transaction data...");
       setTransactions(categorizedTransactions);
       
-      // No longer automatically update categories in the database
-      // Instead, notify the user that they need to save the changes
       setCategorizationProgress("Categorization complete! Please review and save your changes.");
       toast.success("Transactions successfully auto-categorized! Click 'Save' to commit changes to database.");
       
@@ -429,33 +512,59 @@ export default function TransactionReview() {
       toast.error(error instanceof Error ? `Categorization failed: ${error.message}` : "An unknown error occurred during categorization.");
     } finally {
       setIsCategorizing(false);
-      // Clear progress after a short delay to allow user to see completion message
       setTimeout(() => setCategorizationProgress(""), 3000);
-      toast.dismiss(); // Dismiss loading toast
     }
   };
 
-  // Filter transactions based on selected year and category
+  // Enhanced filtering with search, date range, and category
   const filteredTransactions = useMemo(() => {
     return transactions.filter((transaction) => {
-      // Filter by tax year if selected
-      if (currentTaxYear && transaction.date) {
-        const transactionDate = new Date(transaction.date);
-        if (!isDateInTaxYear(transactionDate, currentTaxYear)) {
+      // Search filter
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        const matchesName = transaction.name?.toLowerCase().includes(searchLower);
+        const matchesAmount = transaction.amount.toString().includes(searchTerm);
+        const categoryString = transaction.category && transaction.category.length > 0 ? transaction.category[0] : null;
+        const categoryInfo = categoryString ? categories.find(c => c.value === categoryString) : null;
+        const matchesCategory = categoryInfo?.label.toLowerCase().includes(searchLower);
+        
+        if (!matchesName && !matchesAmount && !matchesCategory) {
           return false;
         }
       }
 
-      // Filter by selected category if provided
-      if (filter && filter !== "all") {
-        const categoryInfo = transaction.category ? categories.find(c => c.value === transaction.category) : null;
+      // Date filter
+      if (transaction.date) {
+        const transactionDate = new Date(transaction.date);
         
-        // For income filter - only show transactions with income categories
+        if (dateFilter === "tax_year" && currentTaxYear) {
+          if (!isDateInTaxYear(transactionDate, currentTaxYear)) {
+            return false;
+          }
+        } else if (dateFilter === "custom" && customStartDate && customEndDate) {
+          if (!isDateInRange(transactionDate, customStartDate, customEndDate)) {
+            return false;
+          }
+        }
+      }
+
+      // Category filter
+      if (selectedCategory && selectedCategory !== "all") {
+        const categoryString = transaction.category && transaction.category.length > 0 ? transaction.category[0] : null;
+        if (categoryString !== selectedCategory) {
+          return false;
+        }
+      }
+
+      // Type filter (income/expense)
+      if (filter && filter !== "all") {
+        const categoryString = transaction.category && transaction.category.length > 0 ? transaction.category[0] : null;
+        const categoryInfo = categoryString ? categories.find(c => c.value === categoryString) : null;
+        
         if (filter === "income") {
           return categoryInfo?.type === "income";
         }
         
-        // For expense filter - only show transactions with expense categories
         if (filter === "expense") {
           return categoryInfo?.type === "expense";
         }
@@ -463,47 +572,52 @@ export default function TransactionReview() {
 
       return true;
     });
-  }, [transactions, currentTaxYear, filter, categories]);
+  }, [transactions, currentTaxYear, filter, searchTerm, dateFilter, customStartDate, customEndDate, selectedCategory]);
   
   // Calculate summary totals
-  const summary = categories.reduce((acc, category) => {
-    // Sum all transactions in this category
-    const total = transactions
-      .filter(t => t.category === category.value)
-      .reduce((sum, t) => sum + t.amount, 0);
-    
-    // Only add non-zero categories to summary
-    if (total !== 0) {
-      acc[category.value] = {
-        label: category.label,
-        total: Math.abs(total), // Display as positive
-        type: category.type
-      };
-    }
-    
-    return acc;
-  }, {} as Record<string, { label: string; total: number; type: string }>);
+  const summary = useMemo(() => {
+    return categories.reduce((acc, category) => {
+      const total = transactions
+        .filter(t => t.category && t.category.length > 0 && t.category[0] === category.value)
+        .reduce((sum, t) => sum + t.amount, 0);
+      
+      if (total !== 0) {
+        acc[category.value] = {
+          label: category.label,
+          total: Math.abs(total),
+          type: category.type
+        };
+      }
+      
+      return acc;
+    }, {} as Record<string, { label: string; total: number; type: string }>);
+  }, [transactions]);
   
   // Calculate grand totals
-  const totalIncome = transactions
-    .filter(t => {
-      const categoryValue = t.category;
-      const categoryInfo = categories.find(c => c.value === categoryValue);
-      return categoryInfo?.type === "income";
-    })
-    .reduce((sum, t) => sum + t.amount, 0);
+  const totalIncome = useMemo(() => {
+    return transactions
+      .filter(t => {
+        const categoryString = t.category && t.category.length > 0 ? t.category[0] : null;
+        const categoryInfo = categoryString ? categories.find(c => c.value === categoryString) : null;
+        return categoryInfo?.type === "income";
+      })
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [transactions]);
   
-  const totalExpenses = transactions
-    .filter(t => {
-      const categoryValue = t.category;
-      const categoryInfo = categories.find(c => c.value === categoryValue);
-      return categoryInfo?.type === "expense";
-    })
-    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
-  
+  const totalExpenses = useMemo(() => {
+    return transactions
+      .filter(t => {
+        const categoryString = t.category && t.category.length > 0 ? t.category[0] : null;
+        const categoryInfo = categoryString ? categories.find(c => c.value === categoryString) : null;
+        return categoryInfo?.type === "expense";
+      })
+      .reduce((sum, t) => sum + t.amount, 0);
+  }, [transactions]);
+
+  const netProfit = useMemo(() => totalIncome + totalExpenses, [totalIncome, totalExpenses]);
+
   return (
     <SidebarLayout 
-      sidebar={<SidebarContent currentPath={pathname} />} 
       isOnboarding={false}
       searchValue=""
     >
@@ -600,9 +714,7 @@ export default function TransactionReview() {
                     </p>
                   </div>
                   <div className="ml-4 mt-4 flex items-center gap-x-2 flex-shrink-0 sm:mt-0">
-                    {/* Auto Categorize Button - Changes to Save after categorization */}
                     <Button 
-                      color="indigo" 
                       onClick={categorizationProgress.includes("complete") ? saveCategorizationsToDb : handleAutoCategorize}
                       disabled={(isCategorizing || loading || transactions.length === 0) || (categorizationProgress.includes("complete") && isSubmitting)}
                     >
@@ -610,53 +722,143 @@ export default function TransactionReview() {
                        isSubmitting ? "Saving..." : 
                        categorizationProgress.includes("complete") ? "Save" : "Auto Categorize"}
                     </Button>
-                    {/* Optional: Add manual transaction button */}
                     <Button variant="outline" onClick={() => setShowModal(true)} disabled={isCategorizing || isSubmitting}>
                        Add Manually
                     </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => exportToCSV(filteredTransactions, `transactions_${currentTaxYear}.csv`)}
+                      disabled={filteredTransactions.length === 0}
+                    >
+                      Export CSV
+                    </Button>
                   </div>
                 </div>
-                <div className="mt-4">
-                  <div className="sm:flex sm:items-center">
-                    <div className="sm:flex-auto">
-                      <p className="text-sm text-gray-500">
-                        Below are your transactions for the period. Please review and assign an appropriate category to each transaction.
-                      </p>
+
+                {/* Enhanced Filters */}
+                <div className="mt-4 space-y-4">
+                  {/* Search and basic filters */}
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+                    <div className="sm:col-span-2">
+                      <Input
+                        type="text"
+                        placeholder="Search transactions..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full"
+                      />
                     </div>
-                    <div className="mt-4 sm:mt-0 sm:ml-4 sm:flex-none">
-                      <div className="flex space-x-2">
-                        <button
-                          className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-                            filter === "all" 
-                              ? "bg-gray-100 text-gray-900" 
-                              : "text-gray-600 hover:text-gray-900"
-                          }`}
-                          onClick={() => setFilter("all")}
-                        >
-                          All
-                        </button>
-                        <button
-                          className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-                            filter === "income" 
-                              ? "bg-gray-100 text-gray-900" 
-                              : "text-gray-600 hover:text-gray-900"
-                          }`}
-                          onClick={() => setFilter("income")}
-                        >
-                          Income
-                        </button>
-                        <button
-                          className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-                            filter === "expense" 
-                              ? "bg-gray-100 text-gray-900" 
-                              : "text-gray-600 hover:text-gray-900"
-                          }`}
-                          onClick={() => setFilter("expense")}
-                        >
-                          Expenses
-                        </button>
+                    <div>
+                      <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All categories" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All categories</SelectItem>
+                          {categories.map((category) => (
+                            <SelectItem key={category.value} value={category.value}>
+                              {category.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Select value={dateFilter} onValueChange={(value: "tax_year" | "custom") => setDateFilter(value)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="tax_year">Tax Year</SelectItem>
+                          <SelectItem value="custom">Custom Range</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Custom date range */}
+                  {dateFilter === "custom" && (
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                        <Input
+                          type="date"
+                          value={customStartDate}
+                          onChange={(e) => setCustomStartDate(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                        <Input
+                          type="date"
+                          value={customEndDate}
+                          onChange={(e) => setCustomEndDate(e.target.value)}
+                        />
                       </div>
                     </div>
+                  )}
+
+                  {/* Type filters and bulk actions */}
+                  <div className="flex flex-wrap items-center justify-between">
+                    <div className="flex space-x-2">
+                      <button
+                        className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+                          filter === "all" 
+                            ? "bg-gray-100 text-gray-900" 
+                            : "text-gray-600 hover:text-gray-900"
+                        }`}
+                        onClick={() => setFilter("all")}
+                      >
+                        All ({transactions.length})
+                      </button>
+                      <button
+                        className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+                          filter === "income" 
+                            ? "bg-gray-100 text-gray-900" 
+                            : "text-gray-600 hover:text-gray-900"
+                        }`}
+                        onClick={() => setFilter("income")}
+                      >
+                        Income
+                      </button>
+                      <button
+                        className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+                          filter === "expense" 
+                            ? "bg-gray-100 text-gray-900" 
+                            : "text-gray-600 hover:text-gray-900"
+                        }`}
+                        onClick={() => setFilter("expense")}
+                      >
+                        Expenses
+                      </button>
+                    </div>
+
+                    {/* Bulk actions */}
+                    {showBulkActions && (
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-gray-600">
+                          {selectedTransactions.size} selected
+                        </span>
+                        <Select value={bulkCategory} onValueChange={setBulkCategory}>
+                          <SelectTrigger className="w-40">
+                            <SelectValue placeholder="Bulk category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {categories.map((category) => (
+                              <SelectItem key={category.value} value={category.value}>
+                                {category.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button size="sm" onClick={applyBulkCategory} disabled={!bulkCategory || isSubmitting}>
+                          Apply
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={clearSelection}>
+                          Clear
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -689,135 +891,184 @@ export default function TransactionReview() {
                     <p className="mt-2 text-gray-500">
                       {transactions.length === 0 
                         ? "Your transactions will appear here when imported from your bank or added manually."
-                        : "No transactions match the current filter."}
+                        : "No transactions match the current filters."}
                     </p>
                     <div className="mt-6">
-                      <Button color="indigo" onClick={() => setShowModal(true)}>
+                      <Button onClick={() => setShowModal(true)}>
                         Add Transaction Manually
                       </Button>
                     </div>
                   </div>
                 ) : (
-                  <table className="min-w-full table-fixed divide-y divide-gray-300">
-                    <colgroup>
-                      <col style={{ width: '18%' }} />
-                      <col style={{ width: '25%' }} />
-                      <col style={{ width: '15%' }} />
-                      <col style={{ width: '35%' }} />
-                      <col style={{ width: '7%' }} />
-                    </colgroup>
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
-                          Date
-                        </th>
-                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                          Description
-                        </th>
-                        <th scope="col" className="px-3 py-3.5 text-right text-sm font-semibold text-gray-900">
-                          Amount
-                        </th>
-                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                          Category
-                        </th>
-                        <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
-                          <span className="sr-only">Actions</span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 bg-white">
-                      {filteredTransactions.map((transaction) => (
-                        <tr key={transaction.id} className="hover:bg-gray-50">
-                          <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-900 sm:pl-6">
-                            {new Date(transaction.date).toLocaleDateString()}
-                          </td>
-                          <td className="truncate max-w-[200px] px-3 py-4 text-sm text-gray-900">
-                            <div className="truncate">
-                              {transaction.name}
-                              {transaction.is_manually_added && (
-                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                                  Manual
-                                </span>
-                              )}
-                              {transaction.bank_name && (
-                                <span className="ml-2 text-xs text-gray-500">
-                                  {transaction.bank_name} •••{transaction.account_number_end}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className={`whitespace-nowrap px-3 py-4 text-sm text-right font-medium ${
-                            transaction.amount > 0 
-                              ? "text-green-600" 
-                              : "text-red-600"
-                          }`}>
-                            £{Math.abs(transaction.amount).toFixed(2)}
-                          </td>
-                          <td className="px-3 py-4 text-sm text-gray-900">
-                            <Select
-                              value={Array.isArray(transaction.category) ? transaction.category[0] : (transaction.category || "")}
-                              onValueChange={(value: string) => {
-                                // Use updateCategoryInDb for manual changes
-                                updateCategoryInDb(transaction.id, value);
-                              }}
+                  <>
+                    {/* Bulk select controls */}
+                    {filteredTransactions.length > 0 && (
+                      <div className="px-4 py-2 bg-gray-50 border-b border-gray-200">
+                        <div className="flex items-center space-x-4">
+                          <button
+                            onClick={selectAllVisible}
+                            className="text-sm text-blue-600 hover:text-blue-800"
+                          >
+                            Select all visible ({filteredTransactions.length})
+                          </button>
+                          {selectedTransactions.size > 0 && (
+                            <button
+                              onClick={clearSelection}
+                              className="text-sm text-gray-600 hover:text-gray-800"
                             >
-                              <SelectTrigger className="h-8 p-2 text-left">
-                                <SelectValue placeholder="Select category" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {categories.map((category) => (
-                                  <SelectItem key={category.value} value={category.value}>
-                                    {category.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </td>
-                          <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                            <button 
-                              onClick={() => deleteTransaction(transaction.id)}
-                              className="text-red-600 hover:text-red-800 ml-4"
-                            >
-                              Delete
+                              Clear selection
                             </button>
-                          </td>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <table className="min-w-full table-fixed divide-y divide-gray-300">
+                      <colgroup>
+                        <col style={{ width: '5%' }} />
+                        <col style={{ width: '15%' }} />
+                        <col style={{ width: '25%' }} />
+                        <col style={{ width: '12%' }} />
+                        <col style={{ width: '30%' }} />
+                        <col style={{ width: '13%' }} />
+                      </colgroup>
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900">
+                            <input
+                              type="checkbox"
+                              checked={selectedTransactions.size === filteredTransactions.length && filteredTransactions.length > 0}
+                              onChange={selectedTransactions.size === filteredTransactions.length ? clearSelection : selectAllVisible}
+                              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                          </th>
+                          <th scope="col" className="py-3.5 px-3 text-left text-sm font-semibold text-gray-900">
+                            Date
+                          </th>
+                          <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                            Description
+                          </th>
+                          <th scope="col" className="px-3 py-3.5 text-right text-sm font-semibold text-gray-900">
+                            Amount
+                          </th>
+                          <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                            Category
+                          </th>
+                          <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                            <span className="sr-only">Actions</span>
+                          </th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 bg-white">
+                        {filteredTransactions.map((transaction) => (
+                          <tr key={transaction.id} className="hover:bg-gray-50">
+                            <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm">
+                              <input
+                                type="checkbox"
+                                checked={selectedTransactions.has(transaction.id)}
+                                onChange={() => toggleTransactionSelection(transaction.id)}
+                                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              />
+                            </td>
+                            <td className="whitespace-nowrap py-4 px-3 text-sm text-gray-900">
+                              {new Date(transaction.date).toLocaleDateString()}
+                            </td>
+                            <td className="truncate max-w-[200px] px-3 py-4 text-sm text-gray-900">
+                              <div className="truncate">
+                                {transaction.name}
+                                {transaction.is_manually_added && (
+                                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                    Manual
+                                  </span>
+                                )}
+                                {transaction.bank_name && (
+                                  <span className="ml-2 text-xs text-gray-500">
+                                    {transaction.bank_name} •••{transaction.account_number_end}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className={`whitespace-nowrap px-3 py-4 text-sm text-right font-medium ${
+                              transaction.amount > 0 
+                                ? "text-green-600" 
+                                : "text-red-600"
+                            }`}>
+                              £{Math.abs(transaction.amount).toFixed(2)}
+                            </td>
+                            <td className="px-3 py-4 text-sm text-gray-900">
+                              <Select
+                                value={Array.isArray(transaction.category) && transaction.category.length > 0 ? transaction.category[0] : ""}
+                                onValueChange={(value: string) => {
+                                  updateCategoryInDb(transaction.id, value);
+                                }}
+                              >
+                                <SelectTrigger className="h-8 p-2 text-left">
+                                  <SelectValue placeholder="Select category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {categories.map((category) => (
+                                    <SelectItem key={category.value} value={category.value}>
+                                      {category.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </td>
+                            <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                              <button 
+                                onClick={() => deleteTransaction(transaction.id)}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                Delete
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </>
                 )}
               </div>
             </div>
 
             {/* Navigation */}
-            <div className="mt-6 flex items-center justify-end gap-x-6">
-              <button type="button"
+            <div className="mt-6 flex items-center justify-between gap-x-6">
+              <Button 
+                variant="outline"
                 onClick={() => router.push("/financial/tax/properties")}
-                className="text-sm/6 font-semibold text-gray-900"
                 disabled={isSubmitting || isCategorizing}
               >
                 Back
-              </button>
-              <button type="button"
-                onClick={() => {
-                  saveCategorizationsToDb();
-                  router.push("/dashboard");
-                }}
-                className="text-sm/6 font-semibold text-gray-900"
-                disabled={isCategorizing || isSubmitting} // Disable if categorizing or submitting
-              >
-                Save as Draft
-              </button>
-              <button type="button"
-                onClick={() => {
-                  saveCategorizationsToDb();
-                  router.push("/financial/tax/adjustments");
-                }}
-                className="rounded-md bg-d9e8ff px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs hover:bg-d9e8ff-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-d9e8ff disabled:opacity-50"
-                disabled={loading || isCategorizing || isSubmitting || transactions.length === 0} // Disable if loading, categorizing, or submitting
-              >
-                Continue to Adjustments
-              </button>
+              </Button>
+              <div className="flex gap-x-3">
+                <Button 
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      await saveCategorizationsToDb();
+                      router.push("/dashboard");
+                    } catch (error) {
+                      // Error already handled inside saveCategorizationsToDb
+                    }
+                  }}
+                  disabled={isCategorizing || isSubmitting}
+                >
+                  Save as Draft
+                </Button>
+                <Button 
+                  onClick={async () => {
+                    try {
+                      await saveCategorizationsToDb();
+                      router.push("/financial/tax/adjustments");
+                    } catch (error) {
+                      toast.error("Please fix categorization issues before continuing");
+                    }
+                  }}
+                  disabled={loading || isCategorizing || isSubmitting || transactions.length === 0}
+                >
+                  {isSubmitting ? 'Saving...' : 'Continue to Adjustments'}
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -829,6 +1080,11 @@ export default function TransactionReview() {
                 <p className="mt-1 text-sm text-gray-500">
                   For tax year {currentTaxYear}
                 </p>
+                {filteredTransactions.length !== transactions.length && (
+                  <p className="mt-1 text-xs text-blue-600">
+                    Showing {filteredTransactions.length} of {transactions.length} transactions
+                  </p>
+                )}
               </div>
               <div className="border-t border-gray-200 px-4 py-5 sm:p-0">
                 <dl className="sm:divide-y sm:divide-gray-200">
@@ -856,7 +1112,7 @@ export default function TransactionReview() {
                   <div className="py-4 sm:py-5 sm:px-6">
                     <dt className="text-sm font-medium text-gray-900">Total Expenses</dt>
                     <dd className="mt-1 text-sm text-gray-900 sm:mt-0">
-                      <span className="font-semibold text-red-600">£{totalExpenses.toFixed(2)}</span>
+                      <span className="font-semibold text-red-600">£{Math.abs(totalExpenses).toFixed(2)}</span>
                     </dd>
                     
                     {/* Expense categories */}
@@ -877,11 +1133,11 @@ export default function TransactionReview() {
                     <dt className="text-sm font-medium text-gray-900">Net Profit</dt>
                     <dd className="mt-1 text-sm text-gray-900 sm:mt-0">
                       <span className={`font-semibold ${
-                        (totalIncome - totalExpenses) > 0 
+                        netProfit > 0 
                           ? "text-green-600" 
                           : "text-red-600"
                       }`}>
-                        £{(totalIncome - totalExpenses).toFixed(2)}
+                        £{netProfit.toFixed(2)}
                       </span>
                     </dd>
                   </div>
@@ -953,9 +1209,6 @@ export default function TransactionReview() {
                               className="block w-full"
                             />
                           </div>
-                          <p className="mt-1 text-xs text-gray-500">
-                            Enter a positive number for income, negative for expenses.
-                          </p>
                         </div>
 
                         <div>
@@ -963,11 +1216,11 @@ export default function TransactionReview() {
                             Category *
                           </label>
                           <div className="mt-1">
-                            <Select 
-                              value={newTransaction.category || ""}
-                              onValueChange={(value: string) => setNewTransaction({ ...newTransaction, category: value })}
+                            <Select
+                              value={newTransaction.category}
+                              onValueChange={(value) => setNewTransaction({ ...newTransaction, category: value })}
                             >
-                              <SelectTrigger className="h-8 p-2 text-left">
+                              <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Select category" />
                               </SelectTrigger>
                               <SelectContent>
@@ -985,21 +1238,22 @@ export default function TransactionReview() {
                   </div>
                 </div>
                 <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                  <button
+                  <Button
                     type="submit"
-                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-d9e8ff text-base font-medium text-gray-900 hover:bg-d9e8ff-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-d9e8ff-80 sm:ml-3 sm:w-auto sm:text-sm"
                     disabled={isSubmitting}
+                    className="w-full sm:ml-3 sm:w-auto"
                   >
                     {isSubmitting ? "Adding..." : "Add Transaction"}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
-                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                    variant="outline"
                     onClick={() => setShowModal(false)}
-                    disabled={isSubmitting} // Keep disabled only by manual submission
+                    disabled={isSubmitting}
+                    className="mt-3 w-full sm:mt-0 sm:w-auto"
                   >
                     Cancel
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>

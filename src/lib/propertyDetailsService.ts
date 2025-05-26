@@ -111,14 +111,18 @@ export const getPropertyInsurance = async (propertyId: string): Promise<IPropert
       .from("property_insurance")
       .select("*")
       .eq("property_id", propertyId)
-      .single();
+      .maybeSingle();
     
     if (error) {
       console.error("Error fetching property insurance:", error);
       return null;
     }
     
-    console.log(`Found insurance details for property ${propertyId}`);
+    if (data) {
+      console.log(`Found insurance details for property ${propertyId}`);
+    } else {
+      console.log(`No insurance details found for property ${propertyId}`);
+    }
     return data;
   } catch (error) {
     console.error(`Error in getPropertyInsurance for ${propertyId}:`, error);
@@ -135,14 +139,18 @@ export const getPropertyMortgage = async (propertyId: string): Promise<IProperty
       .from("property_mortgages")
       .select("*")
       .eq("property_id", propertyId)
-      .single();
+      .maybeSingle();
     
     if (error) {
       console.error("Error fetching property mortgage:", error);
       return null;
     }
     
-    console.log(`Found mortgage details for property ${propertyId}`);
+    if (data) {
+      console.log(`Found mortgage details for property ${propertyId}`);
+    } else {
+      console.log(`No mortgage details found for property ${propertyId}`);
+    }
     return data;
   } catch (error) {
     console.error(`Error in getPropertyMortgage for ${propertyId}:`, error);

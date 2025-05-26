@@ -10,7 +10,6 @@ export function ZenAgentProvider({ children }: ZenAgentProviderProps) {
   return (
     <>
       {children}
-      <ZenAgent />
     </>
   );
 }

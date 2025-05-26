@@ -455,4 +455,638 @@ export class HmrcErrorHandler {
     
     return Response.json(errorResponse, { status: statusCode });
   }
+}
+
+/**
+ * Comprehensive HMRC Error Handling Service
+ * Maps HMRC error codes to user-friendly messages and provides recovery workflows
+ */
+
+export interface HMRCErrorDetails {
+  code: string;
+  message: string;
+  userMessage: string;
+  severity: 'error' | 'warning' | 'info';
+  category: 'AUTH' | 'VALIDATION' | 'RATE_LIMIT' | 'SERVER' | 'NETWORK' | 'BUSINESS' | 'COMPLIANCE';
+  retryable: boolean;
+  recoveryAction?: string;
+  documentationUrl?: string;
+  estimatedResolutionTime?: string;
+}
+
+export interface ErrorRecoveryWorkflow {
+  errorCode: string;
+  steps: RecoveryStep[];
+  automaticRecovery: boolean;
+  userActionRequired: boolean;
+}
+
+export interface RecoveryStep {
+  id: string;
+  description: string;
+  action: 'retry' | 'refresh_token' | 'validate_data' | 'contact_support' | 'wait' | 'redirect';
+  parameters?: Record<string, any>;
+  estimatedTime?: string;
+}
+
+export interface ErrorAnalytics {
+  errorCode: string;
+  userId: string;
+  timestamp: string;
+  context: Record<string, any>;
+  resolved: boolean;
+  resolutionTime?: number;
+  recoveryMethod?: string;
+}
+
+export class HMRCErrorHandler {
+  private static instance: HMRCErrorHandler;
+  private errorMappings: Map<string, HMRCErrorDetails> = new Map();
+  private recoveryWorkflows: Map<string, ErrorRecoveryWorkflow> = new Map();
+  private errorAnalytics: ErrorAnalytics[] = [];
+
+  private constructor() {
+    this.initializeErrorMappings();
+    this.initializeRecoveryWorkflows();
+  }
+
+  public static getInstance(): HMRCErrorHandler {
+    if (!HMRCErrorHandler.instance) {
+      HMRCErrorHandler.instance = new HMRCErrorHandler();
+    }
+    return HMRCErrorHandler.instance;
+  }
+
+  private initializeErrorMappings(): void {
+    this.errorMappings = new Map([
+      // Authentication Errors
+      ['INVALID_CREDENTIALS', {
+        code: 'INVALID_CREDENTIALS',
+        message: 'Invalid client credentials provided',
+        userMessage: 'Authentication failed. Please reconnect to HMRC to continue.',
+        severity: 'error',
+        category: 'AUTH',
+        retryable: false,
+        recoveryAction: 'Reconnect to HMRC',
+        documentationUrl: '/help/hmrc-connection',
+        estimatedResolutionTime: '2 minutes'
+      }],
+      
+      ['INVALID_TOKEN', {
+        code: 'INVALID_TOKEN',
+        message: 'Access token is invalid or expired',
+        userMessage: 'Your HMRC connection has expired. We\'ll reconnect you automatically.',
+        severity: 'warning',
+        category: 'AUTH',
+        retryable: true,
+        recoveryAction: 'Automatic token refresh',
+        estimatedResolutionTime: '30 seconds'
+      }],
+
+      ['INSUFFICIENT_SCOPE', {
+        code: 'INSUFFICIENT_SCOPE',
+        message: 'Token does not have required permissions',
+        userMessage: 'Insufficient permissions. Please reconnect to HMRC with full access.',
+        severity: 'error',
+        category: 'AUTH',
+        retryable: false,
+        recoveryAction: 'Reconnect with full permissions',
+        documentationUrl: '/help/hmrc-permissions'
+      }],
+
+      // Rate Limiting Errors
+      ['RATE_LIMIT_EXCEEDED', {
+        code: 'RATE_LIMIT_EXCEEDED',
+        message: 'API rate limit exceeded',
+        userMessage: 'Too many requests. Please wait a moment before trying again.',
+        severity: 'warning',
+        category: 'RATE_LIMIT',
+        retryable: true,
+        recoveryAction: 'Wait and retry automatically',
+        estimatedResolutionTime: '1-5 minutes'
+      }],
+
+      ['QUOTA_EXCEEDED', {
+        code: 'QUOTA_EXCEEDED',
+        message: 'Daily API quota exceeded',
+        userMessage: 'Daily submission limit reached. Please try again tomorrow.',
+        severity: 'error',
+        category: 'RATE_LIMIT',
+        retryable: false,
+        recoveryAction: 'Wait until quota resets',
+        estimatedResolutionTime: '24 hours'
+      }],
+
+      // Validation Errors
+      ['INVALID_REQUEST', {
+        code: 'INVALID_REQUEST',
+        message: 'Request format or data is invalid',
+        userMessage: 'Invalid data provided. Please check your information and try again.',
+        severity: 'error',
+        category: 'VALIDATION',
+        retryable: false,
+        recoveryAction: 'Correct data and resubmit',
+        documentationUrl: '/help/data-validation'
+      }],
+
+      ['MISSING_REQUIRED_FIELD', {
+        code: 'MISSING_REQUIRED_FIELD',
+        message: 'Required field is missing',
+        userMessage: 'Some required information is missing. Please complete all required fields.',
+        severity: 'error',
+        category: 'VALIDATION',
+        retryable: false,
+        recoveryAction: 'Complete missing fields'
+      }],
+
+      ['INVALID_DATE_FORMAT', {
+        code: 'INVALID_DATE_FORMAT',
+        message: 'Date format is incorrect',
+        userMessage: 'Invalid date format. Please use DD/MM/YYYY format.',
+        severity: 'error',
+        category: 'VALIDATION',
+        retryable: false,
+        recoveryAction: 'Correct date format'
+      }],
+
+      ['INVALID_AMOUNT', {
+        code: 'INVALID_AMOUNT',
+        message: 'Amount value is invalid',
+        userMessage: 'Invalid amount entered. Please enter a valid monetary amount.',
+        severity: 'error',
+        category: 'VALIDATION',
+        retryable: false,
+        recoveryAction: 'Correct amount value'
+      }],
+
+      // Business Logic Errors
+      ['DUPLICATE_SUBMISSION', {
+        code: 'DUPLICATE_SUBMISSION',
+        message: 'Submission already exists for this period',
+        userMessage: 'A submission for this tax year already exists.',
+        severity: 'error',
+        category: 'BUSINESS',
+        retryable: false,
+        recoveryAction: 'View existing submission or amend if needed',
+        documentationUrl: '/help/amending-returns'
+      }],
+
+      ['SUBMISSION_DEADLINE_PASSED', {
+        code: 'SUBMISSION_DEADLINE_PASSED',
+        message: 'Submission deadline has passed',
+        userMessage: 'The deadline for this tax year has passed. Late submission penalties may apply.',
+        severity: 'warning',
+        category: 'BUSINESS',
+        retryable: true,
+        recoveryAction: 'Submit with late penalty acknowledgment',
+        documentationUrl: '/help/late-submissions'
+      }],
+
+      ['CALCULATION_ERROR', {
+        code: 'CALCULATION_ERROR',
+        message: 'Tax calculation contains errors',
+        userMessage: 'There\'s an issue with the tax calculation. Please review your figures.',
+        severity: 'error',
+        category: 'BUSINESS',
+        retryable: false,
+        recoveryAction: 'Review and correct calculation data'
+      }],
+
+      // Server Errors
+      ['INTERNAL_SERVER_ERROR', {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'HMRC internal server error',
+        userMessage: 'HMRC service is temporarily unavailable. We\'ll retry automatically.',
+        severity: 'error',
+        category: 'SERVER',
+        retryable: true,
+        recoveryAction: 'Automatic retry with exponential backoff',
+        estimatedResolutionTime: '5-30 minutes'
+      }],
+
+      ['SERVICE_UNAVAILABLE', {
+        code: 'SERVICE_UNAVAILABLE',
+        message: 'HMRC service is temporarily unavailable',
+        userMessage: 'HMRC service is temporarily down. Your data is saved and we\'ll retry automatically.',
+        severity: 'warning',
+        category: 'SERVER',
+        retryable: true,
+        recoveryAction: 'Automatic retry when service is available',
+        estimatedResolutionTime: '15-60 minutes'
+      }],
+
+      ['GATEWAY_TIMEOUT', {
+        code: 'GATEWAY_TIMEOUT',
+        message: 'Request timeout to HMRC service',
+        userMessage: 'Request timed out. We\'ll try again automatically.',
+        severity: 'warning',
+        category: 'SERVER',
+        retryable: true,
+        recoveryAction: 'Automatic retry with longer timeout',
+        estimatedResolutionTime: '1-5 minutes'
+      }],
+
+      // Network Errors
+      ['NETWORK_ERROR', {
+        code: 'NETWORK_ERROR',
+        message: 'Network connection error',
+        userMessage: 'Network connection failed. Please check your internet connection.',
+        severity: 'error',
+        category: 'NETWORK',
+        retryable: true,
+        recoveryAction: 'Check connection and retry',
+        estimatedResolutionTime: '1-2 minutes'
+      }],
+
+      ['TIMEOUT', {
+        code: 'TIMEOUT',
+        message: 'Request timeout',
+        userMessage: 'Request timed out. We\'ll try again automatically.',
+        severity: 'warning',
+        category: 'NETWORK',
+        retryable: true,
+        recoveryAction: 'Automatic retry',
+        estimatedResolutionTime: '30 seconds'
+      }],
+
+      // Compliance Errors
+      ['ANTI_VIRUS_CHECK_FAILED', {
+        code: 'ANTI_VIRUS_CHECK_FAILED',
+        message: 'Document failed anti-virus check',
+        userMessage: 'Document failed security check. Please ensure files are clean and try again.',
+        severity: 'error',
+        category: 'COMPLIANCE',
+        retryable: false,
+        recoveryAction: 'Scan document and resubmit'
+      }],
+
+      ['FRAUD_PREVENTION_HEADERS_MISSING', {
+        code: 'FRAUD_PREVENTION_HEADERS_MISSING',
+        message: 'Required fraud prevention headers missing',
+        userMessage: 'Security validation failed. Please try again.',
+        severity: 'error',
+        category: 'COMPLIANCE',
+        retryable: true,
+        recoveryAction: 'Automatic retry with correct headers',
+        estimatedResolutionTime: '30 seconds'
+      }]
+    ]);
+  }
+
+  private initializeRecoveryWorkflows(): void {
+    this.recoveryWorkflows = new Map([
+      ['INVALID_TOKEN', {
+        errorCode: 'INVALID_TOKEN',
+        automaticRecovery: true,
+        userActionRequired: false,
+        steps: [
+          {
+            id: 'refresh_token',
+            description: 'Refreshing HMRC access token',
+            action: 'refresh_token',
+            estimatedTime: '10 seconds'
+          },
+          {
+            id: 'retry_request',
+            description: 'Retrying original request',
+            action: 'retry',
+            estimatedTime: '5 seconds'
+          }
+        ]
+      }],
+
+      ['INVALID_CREDENTIALS', {
+        errorCode: 'INVALID_CREDENTIALS',
+        automaticRecovery: false,
+        userActionRequired: true,
+        steps: [
+          {
+            id: 'redirect_to_auth',
+            description: 'Redirecting to HMRC authentication',
+            action: 'redirect',
+            parameters: { url: '/hmrc/auth' },
+            estimatedTime: '2 minutes'
+          }
+        ]
+      }],
+
+      ['RATE_LIMIT_EXCEEDED', {
+        errorCode: 'RATE_LIMIT_EXCEEDED',
+        automaticRecovery: true,
+        userActionRequired: false,
+        steps: [
+          {
+            id: 'wait_for_rate_limit',
+            description: 'Waiting for rate limit to reset',
+            action: 'wait',
+            parameters: { duration: 60000 }, // 1 minute
+            estimatedTime: '1-5 minutes'
+          },
+          {
+            id: 'retry_request',
+            description: 'Retrying request',
+            action: 'retry',
+            estimatedTime: '5 seconds'
+          }
+        ]
+      }],
+
+      ['INVALID_REQUEST', {
+        errorCode: 'INVALID_REQUEST',
+        automaticRecovery: false,
+        userActionRequired: true,
+        steps: [
+          {
+            id: 'validate_data',
+            description: 'Validating submission data',
+            action: 'validate_data',
+            estimatedTime: '30 seconds'
+          },
+          {
+            id: 'show_validation_errors',
+            description: 'Showing validation errors to user',
+            action: 'redirect',
+            parameters: { url: '/tax/validation-errors' }
+          }
+        ]
+      }],
+
+      ['SERVICE_UNAVAILABLE', {
+        errorCode: 'SERVICE_UNAVAILABLE',
+        automaticRecovery: true,
+        userActionRequired: false,
+        steps: [
+          {
+            id: 'wait_for_service',
+            description: 'Waiting for HMRC service to become available',
+            action: 'wait',
+            parameters: { duration: 300000 }, // 5 minutes
+            estimatedTime: '5-30 minutes'
+          },
+          {
+            id: 'retry_request',
+            description: 'Retrying request',
+            action: 'retry',
+            estimatedTime: '10 seconds'
+          }
+        ]
+      }]
+    ]);
+  }
+
+  /**
+   * Map HTTP status code and error data to HMRC error details
+   */
+  public mapError(statusCode: number, errorData: any, originalError?: Error): HMRCErrorDetails {
+    let errorCode: string;
+
+    // Extract error code from response
+    if (errorData?.code) {
+      errorCode = errorData.code;
+    } else {
+      // Map HTTP status codes to error types
+      switch (statusCode) {
+        case 400:
+          errorCode = errorData?.message?.includes('required') ? 'MISSING_REQUIRED_FIELD' : 'INVALID_REQUEST';
+          break;
+        case 401:
+          errorCode = 'INVALID_TOKEN';
+          break;
+        case 403:
+          if (errorData?.message?.includes('duplicate')) {
+            errorCode = 'DUPLICATE_SUBMISSION';
+          } else if (errorData?.message?.includes('scope')) {
+            errorCode = 'INSUFFICIENT_SCOPE';
+          } else {
+            errorCode = 'INVALID_CREDENTIALS';
+          }
+          break;
+        case 409:
+          errorCode = 'DUPLICATE_SUBMISSION';
+          break;
+        case 422:
+          errorCode = 'INVALID_REQUEST';
+          break;
+        case 429:
+          errorCode = 'RATE_LIMIT_EXCEEDED';
+          break;
+        case 500:
+          errorCode = 'INTERNAL_SERVER_ERROR';
+          break;
+        case 502:
+        case 503:
+          errorCode = 'SERVICE_UNAVAILABLE';
+          break;
+        case 504:
+          errorCode = 'GATEWAY_TIMEOUT';
+          break;
+        default:
+          if (originalError?.message.includes('timeout')) {
+            errorCode = 'TIMEOUT';
+          } else if (originalError?.message.includes('network') || originalError?.message.includes('ECONNRESET')) {
+            errorCode = 'NETWORK_ERROR';
+          } else {
+            errorCode = 'INTERNAL_SERVER_ERROR';
+          }
+      }
+    }
+
+    const errorDetails = this.errorMappings.get(errorCode);
+    
+    if (errorDetails) {
+      return {
+        ...errorDetails,
+        message: errorData?.message || errorDetails.message
+      };
+    }
+
+    // Default error for unknown codes
+    return {
+      code: errorCode || 'UNKNOWN_ERROR',
+      message: errorData?.message || `HTTP ${statusCode} error`,
+      userMessage: 'An unexpected error occurred. Please try again or contact support if the problem persists.',
+      severity: 'error',
+      category: 'SERVER',
+      retryable: statusCode >= 500,
+      recoveryAction: 'Contact support',
+      estimatedResolutionTime: 'Unknown'
+    };
+  }
+
+  /**
+   * Get recovery workflow for an error
+   */
+  public getRecoveryWorkflow(errorCode: string): ErrorRecoveryWorkflow | null {
+    return this.recoveryWorkflows.get(errorCode) || null;
+  }
+
+  /**
+   * Check if an error is retryable
+   */
+  public isRetryable(errorCode: string): boolean {
+    const errorDetails = this.errorMappings.get(errorCode);
+    return errorDetails?.retryable || false;
+  }
+
+  /**
+   * Get user-friendly error message
+   */
+  public getUserMessage(errorCode: string): string {
+    const errorDetails = this.errorMappings.get(errorCode);
+    return errorDetails?.userMessage || 'An unexpected error occurred. Please try again.';
+  }
+
+  /**
+   * Log error for analytics
+   */
+  public logError(errorCode: string, userId: string, context: Record<string, any>): void {
+    const analytics: ErrorAnalytics = {
+      errorCode,
+      userId,
+      timestamp: new Date().toISOString(),
+      context,
+      resolved: false
+    };
+
+    this.errorAnalytics.push(analytics);
+
+    // In production, this would send to analytics service
+    console.log('Error logged for analytics:', analytics);
+  }
+
+  /**
+   * Mark error as resolved
+   */
+  public markErrorResolved(errorCode: string, userId: string, resolutionMethod: string): void {
+    const errorIndex = this.errorAnalytics.findIndex(
+      error => error.errorCode === errorCode && 
+               error.userId === userId && 
+               !error.resolved
+    );
+
+    if (errorIndex !== -1) {
+      const error = this.errorAnalytics[errorIndex];
+      error.resolved = true;
+      error.resolutionTime = Date.now() - new Date(error.timestamp).getTime();
+      error.recoveryMethod = resolutionMethod;
+    }
+  }
+
+  /**
+   * Get error statistics for monitoring
+   */
+  public getErrorStatistics(timeRange: { start: Date; end: Date }): {
+    totalErrors: number;
+    errorsByCategory: Record<string, number>;
+    errorsByCode: Record<string, number>;
+    averageResolutionTime: number;
+    resolutionRate: number;
+  } {
+    const filteredErrors = this.errorAnalytics.filter(error => {
+      const errorDate = new Date(error.timestamp);
+      return errorDate >= timeRange.start && errorDate <= timeRange.end;
+    });
+
+    const errorsByCategory: Record<string, number> = {};
+    const errorsByCode: Record<string, number> = {};
+    let totalResolutionTime = 0;
+    let resolvedCount = 0;
+
+    filteredErrors.forEach(error => {
+      const errorDetails = this.errorMappings.get(error.errorCode);
+      const category = errorDetails?.category || 'UNKNOWN';
+      
+      errorsByCategory[category] = (errorsByCategory[category] || 0) + 1;
+      errorsByCode[error.errorCode] = (errorsByCode[error.errorCode] || 0) + 1;
+
+      if (error.resolved && error.resolutionTime) {
+        totalResolutionTime += error.resolutionTime;
+        resolvedCount++;
+      }
+    });
+
+    return {
+      totalErrors: filteredErrors.length,
+      errorsByCategory,
+      errorsByCode,
+      averageResolutionTime: resolvedCount > 0 ? totalResolutionTime / resolvedCount : 0,
+      resolutionRate: filteredErrors.length > 0 ? resolvedCount / filteredErrors.length : 0
+    };
+  }
+
+  /**
+   * Create error notification for user
+   */
+  public createErrorNotification(errorCode: string, context?: Record<string, any>): {
+    title: string;
+    message: string;
+    severity: 'error' | 'warning' | 'info';
+    actions: Array<{ label: string; action: string; parameters?: Record<string, any> }>;
+    dismissible: boolean;
+    autoHide: boolean;
+    duration?: number;
+  } {
+    const errorDetails = this.errorMappings.get(errorCode);
+    const workflow = this.getRecoveryWorkflow(errorCode);
+
+    if (!errorDetails) {
+      return {
+        title: 'Error',
+        message: 'An unexpected error occurred.',
+        severity: 'error',
+        actions: [{ label: 'Contact Support', action: 'contact_support' }],
+        dismissible: true,
+        autoHide: false
+      };
+    }
+
+    const actions: Array<{ label: string; action: string; parameters?: Record<string, any> }> = [];
+
+    if (workflow?.automaticRecovery) {
+      actions.push({ label: 'Retry Automatically', action: 'auto_retry' });
+    } else if (errorDetails.retryable) {
+      actions.push({ label: 'Try Again', action: 'retry' });
+    }
+
+    if (errorDetails.documentationUrl) {
+      actions.push({ 
+        label: 'Learn More', 
+        action: 'open_documentation',
+        parameters: { url: errorDetails.documentationUrl }
+      });
+    }
+
+    actions.push({ label: 'Contact Support', action: 'contact_support' });
+
+    return {
+      title: this.getErrorTitle(errorDetails.category),
+      message: errorDetails.userMessage,
+      severity: errorDetails.severity,
+      actions,
+      dismissible: errorDetails.severity !== 'error',
+      autoHide: errorDetails.severity === 'info',
+      duration: errorDetails.severity === 'info' ? 5000 : undefined
+    };
+  }
+
+  private getErrorTitle(category: string): string {
+    switch (category) {
+      case 'AUTH':
+        return 'Authentication Issue';
+      case 'VALIDATION':
+        return 'Data Validation Error';
+      case 'RATE_LIMIT':
+        return 'Rate Limit Reached';
+      case 'SERVER':
+        return 'Service Temporarily Unavailable';
+      case 'NETWORK':
+        return 'Connection Issue';
+      case 'BUSINESS':
+        return 'Submission Issue';
+      case 'COMPLIANCE':
+        return 'Security Check Failed';
+      default:
+        return 'Error';
+    }
+  }
 } 

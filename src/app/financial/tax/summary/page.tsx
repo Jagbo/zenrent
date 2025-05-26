@@ -7,6 +7,7 @@ import { SidebarContent } from "../../../components/sidebar-content";
 import { Button } from "../../../components/button";
 import { supabase } from "@/lib/supabase";
 import { getAuthUser } from "@/lib/auth-helpers";
+import { useSupabaseTaxData, getCurrentTaxYear } from "@/hooks/useSupabaseTaxData";
 import { Navbar, NavbarSection, NavbarItem, NavbarLabel } from "../../../components/navbar";
 
 // Tax wizard progress steps
@@ -72,6 +73,138 @@ type TaxSummary = {
   higherRateTax: number;
   additionalRateTax: number;
   totalTaxDue: number;
+  
+  // Payment Information
+  paymentDueDate: string;
+  secondPaymentDueDate?: string;
+  estimatedPayments: {
+    firstPayment: number;
+    secondPayment?: number;
+  };
+};
+
+// Validation types
+type ValidationIssue = {
+  type: 'error' | 'warning' | 'info';
+  field: string;
+  message: string;
+};
+
+// Calculate payment due dates based on tax year
+const calculatePaymentDueDates = (taxYear: string) => {
+  const [startYear, endYear] = taxYear.split('/');
+  const taxYearEnd = parseInt(endYear);
+  
+  // Self Assessment deadline: 31st January following the tax year
+  const paymentDueDate = `31 January ${taxYearEnd + 1}`;
+  
+  // If tax due is over £1,000, payments on account are required
+  // First payment: 31st January, Second payment: 31st July
+  const secondPaymentDueDate = `31 July ${taxYearEnd + 1}`;
+  
+  return { paymentDueDate, secondPaymentDueDate };
+};
+
+// Validate tax calculation
+const validateTaxCalculation = (taxSummary: TaxSummary): ValidationIssue[] => {
+  const issues: ValidationIssue[] = [];
+  
+  // Check for negative values
+  if (taxSummary.totalRentalIncome < 0) {
+    issues.push({
+      type: 'error',
+      field: 'income',
+      message: 'Total rental income cannot be negative'
+    });
+  }
+  
+  if (taxSummary.effectiveExpenses < 0) {
+    issues.push({
+      type: 'error',
+      field: 'expenses',
+      message: 'Total expenses cannot be negative'
+    });
+  }
+  
+  // Check for unrealistic values
+  if (taxSummary.totalRentalIncome > 1000000) {
+    issues.push({
+      type: 'warning',
+      field: 'income',
+      message: 'Rental income over £1M may require additional reporting'
+    });
+  }
+  
+  if (taxSummary.effectiveExpenses > taxSummary.totalRentalIncome * 2) {
+    issues.push({
+      type: 'warning',
+      field: 'expenses',
+      message: 'Expenses are significantly higher than income - please verify'
+    });
+  }
+  
+  // Check property allowance usage
+  if (taxSummary.usePropertyAllowance && taxSummary.totalExpenses > 1000) {
+    issues.push({
+      type: 'info',
+      field: 'allowance',
+      message: `Using property allowance saves £${(taxSummary.totalExpenses - 1000).toFixed(2)} in deductions`
+    });
+  }
+  
+  // Check for missing mortgage interest relief
+  if (taxSummary.mortgageInterest > 0 && taxSummary.financeCostTaxReduction === 0) {
+    issues.push({
+      type: 'warning',
+      field: 'finance_costs',
+      message: 'Mortgage interest detected but no tax relief calculated'
+    });
+  }
+  
+  // Check for high tax liability
+  if (taxSummary.totalTaxDue > 1000) {
+    issues.push({
+      type: 'info',
+      field: 'payments',
+      message: 'Tax liability over £1,000 may require payments on account'
+    });
+  }
+  
+  return issues;
+};
+
+// Generate PDF export data
+const generatePDFData = (taxSummary: TaxSummary, userDetails: any, taxYear: string) => {
+  return {
+    title: `Tax Summary ${taxYear}`,
+    taxpayer: {
+      name: `${userDetails?.first_name || ''} ${userDetails?.last_name || ''}`.trim(),
+      utr: userDetails?.utr || 'Not provided',
+      taxYear: taxYear
+    },
+    summary: {
+      totalIncome: taxSummary.totalRentalIncome,
+      totalExpenses: taxSummary.effectiveExpenses,
+      netProfit: taxSummary.netProfit,
+      taxableProfit: taxSummary.adjustedProfit,
+      totalTaxDue: taxSummary.totalTaxDue
+    },
+    breakdown: {
+      income: taxSummary.incomeByCategory,
+      expenses: taxSummary.expensesByCategory,
+      taxBands: {
+        basicRate: taxSummary.basicRateTax,
+        higherRate: taxSummary.higherRateTax,
+        additionalRate: taxSummary.additionalRateTax
+      }
+    },
+    payments: {
+      dueDate: taxSummary.paymentDueDate,
+      secondDueDate: taxSummary.secondPaymentDueDate,
+      firstPayment: taxSummary.estimatedPayments.firstPayment,
+      secondPayment: taxSummary.estimatedPayments.secondPayment
+    }
+  };
 };
 
 export default function TaxSummary() {
@@ -82,10 +215,17 @@ export default function TaxSummary() {
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentTaxYear, setCurrentTaxYear] = useState<string>("");
+  const [currentTaxYear, setCurrentTaxYear] = useState<string>(getCurrentTaxYear());
+  
+  console.log('[TaxSummary] Component rendering. Current userId:', userId);
+  console.log(`[TaxSummary] Testing useSupabaseTaxData with userId: ${userId}, currentTaxYear: ${currentTaxYear}`);
+  const taxData = useSupabaseTaxData(userId, currentTaxYear);
+  console.log('[TaxSummary] Data received from useSupabaseTaxData:', taxData);
   const [userDetails, setUserDetails] = useState<any>(null);
   const [taxSummary, setTaxSummary] = useState<TaxSummary | null>(null);
   const [showFormPreview, setShowFormPreview] = useState(false);
+  const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([]);
+  const [isExporting, setIsExporting] = useState(false);
   
   // Load tax data and calculate summary
   useEffect(() => {
@@ -118,33 +258,11 @@ export default function TaxSummary() {
             console.error("Error fetching tax profile:", taxError);
           }
           
-          if (userProfile && taxProfile) {
-            setUserDetails({
-              ...userProfile,
-              ...taxProfile
-            });
+          if (taxProfile) {
+            setCurrentTaxYear(taxProfile.tax_year);
             
-            setCurrentTaxYear(taxProfile.tax_year || "");
-            
-            // Get tax year date range
-            const [startYear, endYear] = taxProfile.tax_year.split("/");
-            const startDate = `${startYear}-04-06`;
-            const endDate = `${endYear}-04-05`;
-            
-            // Load transactions
-            const { data: transactions, error: transactionError } = await supabase
-              .from("bank_transactions")
-              .select("*")
-              .eq("user_id", user.id)
-              .gte("date", startDate)
-              .lte("date", endDate);
-              
-            if (transactionError) {
-              throw new Error(`Error fetching transactions: ${transactionError.message}`);
-            }
-            
-            // Load adjustments
-            const { data: adjustments, error: adjustmentsError } = await supabase
+            // Get tax adjustments
+            const { data: taxAdjustments, error: adjustmentsError } = await supabase
               .from("tax_adjustments")
               .select("*")
               .eq("user_id", user.id)
@@ -152,16 +270,24 @@ export default function TaxSummary() {
               .single();
               
             if (adjustmentsError && adjustmentsError.code !== "PGRST116") {
-              console.error("Error fetching adjustments:", adjustmentsError);
+              console.error("Error fetching tax adjustments:", adjustmentsError);
             }
             
-            // Calculate tax summary
-            calculateTaxSummary(transactions || [], adjustments || {});
+            // Set user details
+            setUserDetails({
+              profile: userProfile,
+              taxProfile: taxProfile,
+              taxAdjustments: taxAdjustments || null,
+            });
           }
         }
-      } catch (error) {
-        console.error("Error loading data:", error);
-        setError(error instanceof Error ? error.message : "Failed to load data");
+      } catch (err) {
+        console.error("Error loading tax data:", err);
+        // Fix the error handling to avoid instanceof Error issue
+        const errorMessage = typeof err === 'object' && err !== null && 'message' in err
+          ? (err as Error).message 
+          : "Failed to load data";
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -169,6 +295,159 @@ export default function TaxSummary() {
     
     loadData();
   }, []);
+
+  // Use tax data from hook to calculate and update summary
+  useEffect(() => {
+    if (taxData && !loading) {
+      console.log('[TaxSummary] Using taxData from hook to calculate summary:', taxData);
+      
+      // Calculate payment due dates
+      const paymentDates = calculatePaymentDueDates(currentTaxYear);
+      
+      // Calculate tax summary using data from the hook
+      const summary: TaxSummary = {
+        totalRentalIncome: taxData.totalIncome,
+        incomeByCategory: {}, // We don't have category breakdown from the hook
+        
+        totalExpenses: taxData.totalExpenses,
+        expensesByCategory: {}, // We don't have category breakdown from the hook
+        totalMileageAllowance: taxData.taxAdjustments?.use_mileage_allowance ? 
+          taxData.taxAdjustments.mileage_total * 0.45 : null, // £0.45 per mile
+        usePropertyAllowance: taxData.taxAdjustments?.use_property_income_allowance || false,
+        propertyAllowanceAmount: taxData.taxAdjustments?.use_property_income_allowance ? 1000 : 0,
+        effectiveExpenses: taxData.totalExpenses,
+        
+        netProfit: taxData.taxableProfit,
+        priorYearLosses: taxData.taxAdjustments?.prior_year_losses || null,
+        adjustedProfit: Math.max(0, taxData.taxableProfit - (taxData.taxAdjustments?.prior_year_losses || 0)),
+        
+        mortgageInterest: 0, // Would need to be calculated from transactions
+        financeCostTaxReduction: 0,
+        
+        taxableIncome: Math.max(0, taxData.taxableProfit - (taxData.taxAdjustments?.prior_year_losses || 0)),
+        basicRateTax: 0,
+        higherRateTax: 0,
+        additionalRateTax: 0,
+        totalTaxDue: 0,
+        
+        // Payment Information
+        paymentDueDate: paymentDates.paymentDueDate,
+        secondPaymentDueDate: paymentDates.secondPaymentDueDate,
+        estimatedPayments: {
+          firstPayment: 0,
+          secondPayment: 0
+        }
+      };
+      
+      // Calculate tax bands based on income
+      if (summary.taxableIncome > 0) {
+        // Apply personal allowance and tax bands
+        const personalAllowance = taxRates[0].max;
+        const basicRateMax = taxRates[1].max;
+        const higherRateMax = taxRates[2].max;
+        let remainingIncome = summary.taxableIncome;
+        
+        // Skip personal allowance (0%)
+        if (remainingIncome > personalAllowance) {
+          remainingIncome -= personalAllowance;
+          
+          // Basic rate (20%)
+          if (remainingIncome > 0) {
+            const basicRateIncome = Math.min(remainingIncome, basicRateMax - personalAllowance);
+            summary.basicRateTax = basicRateIncome * taxRates[1].rate;
+            remainingIncome -= basicRateIncome;
+            
+            // Higher rate (40%)
+            if (remainingIncome > 0) {
+              const higherRateIncome = Math.min(remainingIncome, higherRateMax - basicRateMax);
+              summary.higherRateTax = higherRateIncome * taxRates[2].rate;
+              remainingIncome -= higherRateIncome;
+              
+              // Additional rate (45%)
+              if (remainingIncome > 0) {
+                summary.additionalRateTax = remainingIncome * taxRates[3].rate;
+              }
+            }
+          }
+        }
+        
+        // Calculate total tax due
+        summary.totalTaxDue = summary.basicRateTax + summary.higherRateTax + summary.additionalRateTax;
+        
+        // Calculate payments on account if tax due > £1,000
+        if (summary.totalTaxDue > 1000) {
+          summary.estimatedPayments.firstPayment = summary.totalTaxDue / 2;
+          summary.estimatedPayments.secondPayment = summary.totalTaxDue / 2;
+        } else {
+          summary.estimatedPayments.firstPayment = summary.totalTaxDue;
+        }
+      }
+      
+      console.log('[TaxSummary] Calculated tax summary:', summary);
+      setTaxSummary(summary);
+      
+      // Validate the calculation
+      const issues = validateTaxCalculation(summary);
+      setValidationIssues(issues);
+      
+      // Update user details from the hook data
+      if (taxData.taxProfile) {
+        setUserDetails({
+          taxProfile: taxData.taxProfile,
+          taxAdjustments: taxData.taxAdjustments || null,
+          properties: taxData.properties || []
+        });
+        
+        if (taxData.taxProfile.tax_year) {
+          setCurrentTaxYear(taxData.taxProfile.tax_year);
+        }
+      }
+    }
+  }, [taxData, loading, taxRates, currentTaxYear]);
+  
+  // Handle PDF export
+  const handleExportPDF = async () => {
+    if (!taxSummary || !userDetails) return;
+    
+    setIsExporting(true);
+    try {
+      const pdfData = generatePDFData(taxSummary, userDetails, currentTaxYear);
+      
+      // Call the PDF generation API
+      const response = await fetch('/api/financial/tax/generate-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(pdfData),
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `tax-summary-${currentTaxYear.replace('/', '-')}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        throw new Error('Failed to generate PDF');
+      }
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      setError('Failed to export PDF. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+  
+  // Handle print
+  const handlePrint = () => {
+    window.print();
+  };
   
   // Calculate tax summary
   const calculateTaxSummary = (transactions: any[], adjustments: any) => {
@@ -196,6 +475,14 @@ export default function TaxSummary() {
       higherRateTax: 0,
       additionalRateTax: 0,
       totalTaxDue: 0,
+      
+      // Payment Information
+      paymentDueDate: calculatePaymentDueDates(currentTaxYear).paymentDueDate,
+      secondPaymentDueDate: calculatePaymentDueDates(currentTaxYear).secondPaymentDueDate,
+      estimatedPayments: {
+        firstPayment: 0,
+        secondPayment: 0
+      }
     };
     
     // Calculate income and expenses by category
@@ -297,8 +584,38 @@ export default function TaxSummary() {
     summary.adjustedProfit = adjustedProfit;
     summary.taxableIncome = adjustedProfit;
     
-    // Calculate tax on profit
-    const taxDue = calculateIncomeTax(adjustedProfit);
+    // Calculate tax on profit using the tax rates
+    // Helper function to calculate income tax
+    function calculateTaxForSummary(income: number) {
+      let basicRateTax = 0;
+      let higherRateTax = 0;
+      let additionalRateTax = 0;
+      
+      // Apply personal allowance and tax bands
+      const personalAllowance = taxRates[0].max;
+      const basicRateMax = taxRates[1].max;
+      const higherRateMax = taxRates[2].max;
+      
+      if (income > personalAllowance) {
+        // Basic rate (20%)
+        basicRateTax = Math.min(basicRateMax - personalAllowance, income - personalAllowance) * taxRates[1].rate;
+        
+        // Higher rate (40%)
+        if (income > basicRateMax) {
+          higherRateTax = Math.min(higherRateMax - basicRateMax, income - basicRateMax) * taxRates[2].rate;
+          
+          // Additional rate (45%)
+          if (income > higherRateMax) {
+            additionalRateTax = (income - higherRateMax) * taxRates[3].rate;
+          }
+        }
+      }
+      
+      const totalTax = basicRateTax + higherRateTax + additionalRateTax;
+      return { basicRateTax, higherRateTax, additionalRateTax, totalTax };
+    }
+    
+    const taxDue = calculateTaxForSummary(adjustedProfit);
     summary.basicRateTax = taxDue.basicRateTax;
     summary.higherRateTax = taxDue.higherRateTax;
     summary.additionalRateTax = taxDue.additionalRateTax;
@@ -326,59 +643,34 @@ export default function TaxSummary() {
     // Ensure non-negative tax
     summary.totalTaxDue = Math.max(0, summary.totalTaxDue);
     
+    // Calculate payments on account
+    if (summary.totalTaxDue > 1000) {
+      summary.estimatedPayments.firstPayment = summary.totalTaxDue / 2;
+      summary.estimatedPayments.secondPayment = summary.totalTaxDue / 2;
+    } else {
+      summary.estimatedPayments.firstPayment = summary.totalTaxDue;
+    }
+    
     setTaxSummary(summary);
   };
   
-  // Helper function to calculate income tax
-  const calculateIncomeTax = (income: number) => {
-    let basicRateTax = 0;
-    let higherRateTax = 0;
-    let additionalRateTax = 0;
-    
-    // Apply personal allowance and tax bands
-    const personalAllowance = taxRates[0].max;
-    const basicRateMax = taxRates[1].max;
-    const higherRateMax = taxRates[2].max;
-    
-    if (income > personalAllowance) {
-      // Basic rate (20%)
-      const basicRateAmount = Math.min(income, basicRateMax) - personalAllowance;
-      if (basicRateAmount > 0) {
-        basicRateTax = basicRateAmount * 0.2;
-      }
-      
-      // Higher rate (40%)
-      const higherRateAmount = Math.min(income, higherRateMax) - basicRateMax;
-      if (higherRateAmount > 0) {
-        higherRateTax = higherRateAmount * 0.4;
-      }
-      
-      // Additional rate (45%)
-      const additionalRateAmount = income - higherRateMax;
-      if (additionalRateAmount > 0) {
-        additionalRateTax = additionalRateAmount * 0.45;
-      }
-    }
-    
-    return {
-      basicRateTax,
-      higherRateTax,
-      additionalRateTax
-    };
+  // Handle navigation to filing page
+  const handleGoToFiling = () => {
+    router.push("/financial/tax/filing");
   };
   
-  // Handle "Generate Tax Return" button click
+  // Handle tax return generation
   const handleGenerateTaxReturn = () => {
-    // For now, just navigate to filing page
+    // Logic for generating tax return or navigating to the filing page
     router.push("/financial/tax/filing");
   };
   
   return (
     <SidebarLayout 
-      sidebar={<SidebarContent currentPath={pathname} />} 
       isOnboarding={false}
       searchValue=""
-    >
+    >      
+      <div>
       <div className="space-y-8">
         {/* Progress Bar */}
         <div className="py-0">
@@ -455,6 +747,47 @@ export default function TaxSummary() {
             </ol>
           </nav>
         </div>
+
+        {/* Validation Issues */}
+        {validationIssues.length > 0 && (
+          <div className="space-y-2">
+            {validationIssues.map((issue, index) => (
+              <div
+                key={index}
+                className={`px-4 py-3 border-l-4 ${
+                  issue.type === 'error'
+                    ? 'bg-red-50 border-red-400 text-red-700'
+                    : issue.type === 'warning'
+                    ? 'bg-yellow-50 border-yellow-400 text-yellow-700'
+                    : 'bg-blue-50 border-blue-400 text-blue-700'
+                }`}
+              >
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    {issue.type === 'error' ? (
+                      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                    ) : issue.type === 'warning' ? (
+                      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    ) : (
+                      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium">
+                      {issue.type.charAt(0).toUpperCase() + issue.type.slice(1)}: {issue.message}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="bg-white shadow sm:rounded-lg">
           <div className="px-4 py-5 sm:px-6 flex items-center justify-between">
@@ -653,13 +986,45 @@ export default function TaxSummary() {
                   </dd>
                 </div>
                 
-                {/* Notes & Additional Information */}
+                {/* Payment Due Dates */}
                 <div className="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                  <dt className="text-sm font-medium text-gray-900">Payment Due Dates</dt>
+                  <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">
+                    <div className="space-y-2">
+                      <div>
+                        <span className="font-medium">Self Assessment deadline:</span>
+                        <span className="ml-2">{taxSummary.paymentDueDate}</span>
+                      </div>
+                      
+                      {taxSummary.totalTaxDue > 1000 && (
+                        <>
+                          <div className="text-xs text-gray-500 mt-2">
+                            As your tax liability exceeds £1,000, you may need to make payments on account:
+                          </div>
+                          <div>
+                            <span className="text-xs text-gray-500">First payment (50%):</span>
+                            <span className="ml-2 font-medium">£{taxSummary.estimatedPayments.firstPayment?.toFixed(2)} by {taxSummary.paymentDueDate}</span>
+                          </div>
+                          {taxSummary.secondPaymentDueDate && (
+                            <div>
+                              <span className="text-xs text-gray-500">Second payment (50%):</span>
+                              <span className="ml-2 font-medium">£{taxSummary.estimatedPayments.secondPayment?.toFixed(2)} by {taxSummary.secondPaymentDueDate}</span>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </dd>
+                </div>
+                
+                {/* Notes & Additional Information */}
+                <div className="bg-gray-50 px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                   <dt className="text-sm font-medium text-gray-900">Notes</dt>
                   <dd className="mt-1 text-sm text-gray-500 sm:col-span-2 sm:mt-0">
                     <ul className="list-disc pl-5 space-y-1">
                       <li>This summary is for your UK property income only. You may have other income sources to include in your complete Self Assessment.</li>
                       <li>Tax bands and rates are based on the current tax year.</li>
+                      <li>Payment dates are estimates. Check HMRC guidance for exact deadlines.</li>
                       <li>We recommend reviewing your tax calculations with an accountant before final submission.</li>
                     </ul>
                   </dd>
@@ -675,7 +1040,7 @@ export default function TaxSummary() {
           )}
           
           {/* Action buttons */}
-          <div className="px-4 py-4 sm:px-6 border-t border-gray-200 flex justify-end gap-x-4">
+          <div className="px-4 py-4 sm:px-6 border-t border-gray-200 flex justify-between">
             <button type="button"
               onClick={() => router.push("/financial/tax/adjustments")}
               className="text-sm/6 font-semibold text-gray-900"
@@ -683,9 +1048,27 @@ export default function TaxSummary() {
               Back
             </button>
             
+            <div className="flex gap-x-4">
+              <button type="button"
+                onClick={handlePrint}
+                className="text-sm/6 font-semibold text-gray-600 hover:text-gray-500"
+                disabled={loading || !taxSummary}
+              >
+                Print
+              </button>
+              
+              <button type="button"
+                onClick={handleExportPDF}
+                className="text-sm/6 font-semibold text-blue-600 hover:text-blue-500"
+                disabled={loading || !taxSummary || isExporting}
+              >
+                {isExporting ? 'Exporting...' : 'Export PDF'}
+            </button>
+            
             <button type="button"
               onClick={() => setShowFormPreview(true)}
               className="text-sm/6 font-semibold text-blue-600 hover:text-blue-500"
+                disabled={loading || !taxSummary}
             >
               Preview Forms
             </button>
@@ -697,6 +1080,7 @@ export default function TaxSummary() {
             >
               Continue to Filing
             </button>
+            </div>
           </div>
         </div>
       </div>
@@ -843,6 +1227,7 @@ export default function TaxSummary() {
           </div>
         </div>
       )}
+      </div>
     </SidebarLayout>
   );
 } 
