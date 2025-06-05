@@ -3,12 +3,10 @@
 import { useState, useEffect } from "react";
 import type { ReactElement } from "react";
 import { SidebarLayout } from "../../components/sidebar-layout";
-import { SidebarContent } from "../../components/sidebar-content";
 import { Heading } from "../../components/heading";
 import { Text } from "../../components/text";
 import {
   XMarkIcon,
-  ArrowDownIcon,
   FunnelIcon,
   MagnifyingGlassIcon,
 } from "@heroicons/react/24/solid";
@@ -137,6 +135,8 @@ export default function Transactions(): ReactElement {
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isCategorizing, setIsCategorizing] = useState(false);
+  const [categorizationProgress, setCategorizationProgress] = useState<string>("");
 
   const fetchData = async () => {
     try {
@@ -330,6 +330,79 @@ export default function Transactions(): ReactElement {
     }
   };
 
+  // Auto-categorize transactions
+  const handleAutoCategorize = async () => {
+    if (transactions.length === 0) {
+      alert("No transactions to categorize.");
+      return;
+    }
+    
+    setIsCategorizing(true);
+    setError(null);
+    setCategorizationProgress("Starting categorization process...");
+
+    try {
+      if (transactions.length > 100) {
+        const batchSize = 50;
+        const batchCount = Math.ceil(transactions.length / batchSize);
+        setCategorizationProgress(`Processing ${transactions.length} transactions in ${batchCount} batches`);
+      } else {
+        setCategorizationProgress(`Processing ${transactions.length} transactions`);
+      }
+
+      // Transform transactions to match the API format
+      const apiTransactions = transactions.map(t => ({
+        id: t.id,
+        name: t.description,
+        date: t.date,
+        amount: t.amount,
+        category: t.category ? [t.category] : null,
+      }));
+
+      const response = await fetch('/api/openai/categorize-transactions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ transactions: apiTransactions }),
+        signal: AbortSignal.timeout(360000), // 6 minutes timeout
+      });
+
+      setCategorizationProgress("Categorization request completed, processing results...");
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `API request failed with status ${response.status}`);
+      }
+
+      setCategorizationProgress("Parsing categorized transactions...");
+      const categorizedTransactions = await response.json();
+
+      // Update local state with categorized transactions
+      setCategorizationProgress("Updating transaction data...");
+      
+      // Transform the response back to our format and update transactions
+      const updatedTransactions = transactions.map(transaction => {
+        const categorized = categorizedTransactions.find((ct: any) => ct.id === transaction.id);
+        if (categorized && categorized.category && categorized.category.length > 0) {
+          return { ...transaction, category: categorized.category[0] };
+        }
+        return transaction;
+      });
+      
+      setTransactions(updatedTransactions);
+      
+      setCategorizationProgress("Categorization complete! Categories have been updated.");
+      setTimeout(() => setCategorizationProgress(""), 3000);
+      
+    } catch (error) {
+      console.error("Error auto-categorizing transactions:", error);
+      setError(error instanceof Error ? error.message : "Failed to auto-categorize transactions");
+    } finally {
+      setIsCategorizing(false);
+    }
+  };
+
   const filteredTransactions = transactions.filter((transaction) => {
     // Apply search term filter
     if (
@@ -403,7 +476,7 @@ export default function Transactions(): ReactElement {
         month: "short",
         year: "numeric",
       });
-    } catch (e) {
+    } catch {
       return dateString; // Return original string if date is invalid
     }
   };
@@ -411,11 +484,10 @@ export default function Transactions(): ReactElement {
   // Computed filter values based on transactions
   const types = getTypes(transactions);
   const categories = getCategories(transactions);
-  const propertyNames = getPropertyNames(transactions);
   const statuses = getStatuses(transactions);
 
   return (
-    <SidebarLayout sidebar={<SidebarContent currentPath="/financial" />}>
+    <SidebarLayout>
       <div className="space-y-6">
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
@@ -466,92 +538,281 @@ export default function Transactions(): ReactElement {
 
         {/* Search and Filters - Only show when data is loaded */}
         {!loading && !error && (
-          <div className="bg-white shadow-sm rounded-lg border border-gray-200 p-4">
-            <div className="flex flex-col space-y-4">
-              {/* Property Selector */}
-              <div className="flex flex-wrap gap-2 items-center">
-                <div className="text-sm font-medium text-gray-700">
-                  Property:
+          <div className="bg-white shadow-sm rounded-xl border border-gray-200/50 overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-gray-50 to-gray-50/70 px-6 py-4 border-b border-gray-200/50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <FunnelIcon className="h-5 w-5 text-gray-500" />
+                  <h3 className="text-lg font-semibold text-gray-900">Filter Transactions</h3>
                 </div>
-                <select className="form-select rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  value={selectedPropertyId}
-                  onChange={(e) =>
-                    handlePropertyChange(e.target.value as string | "all")
-                  }
-                >
-                  <option value="all">All Properties</option>
-                  {properties.map((property) => (
-                    <option key={property.id} value={property.id}>
-                      {property.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center space-x-3 text-sm text-gray-500">
+                  <span>{filteredTransactions.length} of {transactions.length} transactions</span>
+                  
+                  {/* Auto Categorize Button */}
+                  <button
+                    onClick={handleAutoCategorize}
+                    disabled={isCategorizing || transactions.length === 0}
+                    className="inline-flex items-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white text-xs font-medium rounded-md transition-colors"
+                  >
+                    {isCategorizing ? (
+                      <>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-2"></div>
+                        Categorizing...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="h-3 w-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        Auto Categorize
+                      </>
+                    )}
+                  </button>
+                  
+                  {(searchTerm || typeFilter !== "All" || categoryFilter !== "All" || propertyFilter !== "All") && (
+                    <button
+                      onClick={() => {
+                        setSearchTerm("");
+                        setTypeFilter("All");
+                        setCategoryFilter("All");
+                        setPropertyFilter("All");
+                        setCurrentPage(1);
+                      }}
+                      className="inline-flex items-center text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-md transition-colors"
+                    >
+                      Clear all
+                    </button>
+                  )}
+                </div>
+              </div>
+              
+              {/* Progress Display */}
+              {(isCategorizing || categorizationProgress) && (
+                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                  <div className="flex items-center space-x-2">
+                    {isCategorizing && (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                    )}
+                    <span className="text-sm text-blue-800 font-medium">
+                      {categorizationProgress || "Processing transactions..."}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Filters Content */}
+            <div className="p-6 space-y-6">
+              {/* Primary Search Bar */}
+              <div className="relative">
+                <label htmlFor="search-transactions" className="block text-sm font-medium text-gray-700 mb-2">
+                  Search Transactions
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input 
+                    id="search-transactions"
+                    type="text"
+                    className="block w-full pl-12 pr-4 py-3 text-base border border-gray-300 rounded-lg bg-gray-50/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all duration-200 placeholder-gray-400"
+                    placeholder="Search by description, property, amount, or category..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm("")}
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600"
+                    >
+                      <XMarkIcon className="h-5 w-5" />
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {/* Search Bar */}
-              <div className="relative flex-grow">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+              {/* Filter Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Property Filter */}
+                <div className="space-y-2">
+                  <label htmlFor="property-select" className="flex items-center text-sm font-medium text-gray-700">
+                    <svg className="h-4 w-4 text-gray-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    Property
+                  </label>
+                  <select 
+                    id="property-select"
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+                    value={selectedPropertyId}
+                    onChange={(e) => handlePropertyChange(e.target.value as string | "all")}
+                  >
+                    <option value="all">All Properties</option>
+                    {properties.map((property) => (
+                      <option key={property.id} value={property.id}>
+                        {property.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <input type="text"
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="Search transactions..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+
+                {/* Type Filter */}
+                <div className="space-y-2">
+                  <label htmlFor="type-filter" className="flex items-center text-sm font-medium text-gray-700">
+                    <svg className="h-4 w-4 text-gray-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                    </svg>
+                    Type
+                  </label>
+                  <select 
+                    id="type-filter"
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value)}
+                  >
+                    {types.map((type) => (
+                      <option key={type} value={type}>
+                        {type === "All" ? "All Types" : type}
+                      </option>
+                    ))}
+                  </select>
+                  {typeFilter !== "All" && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-blue-100 text-blue-800">
+                      {typeFilter}
+                    </span>
+                  )}
+                </div>
+
+                {/* Category Filter */}
+                <div className="space-y-2">
+                  <label htmlFor="category-filter" className="flex items-center text-sm font-medium text-gray-700">
+                    <svg className="h-4 w-4 text-gray-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                    </svg>
+                    Category
+                  </label>
+                  <select 
+                    id="category-filter"
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                  >
+                    {categories.map((category) => (
+                      <option key={category} value={category}>
+                        {category === "All" ? "All Categories" : category}
+                      </option>
+                    ))}
+                  </select>
+                  {categoryFilter !== "All" && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-green-100 text-green-800">
+                      {categoryFilter}
+                    </span>
+                  )}
+                </div>
+
+                {/* Status Filter */}
+                <div className="space-y-2">
+                  <label htmlFor="status-filter" className="flex items-center text-sm font-medium text-gray-700">
+                    <svg className="h-4 w-4 text-gray-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Status
+                  </label>
+                  <select 
+                    id="status-filter"
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                  >
+                    {statuses.map((status) => (
+                      <option key={status} value={status}>
+                        {status === "All" ? "All Statuses" : status}
+                      </option>
+                    ))}
+                  </select>
+                  {statusFilter !== "All" && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-purple-100 text-purple-800">
+                      {statusFilter}
+                    </span>
+                  )}
+                </div>
               </div>
 
-              {/* Filters */}
-              <div className="flex flex-wrap gap-2">
-                <select className="form-select rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
-                >
-                  {types.map((type) => (
-                    <option key={type} value={type}>
-                      {type} Type
-                    </option>
-                  ))}
-                </select>
-                <select className="form-select rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                >
-                  {categories.map((category) => (
-                    <option key={category} value={category}>
-                      {category} Category
-                    </option>
-                  ))}
-                </select>
-                <select className="form-select rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  value={propertyFilter}
-                  onChange={(e) => setPropertyFilter(e.target.value)}
-                >
-                  <option value="All">All Properties</option>
-                  {properties.map((property: Property) => (
-                    <option key={property.id} value={property.id}>
-                      {property.name}
-                    </option>
-                  ))}
-                </select>
-                <select className="form-select rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  {statuses.map((status) => (
-                    <option key={status} value={status}>
-                      {status} Status
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* Active Filters Summary */}
+              {(searchTerm || typeFilter !== "All" || categoryFilter !== "All" || propertyFilter !== "All" || statusFilter !== "All") && (
+                <div className="bg-blue-50/50 rounded-lg p-4 border border-blue-200/50">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h4 className="text-sm font-medium text-blue-900 mb-2">Active Filters</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {searchTerm && (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                            Search: "{searchTerm}"
+                            <button
+                              onClick={() => setSearchTerm("")}
+                              className="ml-2 hover:text-blue-600"
+                            >
+                              <XMarkIcon className="h-3 w-3" />
+                            </button>
+                          </span>
+                        )}
+                        {typeFilter !== "All" && (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                            Type: {typeFilter}
+                            <button
+                              onClick={() => setTypeFilter("All")}
+                              className="ml-2 hover:text-blue-600"
+                            >
+                              <XMarkIcon className="h-3 w-3" />
+                            </button>
+                          </span>
+                        )}
+                        {categoryFilter !== "All" && (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                            Category: {categoryFilter}
+                            <button
+                              onClick={() => setCategoryFilter("All")}
+                              className="ml-2 hover:text-blue-600"
+                            >
+                              <XMarkIcon className="h-3 w-3" />
+                            </button>
+                          </span>
+                        )}
+                        {propertyFilter !== "All" && (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                            Property: {propertyFilter}
+                            <button
+                              onClick={() => setPropertyFilter("All")}
+                              className="ml-2 hover:text-blue-600"
+                            >
+                              <XMarkIcon className="h-3 w-3" />
+                            </button>
+                          </span>
+                        )}
+                        {statusFilter !== "All" && (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                            Status: {statusFilter}
+                            <button
+                              onClick={() => setStatusFilter("All")}
+                              className="ml-2 hover:text-blue-600"
+                            >
+                              <XMarkIcon className="h-3 w-3" />
+                            </button>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
 
         {/* Transactions Table */}
         {!loading && !error && (
-          <div className="bg-white shadow-sm rounded-lg border border-gray-200">
+          <div className="bg-white shadow rounded-lg overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -585,11 +846,6 @@ export default function Transactions(): ReactElement {
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                     >
                       Amount
-                    </th>
-                    <th scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Status
                     </th>
                   </tr>
                 </thead>
@@ -680,24 +936,13 @@ export default function Transactions(): ReactElement {
                             {formatCurrency(transaction.amount)}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap cursor-pointer"
-                          onClick={() => handleViewTransaction(transaction)}
-                        >
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              transaction.status === "Completed"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-yellow-100 text-yellow-800"
-                            }`}
-                          >
-                            {transaction.status}
-                          </span>
-                        </td>
+
                       </tr>
                     ))}
 
                   {filteredTransactions.length === 0 && (
                     <tr>
-                      <td colSpan={8}
+                      <td colSpan={6}
                         className="px-6 py-10 text-center text-sm text-gray-500"
                       >
                         No transactions match your filters.
@@ -707,7 +952,6 @@ export default function Transactions(): ReactElement {
                               setTypeFilter("All");
                               setCategoryFilter("All");
                               setPropertyFilter("All");
-                              setStatusFilter("All");
                               setCurrentPage(1);
                             }}
                             className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -936,21 +1180,6 @@ export default function Transactions(): ReactElement {
                           </div>
                           <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
                             <dt className="text-sm font-medium text-gray-500">
-                              Status
-                            </dt>
-                            <dd className="mt-1 text-sm sm:col-span-2 sm:mt-0">
-                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                  selectedTransaction.status === "Completed"
-                                    ? "bg-green-100 text-green-800"
-                                    : "bg-yellow-100 text-yellow-800"
-                                }`}
-                              >
-                                {selectedTransaction.status}
-                              </span>
-                            </dd>
-                          </div>
-                          <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
-                            <dt className="text-sm font-medium text-gray-500">
                               ID
                             </dt>
                             <dd className="mt-1 text-sm text-gray-500 sm:col-span-2 sm:mt-0">
@@ -995,8 +1224,11 @@ export default function Transactions(): ReactElement {
                                     </button>
                                   </div>
                                   <div className="border rounded-lg p-2 bg-gray-50">
-                                    <Image src={selectedTransaction.receipt_url}
+                                    <Image 
+                                      src={selectedTransaction.receipt_url}
                                       alt="Receipt thumbnail"
+                                      width={300}
+                                      height={128}
                                       className="w-full h-32 object-cover rounded"
                                     />
                                   </div>

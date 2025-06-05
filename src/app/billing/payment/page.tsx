@@ -62,12 +62,15 @@ export default function PaymentPage() {
         essential: {
           id: "essential",
           name: "Essential Plan",
-          price: cycle === "monthly" ? "£5" : "£48",
+          price: cycle === "monthly" ? "£10" : "£96",
           interval: cycle === "monthly" ? "month" : "year",
           features: [
             "Full access to core property management features",
             "Mobile app access",
             "Issue tracking",
+            "WhatsApp integration",
+            "Bank account connection",
+            "HMRC tax filing",
           ],
           limits: "1-2 properties",
           hmoSupport: false,
@@ -75,7 +78,7 @@ export default function PaymentPage() {
         standard: {
           id: "standard",
           name: "Standard Plan",
-          price: cycle === "monthly" ? "£10" : "£96",
+          price: cycle === "monthly" ? "£20" : "£192",
           interval: cycle === "monthly" ? "month" : "year",
           features: [
             "All Essential features",
@@ -89,7 +92,7 @@ export default function PaymentPage() {
         professional: {
           id: "professional",
           name: "Professional Plan",
-          price: cycle === "monthly" ? "£20" : "£192",
+          price: cycle === "monthly" ? "£30" : "£288",
           interval: cycle === "monthly" ? "month" : "year",
           features: [
             "All Standard features",

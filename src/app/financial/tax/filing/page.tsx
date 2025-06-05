@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { SidebarLayout } from "../../../components/sidebar-layout";
 import { getAuthUser } from "@/lib/auth-helpers";
@@ -38,7 +38,7 @@ const HMRC_AUTHORIZE_URL = "https://test-api.service.hmrc.gov.uk/oauth/authorize
 const HMRC_CLIENT_ID = process.env.NEXT_PUBLIC_HMRC_CLIENT_ID; // Use NEXT_PUBLIC_ prefix
 const HMRC_REDIRECT_URI = process.env.NEXT_PUBLIC_HMRC_REDIRECT_URI; // Use NEXT_PUBLIC_ prefix
 
-export default function TaxFiling() {
+function TaxFilingContent() {
   // Create a ref for the MTD section
   const mtdSectionRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -949,5 +949,33 @@ export default function TaxFiling() {
         </div>
       </div>
     </SidebarLayout>
+  );
+}
+
+// Loading component for Suspense fallback
+function TaxFilingLoading() {
+  return (
+    <SidebarLayout>
+      <div className="space-y-6">
+        <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Tax Filing</h1>
+            <p className="mt-1 text-sm text-gray-500">Loading tax filing interface...</p>
+          </div>
+        </div>
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
+        </div>
+      </div>
+    </SidebarLayout>
+  );
+}
+
+// Main export wrapped in Suspense boundary
+export default function TaxFiling() {
+  return (
+    <Suspense fallback={<TaxFilingLoading />}>
+      <TaxFilingContent />
+    </Suspense>
   );
 }

@@ -50,13 +50,6 @@ export default function AccountCreation() {
   useEffect(() => {
     async function getUser() {
       try {
-        // In development, use the test user ID
-        if (process.env.NODE_ENV === "development") {
-          console.log("Development mode: Using test user ID");
-          setUserId("00000000-0000-0000-0000-000000000001");
-          return;
-        }
-
         const {
           data: { session },
           error,
@@ -93,6 +86,19 @@ export default function AccountCreation() {
       return;
     }
 
+    // Validate UK phone number if provided
+    if (mobile) {
+      // Remove spaces and check if it's a valid UK mobile format
+      const cleanedMobile = mobile.replace(/\s/g, '');
+      // UK mobile numbers start with 07 and have 9 more digits
+      const ukMobileRegex = /^7\d{9}$/;
+      
+      if (!ukMobileRegex.test(cleanedMobile)) {
+        setError("Please enter a valid UK mobile number (e.g., 7700 900123)");
+        return;
+      }
+    }
+
     if (!agreeTerms || !agreePrivacy) {
       setError("You must agree to the terms of service and privacy policy");
       return;
@@ -108,32 +114,6 @@ export default function AccountCreation() {
 
     try {
       console.log("Submitting user profile for ID:", userId);
-
-      // First check if user_profiles table exists
-      const { error: tableCheckError } = await supabase
-        .from("user_profiles")
-        .select("id")
-        .limit(1);
-
-      // If table doesn't exist, create it
-      if (
-        tableCheckError &&
-        tableCheckError.message.includes(
-          'relation "user_profiles" does not exist',
-        )
-      ) {
-        console.log("Creating user_profiles table");
-        // Create the user_profiles table via RPC (would normally be done via migration)
-        const { error: createTableError } = await supabase.rpc(
-          "create_user_profiles_table",
-        );
-
-        if (createTableError) {
-          throw new Error(
-            `Failed to create user_profiles table: ${createTableError.message}`,
-          );
-        }
-      }
 
       // Get current session to ensure we're authenticated
       const {
@@ -178,7 +158,7 @@ export default function AccountCreation() {
   };
 
   return (
-    <SidebarLayout sidebar={<SideboardOnboardingContent />} isOnboarding={true}>
+    <SidebarLayout isOnboarding={true}>
       <div className="space-y-8">
         {/* Progress Bar */}
         <div className="py-0">
@@ -270,6 +250,12 @@ export default function AccountCreation() {
             <p className="mt-1 text-sm/6 text-gray-600">
               Please provide your information to create your ZenRent account.
             </p>
+            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>Free Trial Active</strong> - You&apos;re starting with a 30-day free trial. 
+                No payment required to explore core features.
+              </p>
+            </div>
           </div>
 
           <form className="bg-white border border-gray-300 ring-1 shadow-xs ring-gray-900/5 sm:rounded-xl md:col-span-2"
@@ -369,7 +355,15 @@ export default function AccountCreation() {
                             name="mobile"
                             id="mobile"
                             value={mobile}
-                            onChange={(e) => setMobile(e.target.value)}
+                            onChange={(e) => {
+                              // Allow only numbers and spaces
+                              const value = e.target.value.replace(/[^\d\s]/g, '');
+                              // Limit to 11 digits (excluding spaces)
+                              const digitsOnly = value.replace(/\s/g, '');
+                              if (digitsOnly.length <= 10) {
+                                setMobile(value);
+                              }
+                            }}
                             className="block min-w-0 grow py-1.5 pr-3 pl-1 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none sm:text-sm/6"
                             placeholder="7700 900123"
                           />
@@ -487,8 +481,10 @@ export default function AccountCreation() {
                           </label>
                           <p id="terms-description" className="text-gray-500">
                             By checking this box, you agree to our{" "}
-                            <a href="#"
+                            <a href="/terms-of-service"
                               className="text-[#FF503E] hover:text-[#FF503E]/80"
+                              target="_blank"
+                              rel="noopener noreferrer"
                             >
                               Terms of Service
                             </a>
@@ -538,8 +534,10 @@ export default function AccountCreation() {
                           </label>
                           <p id="privacy-description" className="text-gray-500">
                             By checking this box, you agree to our{" "}
-                            <a href="#"
+                            <a href="/privacy-policy"
                               className="text-[#FF503E] hover:text-[#FF503E]/80"
+                              target="_blank"
+                              rel="noopener noreferrer"
                             >
                               Privacy Policy
                             </a>

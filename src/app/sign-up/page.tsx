@@ -15,11 +15,19 @@ export default function Example() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [socialLoading, setSocialLoading] = useState<"google" | "facebook" | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // Reset error state
     setError(null);
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError("Please enter a valid email address");
+      return;
+    }
 
     // Basic validation
     if (password !== confirmPassword) {
@@ -60,8 +68,25 @@ export default function Example() {
       }
     } catch (err: unknown) {
       console.error("Signup error:", err);
-      const authError = err as AuthError;
-      setError(authError.message || "Failed to sign up. Please try again.");
+      
+      if (err instanceof AuthError) {
+        // Handle specific auth errors
+        if (err.message.includes("User already registered")) {
+          setError("An account with this email already exists. Please sign in instead.");
+        } else if (err.message.includes("Invalid email")) {
+          setError("Please enter a valid email address.");
+        } else if (err.message.includes("Password")) {
+          setError("Password must be at least 6 characters long.");
+        } else {
+          setError(err.message || "Failed to sign up. Please try again.");
+        }
+      } else if (err instanceof TypeError && err.message.includes("fetch")) {
+        // Network error
+        setError("Network error. Please check your internet connection and try again.");
+      } else {
+        // Unknown error
+        setError("An unexpected error occurred. Please try again later.");
+      }
     } finally {
       setLoading(false);
     }
@@ -69,10 +94,10 @@ export default function Example() {
 
   const handleGoogleSignIn = async () => {
     try {
-      setLoading(true);
+      setSocialLoading("google");
       setError(null);
 
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/dashboard`,
@@ -84,20 +109,24 @@ export default function Example() {
       // The user will be redirected to Google for authentication
     } catch (err: unknown) {
       console.error("Google sign in error:", err);
-      const authError = err as AuthError;
-      setError(
-        authError.message || "Failed to sign in with Google. Please try again.",
-      );
-      setLoading(false);
+      
+      if (err instanceof AuthError) {
+        setError(err.message || "Failed to sign in with Google. Please try again.");
+      } else if (err instanceof TypeError && err.message.includes("fetch")) {
+        setError("Network error. Please check your internet connection and try again.");
+      } else {
+        setError("Failed to connect to Google. Please try again later.");
+      }
+      setSocialLoading(null);
     }
   };
 
   const handleFacebookSignIn = async () => {
     try {
-      setLoading(true);
+      setSocialLoading("facebook");
       setError(null);
 
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "facebook",
         options: {
           redirectTo: `${window.location.origin}/dashboard`,
@@ -110,11 +139,15 @@ export default function Example() {
       // The user will be redirected to Facebook for authentication
     } catch (err: unknown) {
       console.error("Facebook sign in error:", err);
-      const authError = err as AuthError;
-      setError(
-        authError.message || "Failed to sign in with Facebook. Please try again.",
-      );
-      setLoading(false);
+      
+      if (err instanceof AuthError) {
+        setError(err.message || "Failed to sign in with Facebook. Please try again.");
+      } else if (err instanceof TypeError && err.message.includes("fetch")) {
+        setError("Network error. Please check your internet connection and try again.");
+      } else {
+        setError("Failed to connect to Facebook. Please try again later.");
+      }
+      setSocialLoading(null);
     }
   };
 
@@ -141,6 +174,12 @@ export default function Example() {
                   Sign in
                 </a>
               </p>
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>30-Day Free Trial</strong> - Start exploring ZenRent&apos;s core features at no cost. 
+                  Premium features like WhatsApp integration, bank connections, and HMRC tax filing require a paid plan.
+                </p>
+              </div>
             </div>
 
             <div className="mt-10">
@@ -245,7 +284,7 @@ export default function Example() {
                     </div>
 
                     <div className="text-sm/6">
-                      <a href="#"
+                      <a href="/forgot-password"
                         className="font-semibold text-[#330015] hover:text-[#330015]/80"
                       >
                         Forgot password?
@@ -281,7 +320,7 @@ export default function Example() {
                 <div className="mt-6 grid grid-cols-2 gap-4">
                   <button type="button"
                     onClick={handleGoogleSignIn}
-                    disabled={loading}
+                    disabled={loading || socialLoading !== null}
                     className="flex w-full items-center justify-center gap-3 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 shadow-xs ring-gray-300 ring-inset hover:bg-gray-50 focus-visible:ring-transparent disabled:opacity-70"
                   >
                     <svg viewBox="0 0 24 24"
@@ -301,12 +340,14 @@ export default function Example() {
                         fill="#34A853"
                       />
                     </svg>
-                    <span className="text-sm/6 font-semibold">Google</span>
+                    <span className="text-sm/6 font-semibold">
+                      {socialLoading === "google" ? "Connecting..." : "Google"}
+                    </span>
                   </button>
 
                   <button type="button"
                     onClick={handleFacebookSignIn}
-                    disabled={loading}
+                    disabled={loading || socialLoading !== null}
                     className="flex w-full items-center justify-center gap-3 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 shadow-xs ring-gray-300 ring-inset hover:bg-gray-50 focus-visible:ring-transparent disabled:opacity-70"
                   >
                     <svg viewBox="0 0 24 24"
@@ -318,7 +359,9 @@ export default function Example() {
                         fill="#1877F2"
                       />
                     </svg>
-                    <span className="text-sm/6 font-semibold">Facebook</span>
+                    <span className="text-sm/6 font-semibold">
+                      {socialLoading === "facebook" ? "Connecting..." : "Facebook"}
+                    </span>
                   </button>
                 </div>
               </div>

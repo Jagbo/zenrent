@@ -1,6 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { AlertTriangle, Check, Crown, Star, Zap, CreditCard, User, Bell, Shield, HelpCircle } from "lucide-react";
+import { useAuth } from "../../lib/auth-provider";
+import { PlanRecommendation, getPlanRecommendation } from '@/lib/services/planRecommendationService';
+import { supabase } from '@/lib/supabase';
 import {
   Dialog,
   DialogBackdrop,
@@ -14,10 +24,8 @@ import {
 import { SidebarLayout } from "../components/sidebar-layout";
 import { Cog6ToothIcon } from "@heroicons/react/24/outline";
 import { loadStripe } from "@stripe/stripe-js";
-import { WhatsAppBusinessDrawer } from "../components/WhatsAppBusinessDrawer";
 import { BankAccountDrawer } from "../components/BankAccountDrawer";
 import { AccountingSoftwareDrawer } from "../components/AccountingSoftwareDrawer";
-import { useAuth } from "../../lib/auth-provider";
 
 // Initialize Stripe
 const stripePromise = loadStripe(
@@ -30,37 +38,47 @@ const PLAN_CONFIG = {
   essential: {
     id: "essential",
     name: "Essential Plan",
-    monthlyPrice: 5,
-    yearlyPrice: 48,
+    monthlyPrice: 10,
+    yearlyPrice: 96,
     features: [
       "Basic property management",
       "Email support",
-      "Up to 5 properties",
+      "Up to 2 properties",
+      "WhatsApp integration",
+      "Bank account connection",
+      "HMRC tax filing",
     ],
   },
   standard: {
     id: "standard", 
     name: "Standard Plan",
-    monthlyPrice: 10,
-    yearlyPrice: 96,
+    monthlyPrice: 20,
+    yearlyPrice: 192,
     features: [
       "Advanced property management",
       "Priority support",
-      "Up to 15 properties",
+      "Up to 10 properties",
+      "HMO property support",
       "Financial reporting",
+      "WhatsApp integration",
+      "Bank account connection",
+      "HMRC tax filing",
     ],
   },
   professional: {
     id: "professional",
     name: "Professional Plan",
-    monthlyPrice: 20,
-    yearlyPrice: 192,
+    monthlyPrice: 30,
+    yearlyPrice: 288,
     features: [
       "Enterprise property management",
       "24/7 support",
       "Unlimited properties",
       "Advanced analytics",
       "API access",
+      "WhatsApp integration",
+      "Bank account connection",
+      "HMRC tax filing",
     ],
   },
 } as const;
@@ -162,12 +180,11 @@ interface PasswordForm {
   confirm_password: string;
 }
 
-export default function Settings() {
+export default function SettingsPage() {
   const { user, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>("Account");
   const [isChangePlanModalOpen, setIsChangePlanModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isWhatsAppDrawerOpen, setIsWhatsAppDrawerOpen] = useState(false);
   const [isBankAccountDrawerOpen, setIsBankAccountDrawerOpen] = useState(false);
   const [isAccountingDrawerOpen, setIsAccountingDrawerOpen] = useState(false);
 
@@ -175,6 +192,7 @@ export default function Settings() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [planRecommendation, setPlanRecommendation] = useState<PlanRecommendation | null>(null);
 
   // Form states
   const [personalInfoForm, setPersonalInfoForm] = useState<PersonalInfoForm>({
@@ -203,13 +221,17 @@ export default function Settings() {
         setProfileLoading(true);
         setProfileError(null);
 
-        const response = await fetch('/api/user-profile');
-        
-        if (!response.ok) {
-          throw new Error(`Failed to load profile: ${response.status}`);
+        // Get user profile directly from Supabase
+        const { data: profile, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+
+        if (profileError) {
+          throw new Error(`Failed to load profile: ${profileError.message}`);
         }
 
-        const profile: UserProfile = await response.json();
         setUserProfile(profile);
 
         // Initialize form data
@@ -220,6 +242,10 @@ export default function Settings() {
         });
 
         setNotificationPreferences(profile.notification_preferences);
+
+        // Get plan recommendation
+        const recommendation = await getPlanRecommendation(user.id);
+        setPlanRecommendation(recommendation);
 
       } catch (error) {
         console.error('Error loading user profile:', error);
@@ -235,24 +261,22 @@ export default function Settings() {
   // Handle personal info form submission
   const handlePersonalInfoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userProfile) return;
+    if (!userProfile || !user) return;
 
     try {
       setSavingPersonalInfo(true);
 
-      const response = await fetch('/api/user-profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(personalInfoForm),
-      });
+      const { data: updatedProfile, error } = await supabase
+        .from('user_profiles')
+        .update(personalInfoForm)
+        .eq('user_id', user.id)
+        .select()
+        .single();
 
-      if (!response.ok) {
+      if (error) {
         throw new Error('Failed to update personal information');
       }
 
-      const updatedProfile = await response.json();
       setUserProfile(updatedProfile);
       
       // Show success message (you can add a toast notification here)
@@ -314,26 +338,22 @@ export default function Settings() {
 
   // Handle notification preferences update
   const handleNotificationUpdate = async (newPreferences: UserProfile['notification_preferences']) => {
-    if (!userProfile) return;
+    if (!userProfile || !user) return;
 
     try {
       setSavingNotifications(true);
 
-      const response = await fetch('/api/user-profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          notification_preferences: newPreferences,
-        }),
-      });
+      const { data: updatedProfile, error } = await supabase
+        .from('user_profiles')
+        .update({ notification_preferences: newPreferences })
+        .eq('user_id', user.id)
+        .select()
+        .single();
 
-      if (!response.ok) {
+      if (error) {
         throw new Error('Failed to update notification preferences');
       }
 
-      const updatedProfile = await response.json();
       setUserProfile(updatedProfile);
       setNotificationPreferences(newPreferences);
 
@@ -546,7 +566,7 @@ export default function Settings() {
                         autoComplete="email"
                         value={user?.email || ""}
                         disabled
-                        className="block w-full rounded-md border-0 py-1.5 bg-gray-50 text-gray-500 shadow-sm ring-1 ring-inset ring-gray-300 sm:text-sm/6"
+                        className="block w-full rounded-md border-0 py-1.5 px-3 text-gray-500 shadow-sm ring-1 ring-inset ring-gray-300 sm:text-sm/6 bg-gray-50" style={{backgroundImage: 'repeating-linear-gradient(to right, transparent, transparent 4px, rgba(0,0,0,0.05) 4px, rgba(0,0,0,0.05) 8px)'}} data-component-name="SettingsPage"
                       />
                       <p className="mt-1 text-xs text-gray-500">
                         Email cannot be changed from this page. Contact support if you need to update your email.
@@ -619,7 +639,7 @@ export default function Settings() {
                           ...prev,
                           current_password: e.target.value
                         }))}
-                        className="block w-full rounded-md border-0 py-1.5 bg-white text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#D9E8FF] sm:text-sm/6"
+                        className="block w-full rounded-md border-0 py-1.5 px-3 bg-white text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#D9E8FF] sm:text-sm/6" data-component-name="SettingsPage"
                       />
                     </div>
                   </div>
@@ -641,7 +661,7 @@ export default function Settings() {
                           ...prev,
                           new_password: e.target.value
                         }))}
-                        className="block w-full rounded-md border-0 py-1.5 bg-white text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#D9E8FF] sm:text-sm/6"
+                        className="block w-full rounded-md border-0 py-1.5 px-3 bg-white text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#D9E8FF] sm:text-sm/6" data-component-name="SettingsPage"
                       />
                     </div>
                   </div>
@@ -663,7 +683,7 @@ export default function Settings() {
                           ...prev,
                           confirm_password: e.target.value
                         }))}
-                        className="block w-full rounded-md border-0 py-1.5 bg-white text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#D9E8FF] sm:text-sm/6"
+                        className="block w-full rounded-md border-0 py-1.5 px-3 bg-white text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#D9E8FF] sm:text-sm/6" data-component-name="SettingsPage"
                       />
                     </div>
                   </div>
@@ -943,6 +963,47 @@ export default function Settings() {
 
         {activeTab === "Billing" && userProfile && (
           <div className="divide-y divide-gray-200">
+            {/* Plan Upgrade Alert */}
+            {planRecommendation && planRecommendation.upgradeRequired && (
+              <div className="px-4 py-6 sm:px-6 lg:px-8">
+                <div className="rounded-md bg-yellow-50 p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-yellow-800">
+                        Plan Upgrade Recommended
+                      </h3>
+                      <div className="mt-2 text-sm text-yellow-700">
+                        {planRecommendation.reasons.map((reason, index) => (
+                          <p key={index} className={index > 0 ? "mt-1" : ""}>{reason}</p>
+                        ))}
+                        <p className="mt-1">
+                          You have {planRecommendation.propertyCount} properties
+                          {planRecommendation.hmoCount > 0 ? ` including ${planRecommendation.hmoCount} HMO properties` : ''}.
+                          Consider upgrading to the {planRecommendation.recommendedPlan.charAt(0).toUpperCase() + planRecommendation.recommendedPlan.slice(1)} plan.
+                        </p>
+                      </div>
+                      <div className="mt-4">
+                        <div className="-mx-2 -my-1.5 flex">
+                          <button
+                            type="button"
+                            onClick={() => setIsChangePlanModalOpen(true)}
+                            className="rounded-md bg-yellow-50 px-2 py-1.5 text-sm font-medium text-yellow-800 hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-600 focus:ring-offset-2 focus:ring-offset-yellow-50"
+                          >
+                            Upgrade Plan
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {/* Current Plan */}
             <div className="grid max-w-7xl grid-cols-1 gap-x-8 gap-y-10 px-4 py-16 sm:px-6 md:grid-cols-3 lg:px-8">
               <div>
@@ -1073,15 +1134,15 @@ export default function Settings() {
                       </div>
                       <div>
                         <h3 className="text-sm font-medium text-gray-900">WhatsApp Business</h3>
-                        <p className="text-sm text-gray-500">Not connected</p>
+                        <p className="text-sm text-gray-500">Centralized messaging</p>
                       </div>
                     </div>
                     <button
                       type="button"
-                      onClick={() => setIsWhatsAppDrawerOpen(true)}
+                      onClick={() => window.location.href = '/settings/whatsapp'}
                       className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-indigo-300 hover:bg-indigo-50" data-component-name="Settings"
                     >
-                      Connect
+                      Configure
                     </button>
                   </div>
 
@@ -1194,10 +1255,6 @@ export default function Settings() {
       </Dialog>
 
       {/* Integration Drawers */}
-      <WhatsAppBusinessDrawer
-        isOpen={isWhatsAppDrawerOpen}
-        onClose={() => setIsWhatsAppDrawerOpen(false)}
-      />
       <BankAccountDrawer
         isOpen={isBankAccountDrawerOpen}
         onClose={() => setIsBankAccountDrawerOpen(false)}

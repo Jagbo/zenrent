@@ -4,23 +4,14 @@ import { useState, useEffect } from "react";
 import { CheckCircleIcon, BuildingOfficeIcon } from "@heroicons/react/24/solid";
 import { Button } from "@/components/ui/button";
 import { BaseDrawer } from "./BaseDrawer";
+import { getPlanRecommendation } from "@/lib/services/planRecommendationService";
+import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 // Define the BankAccountDrawer props interface
 export interface BankAccountDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-}
-
-// Define the interface for window with Plaid
-declare global {
-  interface Window {
-    Plaid?: {
-      create: (config: unknown) => {
-        open: () => void;
-      };
-    };
-  }
 }
 
 export const BankAccountDrawer: React.FC<BankAccountDrawerProps> = ({
@@ -71,8 +62,9 @@ export const BankAccountDrawer: React.FC<BankAccountDrawerProps> = ({
       } catch (error: unknown) {
         console.error("Error creating Plaid Link token:", error);
         setError(
-          error.message ||
-            "Failed to create Plaid Link token. Please try again.",
+          typeof error === 'object' && error !== null && 'message' in error
+            ? (error as any).message
+            : "Failed to create Plaid Link token. Please try again."
         );
       } finally {
         setIsLoading(false);
@@ -120,7 +112,9 @@ export const BankAccountDrawer: React.FC<BankAccountDrawerProps> = ({
     } catch (error: unknown) {
       console.error("Error exchanging Plaid token:", error);
       setError(
-        error.message || "Failed to connect bank account. Please try again.",
+        typeof error === 'object' && error !== null && 'message' in error
+          ? (error as any).message
+          : "Failed to connect bank account. Please try again."
       );
       setStep(1); // Reset to first step on error
     } finally {
@@ -139,8 +133,93 @@ export const BankAccountDrawer: React.FC<BankAccountDrawerProps> = ({
     }, 300);
   };
 
+  // Check if user is on trial or if feature is available
+  const [isFeatureAvailable, setIsFeatureAvailable] = useState(true);
+  const [userPlan, setUserPlan] = useState('trial');
+  const [isOnTrial, setIsOnTrial] = useState(false);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    const checkFeatureAvailability = async () => {
+      if (!user) return;
+      
+      try {
+        const planRecommendation = await getPlanRecommendation(user.id);
+        setUserPlan(planRecommendation.currentPlan);
+        setIsOnTrial(planRecommendation.isOnTrial);
+        
+        // Bank account connection is a premium feature - not available on trial
+        setIsFeatureAvailable(!planRecommendation.isOnTrial);
+      } catch (error) {
+        console.error('Error checking feature availability:', error);
+        setIsFeatureAvailable(false);
+      }
+    };
+
+    checkFeatureAvailability();
+  }, [user]);
+
   // Content to display inside the drawer
   const renderContent = () => {
+    // Show upgrade prompt for trial users
+    if (!isFeatureAvailable) {
+      return (
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <h3 className="text-lg font-medium">Premium Feature</h3>
+            <p className="text-sm text-gray-500">
+              Bank account connection is a premium feature
+            </p>
+          </div>
+
+          <div className="p-4 rounded-lg border border-amber-200 bg-amber-50">
+            <div className="flex items-center space-x-3">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-amber-800">
+                  Upgrade Required
+                </p>
+                <p className="text-sm text-amber-700">
+                  You're currently on a {isOnTrial ? 'free trial' : 'free plan'}. To access bank account connections, upgrade to any paid plan.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600">
+              Bank account connection is included in all paid plans:
+            </p>
+            <ul className="text-sm text-gray-600 space-y-1">
+              <li>• Essential Plan - £10/month</li>
+              <li>• Standard Plan - £20/month</li>
+              <li>• Professional Plan - £30/month</li>
+            </ul>
+          </div>
+
+          <div className="flex space-x-3">
+            <Button 
+              className="flex-1" 
+              onClick={() => window.location.href = '/billing/payment'}
+            >
+              Upgrade Now
+            </Button>
+            <Button 
+              variant="outline" 
+              className="flex-1" 
+              onClick={onClose}
+            >
+              Maybe Later
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     // Show error message if there is one
     if (error) {
       return (

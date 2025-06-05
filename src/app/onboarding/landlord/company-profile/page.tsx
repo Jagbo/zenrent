@@ -14,6 +14,7 @@ import {
 import { CheckIcon as CheckIconSolid } from "@heroicons/react/24/solid";
 import { AddressAutocomplete } from "../../../components/address-autocomplete";
 import { supabase } from "@/lib/supabase";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 const steps = [
   {
@@ -74,74 +75,18 @@ export default function CompanyProfile() {
   useEffect(() => {
     async function getUserAndProfile() {
       try {
-        // In development, use the test user ID
-        if (process.env.NODE_ENV === "development") {
-          setUserId("00000000-0000-0000-0000-000000000001");
-
-          // Fetch existing profile data for this user
-          const { data: profileData, error: profileError } = await supabase
-            .from("user_profiles")
-            .select("*")
-            .eq("user_id", "00000000-0000-0000-0000-000000000001")
-            .single();
-
-          if (profileError && profileError.code !== "PGRST116") {
-            // PGRST116 is "no rows returned"
-            console.error("Error fetching profile:", profileError);
-          }
-
-          if (profileData) {
-            // Pre-fill form with existing company data
-            setCompanyName(profileData.company_name || "");
-            setRegistrationNumber(
-              profileData.company_registration_number || "",
-            );
-            setVatNumber(profileData.vat_number || "");
-            setAddressLine1(profileData.company_address_line1 || "");
-            setAddressLine2(profileData.company_address_line2 || "");
-            setTownCity(profileData.company_town_city || "");
-            setCounty(profileData.company_county || "");
-            setPostcode(profileData.company_postcode || "");
-            setBusinessType(profileData.business_type || "");
-
-            // Parse directors from the stored JSON if available
-            if (profileData.directors) {
-              try {
-                const parsedDirectors =
-                  typeof profileData.directors === "string"
-                    ? JSON.parse(profileData.directors)
-                    : profileData.directors;
-
-                if (
-                  Array.isArray(parsedDirectors) &&
-                  parsedDirectors.length > 0
-                ) {
-                  setDirectors(parsedDirectors);
-                }
-              } catch (e) {
-                console.error("Error parsing directors:", e);
-              }
-            }
-          }
-
-          setProfileLoaded(true);
-          return;
-        }
-
-        // For production
         const { data: userData, error: userError } =
           await supabase.auth.getUser();
 
         if (userError) {
           console.error("Error fetching user:", userError);
-          router.push("/sign-up"); // Redirect to sign up if no user
+          router.push("/sign-up");
           return;
         }
 
         if (userData && userData.user) {
           setUserId(userData.user.id);
 
-          // Fetch existing profile data for this user
           const { data: profileData, error: profileError } = await supabase
             .from("user_profiles")
             .select("*")
@@ -149,16 +94,12 @@ export default function CompanyProfile() {
             .single();
 
           if (profileError && profileError.code !== "PGRST116") {
-            // PGRST116 is "no rows returned"
-            console.error("Error fetching profile:", profileError);
+            console.error("Error fetching company profile:", profileError);
           }
 
           if (profileData) {
-            // Pre-fill form with existing company data
             setCompanyName(profileData.company_name || "");
-            setRegistrationNumber(
-              profileData.company_registration_number || "",
-            );
+            setRegistrationNumber(profileData.company_registration_number || "");
             setVatNumber(profileData.vat_number || "");
             setAddressLine1(profileData.company_address_line1 || "");
             setAddressLine2(profileData.company_address_line2 || "");
@@ -187,18 +128,16 @@ export default function CompanyProfile() {
             }
           }
         } else {
-          router.push("/sign-up"); // Redirect to sign up if no user
+          router.push("/sign-up");
         }
-
         setProfileLoaded(true);
       } catch (error) {
         console.error("Error in getUserAndProfile:", error);
-        router.push("/sign-up"); // Redirect to sign up on error
+        router.push("/sign-up");
       }
     }
-
     getUserAndProfile();
-  }, [router]);
+  }, [router, supabase.auth]);
 
   // Add a new director
   const addDirector = () => {
@@ -364,19 +303,17 @@ export default function CompanyProfile() {
   // Show loading state if profile is not loaded yet
   if (!profileLoaded) {
     return (
-      <SidebarLayout sidebar={<SideboardOnboardingContent />}
-        isOnboarding={true}
-      >
+      <SidebarLayout isOnboarding={true}>
         <div className="flex items-center justify-center h-full">
-          <p className="text-gray-500">Loading company data...</p>
+          <LoadingSpinner label="Loading company data..." />
         </div>
       </SidebarLayout>
     );
   }
 
   return (
-    <SidebarLayout sidebar={<SideboardOnboardingContent />} isOnboarding={true}>
-      <div className="divide-y divide-gray-900/10">
+    <SidebarLayout isOnboarding={true}>
+      <div className="space-y-8">
         {/* Progress Bar */}
         <div className="py-0">
           <nav aria-label="Progress">
@@ -518,7 +455,9 @@ export default function CompanyProfile() {
                           onChange={(e) =>
                             setRegistrationNumber(e.target.value)
                           }
-                          placeholder="8 digits"
+                          placeholder="8 digits e.g. 12345678"
+                          pattern="^[0-9]{8}$"
+                          title="Company number must be 8 digits."
                           className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[#D9E8FF] sm:text-sm/6"
                         />
                       </div>
@@ -539,7 +478,9 @@ export default function CompanyProfile() {
                           type="text"
                           value={vatNumber}
                           onChange={(e) => setVatNumber(e.target.value)}
-                          placeholder="GB123456789"
+                          placeholder="e.g. GB123456789"
+                          pattern="^(GB)?[0-9]{9}$"
+                          title="VAT number should be 9 digits, optionally prefixed with GB."
                           className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[#D9E8FF] sm:text-sm/6"
                         />
                       </div>

@@ -42,6 +42,9 @@ export default function ResidentDetails() {
   // State for tenant documents
   const [documents, setDocuments] = useState<TenantDocument[]>([]);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
+  
+  // State for WhatsApp centralized model
+  const [whatsAppOptInStatus, setWhatsAppOptInStatus] = useState<any>(null);
 
   // Fetch tenant data when component mounts
   useEffect(() => {
@@ -82,19 +85,27 @@ export default function ResidentDetails() {
     fetchDocuments();
   }, [residentId]);
 
-  // Check WhatsApp connection status
+  // Check WhatsApp opt-in status (centralized model)
   useEffect(() => {
-    const checkWhatsAppConnection = async () => {
+    const checkWhatsAppStatus = async () => {
       try {
-        const response = await fetch("/api/whatsapp/connect");
+        const response = await fetch("/api/whatsapp/opt-in-status");
         const data = await response.json();
-        setIsWhatsAppConnected(Object.keys(data.connections || {}).length > 0);
+        
+        if (response.ok) {
+          setWhatsAppOptInStatus(data);
+          setIsWhatsAppConnected(data.whatsapp_enabled && data.system_configured);
+        } else {
+          console.error("Error checking WhatsApp status:", data);
+          setIsWhatsAppConnected(false);
+        }
       } catch (error) {
-        console.error("Error checking WhatsApp connection:", error);
+        console.error("Error checking WhatsApp status:", error);
+        setIsWhatsAppConnected(false);
       }
     };
 
-    checkWhatsAppConnection();
+    checkWhatsAppStatus();
   }, []);
 
   // Fetch WhatsApp messages
@@ -114,7 +125,7 @@ export default function ResidentDetails() {
       );
       const data = await response.json();
 
-      if (data.messages) {
+      if (data.success && data.messages) {
         setMessages(data.messages);
       }
     } catch (error) {
@@ -124,9 +135,9 @@ export default function ResidentDetails() {
     }
   };
 
-  // Send a message via WhatsApp
+  // Send a message via WhatsApp (centralized model)
   const sendMessage = async () => {
-    if (!messageInput.trim() || !tenant?.phone) return;
+    if (!messageInput.trim() || !tenant?.phone || !isWhatsAppConnected) return;
 
     try {
       const response = await fetch("/api/whatsapp/messages", {
@@ -154,18 +165,9 @@ export default function ResidentDetails() {
     }
   };
 
-  // Connect to WhatsApp
-  const connectWhatsApp = () => {
-    setIsConnecting(true);
-
-    // In a real implementation, this would redirect to the WhatsApp authorization flow
-    // For now, we'll simulate a successful connection after a delay
-    setTimeout(() => {
-      setIsWhatsAppConnected(true);
-      setIsConnecting(false);
-      // Initialize the message list with sample data
-      fetchWhatsAppMessages();
-    }, 1500);
+  // Navigate to WhatsApp settings
+  const goToWhatsAppSettings = () => {
+    window.location.href = "/settings/whatsapp";
   };
 
   const handleEditClick = () => {
@@ -191,7 +193,7 @@ export default function ResidentDetails() {
   // Loading state
   if (loading) {
     return (
-      <SidebarLayout sidebar={<SidebarContent currentPath="/residents" />}>
+      <SidebarLayout>
         <div className="flex justify-center items-center py-12">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
         </div>
@@ -202,7 +204,7 @@ export default function ResidentDetails() {
   // Not found state
   if (!tenant) {
     return (
-      <SidebarLayout sidebar={<SidebarContent currentPath="/residents" />}>
+      <SidebarLayout>
         <div className="space-y-6">
           <div className="flex items-center text-sm text-gray-500">
             <Link href="/" className="hover:text-gray-700">
@@ -228,10 +230,8 @@ export default function ResidentDetails() {
     );
   }
 
-
-
   return (
-    <SidebarLayout sidebar={<SidebarContent currentPath="/residents" />}>
+    <SidebarLayout>
       <div className="space-y-6">
 
         {/* Page Header */}
@@ -402,36 +402,29 @@ export default function ResidentDetails() {
                       </h3>
                       {isWhatsAppConnected ? (
                         <div className="mt-2 text-sm text-gray-500">
-                          <p>Connected to WhatsApp</p>
+                          <p>Connected via ZenRent Central WhatsApp</p>
                           <div className="mt-2">
                             <button type="button"
                               onClick={() =>
-                                window.open(`https://wa.me/${tenant.phone}`)
+                                window.location.href = `/residents/messages?tenant=${residentId}`
                               }
                               className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20"
                             >
-                              Open Chat
+                              Open Messages
                             </button>
                           </div>
                         </div>
                       ) : (
                         <div className="mt-2 text-sm text-gray-500">
                           <p>
-                            Connect to WhatsApp to message the tenant directly.
+                            Enable WhatsApp to message this tenant directly.
                           </p>
                           <div className="mt-2">
                             <button type="button"
-                              onClick={connectWhatsApp}
-                              disabled={isConnecting}
-                              className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${
-                                isConnecting
-                                  ? "bg-gray-100 text-gray-400 ring-gray-300/20"
-                                  : "bg-green-50 text-green-700 ring-green-600/20"
-                              }`}
+                              onClick={goToWhatsAppSettings}
+                              className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20"
                             >
-                              {isConnecting
-                                ? "Connecting..."
-                                : "Connect WhatsApp"}
+                              Enable WhatsApp
                             </button>
                           </div>
                         </div>
@@ -490,7 +483,7 @@ export default function ResidentDetails() {
                           <p>Call the tenant directly.</p>
                           <div className="mt-2">
                             <a href={`tel:${tenant.phone}`}
-                              className="inline-flex items-center rounded-md bg-white px-2 py-1 text-xs font-medium text-indigo-700 border border-indigo-300 shadow-sm" data-component-name="ResidentDetails"
+                              className="inline-flex items-center rounded-md bg-white px-2 py-1 text-xs font-medium text-indigo-700 border border-indigo-300 shadow-sm"
                             >
                               Call Tenant
                             </a>

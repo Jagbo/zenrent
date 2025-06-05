@@ -18,40 +18,6 @@ const steps = [
   { id: "06", name: "Filing", href: "/financial/tax/filing", status: "current" },
 ];
 
-// Mock submission data for development
-const mockSubmissions = [
-  {
-    id: 'sub-001',
-    reference: 'MTD-1652345678',
-    taxType: 'self-assessment',
-    submissionDate: new Date(new Date().getFullYear(), 3, 15).toISOString(),
-    status: 'Accepted',
-    periodStart: new Date(new Date().getFullYear(), 0, 1).toISOString(),
-    periodEnd: new Date(new Date().getFullYear(), 2, 31).toISOString(),
-    mtdCompliant: true
-  },
-  {
-    id: 'sub-002',
-    reference: 'MTD-1652345679',
-    taxType: 'vat',
-    submissionDate: new Date(new Date().getFullYear(), 2, 10).toISOString(),
-    status: 'Accepted',
-    periodStart: new Date(new Date().getFullYear() - 1, 9, 1).toISOString(),
-    periodEnd: new Date(new Date().getFullYear() - 1, 11, 31).toISOString(),
-    mtdCompliant: true
-  },
-  {
-    id: 'sub-003',
-    reference: 'MTD-1652345680',
-    taxType: 'self-assessment',
-    submissionDate: new Date(new Date().getFullYear() - 1, 11, 20).toISOString(),
-    status: 'Accepted',
-    periodStart: new Date(new Date().getFullYear() - 2, 3, 6).toISOString(),
-    periodEnd: new Date(new Date().getFullYear() - 1, 3, 5).toISOString(),
-    mtdCompliant: true
-  }
-];
-
 export default function SubmissionsHistoryPage() {
   const router = useRouter();
   
@@ -87,23 +53,20 @@ export default function SubmissionsHistoryPage() {
   // Load submissions
   const loadSubmissions = async (userId: string) => {
     try {
-      // This would be an API call to get the user's submissions
-      // For now, we'll use mock data
       const response = await fetch(`/api/tax/submissions?userId=${userId}`);
       
       if (response.ok) {
         const data = await response.json();
         setSubmissions(data);
       } else {
-        // Use mock data for development
-        setSubmissions(mockSubmissions);
-        console.warn('Using mock submission data for development');
+        // If API returns 404 or no data, just set empty array
+        setSubmissions([]);
+        console.log('No submissions found for user');
       }
     } catch (err) {
       console.error("Error loading submissions:", err);
-      // Fallback to mock data
-      setSubmissions(mockSubmissions);
-      console.warn('Using mock submission data due to error');
+      setSubmissions([]);
+      setError("Failed to load submissions. Please try again later.");
     }
   };
   

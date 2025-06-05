@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { CalendarIcon, CheckCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, CheckCircleIcon, ClockIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { Obligation } from '@/lib/taxService';
 
 interface QuarterlyUpdatesScheduleProps {
@@ -16,42 +16,7 @@ export function QuarterlyUpdatesSchedule({
   // Group obligations by quarter
   const getQuarterlyObligations = () => {
     if (!obligations || obligations.length === 0) {
-      // Generate placeholder quarterly periods if no real obligations exist
-      const currentYear = new Date().getFullYear();
-      return [
-        {
-          quarter: 'Q1',
-          periodStart: `${currentYear}-04-06`,
-          periodEnd: `${currentYear}-07-05`,
-          dueDate: `${currentYear}-08-05`,
-          status: 'Upcoming',
-          isReal: false
-        },
-        {
-          quarter: 'Q2',
-          periodStart: `${currentYear}-07-06`,
-          periodEnd: `${currentYear}-10-05`,
-          dueDate: `${currentYear}-11-05`,
-          status: 'Upcoming',
-          isReal: false
-        },
-        {
-          quarter: 'Q3',
-          periodStart: `${currentYear}-10-06`,
-          periodEnd: `${currentYear + 1}-01-05`,
-          dueDate: `${currentYear + 1}-02-05`,
-          status: 'Upcoming',
-          isReal: false
-        },
-        {
-          quarter: 'Q4',
-          periodStart: `${currentYear + 1}-01-06`,
-          periodEnd: `${currentYear + 1}-04-05`,
-          dueDate: `${currentYear + 1}-05-05`,
-          status: 'Upcoming',
-          isReal: false
-        }
-      ];
+      return [];
     }
     
     // Use real obligations and sort them by period start
@@ -131,53 +96,73 @@ export function QuarterlyUpdatesSchedule({
       </div>
       
       <div className="px-4 py-5 sm:p-6">
-        <div className="overflow-hidden bg-white shadow sm:rounded-md">
-          <ul role="list" className="divide-y divide-gray-200">
-            {quarterlyObligations.map((obligation, index) => {
-              const statusDisplay = getStatusDisplay(obligation.status);
-              
-              return (
-                <li key={obligation.isReal ? obligation.id : `quarter-${index}`}>
-                  <div className="px-4 py-4 sm:px-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="mr-4 flex-shrink-0">
-                          {statusDisplay.icon}
+        {quarterlyObligations.length === 0 ? (
+          <div className="text-center py-8">
+            <CalendarIcon className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No obligations found</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              No quarterly update obligations are currently available from HMRC.
+            </p>
+            <p className="mt-2 text-sm text-gray-500">
+              This could mean:
+            </p>
+            <ul className="mt-2 text-sm text-gray-500 list-disc list-inside">
+              <li>You haven't opted in to Making Tax Digital yet</li>
+              <li>Your obligations haven't been generated yet</li>
+              <li>You need to refresh your HMRC connection</li>
+            </ul>
+          </div>
+        ) : (
+          <>
+            <div className="overflow-hidden bg-white shadow sm:rounded-md">
+              <ul role="list" className="divide-y divide-gray-200">
+                {quarterlyObligations.map((obligation) => {
+                  const statusDisplay = getStatusDisplay(obligation.status);
+                  
+                  return (
+                    <li key={obligation.id}>
+                      <div className="px-4 py-4 sm:px-6">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <div className="mr-4 flex-shrink-0">
+                              {statusDisplay.icon}
+                            </div>
+                            <p className="truncate text-sm font-medium text-indigo-600">
+                              {obligation.quarter} Update
+                            </p>
+                          </div>
+                          <div className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${statusDisplay.bgColor} ${statusDisplay.textColor}`}>
+                            {statusDisplay.label}
+                          </div>
                         </div>
-                        <p className="truncate text-sm font-medium text-indigo-600">
-                          {obligation.quarter} Update
-                        </p>
+                        <div className="mt-2 sm:flex sm:justify-between">
+                          <div className="sm:flex">
+                            <p className="flex items-center text-sm text-gray-500">
+                              Period: {formatDate(obligation.periodStart)} - {formatDate(obligation.periodEnd)}
+                            </p>
+                          </div>
+                          <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
+                            <CalendarIcon className="mr-1.5 h-5 w-5 flex-shrink-0 text-gray-400" />
+                            <p>
+                              Due by <time dateTime={obligation.dueDate}>{formatDate(obligation.dueDate)}</time>
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                      <div className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${statusDisplay.bgColor} ${statusDisplay.textColor}`}>
-                        {statusDisplay.label}
-                      </div>
-                    </div>
-                    <div className="mt-2 sm:flex sm:justify-between">
-                      <div className="sm:flex">
-                        <p className="flex items-center text-sm text-gray-500">
-                          Period: {formatDate(obligation.periodStart)} - {formatDate(obligation.periodEnd)}
-                        </p>
-                      </div>
-                      <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                        <CalendarIcon className="mr-1.5 h-5 w-5 flex-shrink-0 text-gray-400" />
-                        <p>
-                          Due by <time dateTime={obligation.dueDate}>{formatDate(obligation.dueDate)}</time>
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-        
-        <div className="mt-4 text-sm text-gray-500">
-          <p className="flex items-center">
-            <InformationIcon className="mr-1.5 h-5 w-5 text-gray-400" />
-            MTD requires quarterly updates to be submitted within one month of the quarter end date.
-          </p>
-        </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+            
+            <div className="mt-4 text-sm text-gray-500">
+              <p className="flex items-center">
+                <InformationCircleIcon className="mr-1.5 h-5 w-5 text-gray-400" />
+                MTD requires quarterly updates to be submitted within one month of the quarter end date.
+              </p>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -1,0 +1,87 @@
+Product Requirements Document: Centralized ZenRent WhatsApp Integration
+
+**1. Overview**
+
+Transition ZenRent's WhatsApp integration from a model where landlords connect their own WhatsApp Business Accounts (WABAs) via Embedded Signup to a centralized model where ZenRent manages a single, primary WABA and phone number. All tenant-landlord communication facilitated by ZenRent will pass through this central number.
+
+**2. Goals**
+
+*   Eliminate landlord reliance on Facebook's Embedded Signup process, improving onboarding reliability.
+*   Simplify WhatsApp setup for landlords to a simple opt-in.
+*   Maintain clear attribution of messages to the correct landlord within ZenRent's system.
+*   Ensure robust routing of incoming tenant messages to the appropriate landlord.
+*   Preserve conversation history for each landlord-tenant interaction.
+
+**3. Scope**
+
+**Phase 1: Core Functionality**
+
+*   **Infrastructure & Setup (ZenRent Internal):**
+    *   Establish ZenRent's own WABA and acquire a dedicated phone number.
+    *   Configure the Meta Developer App to manage ZenRent's WABA.
+    *   Generate and securely store a System User Access Token for ZenRent's WABA.
+    *   Configure webhook to receive messages for ZenRent's central number.
+*   **Landlord Onboarding Refactor:**
+    *   Remove existing Embedded Signup UI and backend logic.
+    *   Implement a simple opt-in mechanism for landlords to enable WhatsApp communication via ZenRent.
+    *   Update landlord data models to reflect the new opt-in status (removing wabaId, phoneId, etc.).
+*   **Message Sending (Landlord to Tenant):**
+    *   Refactor backend logic to use ZenRent's central WABA credentials (phone_number_id, system user token) for all outgoing messages.
+    *   Ensure messages clearly state they are from the specific landlord, sent via ZenRent (e.g., prepending "[Landlord Name] via ZenRent:").
+*   **Message Receiving (Tenant to Landlord) - Basic Routing:**
+    *   Implement webhook processing to identify the tenant by their phone number.
+    *   Route incoming messages to the correct landlord based on a direct tenant-to-landlord relationship in the database.
+    *   Log messages with correct landlord and tenant attribution.
+    *   Provide notifications to landlords for new messages (mechanism to be confirmed, e.g., existing UI notifications).
+*   **Data Model Changes:**
+    *   Remove landlord-specific WhatsApp fields (`wabaId`, `phoneId`, `phoneNumber`, `waAccessToken`).
+    *   Store ZenRent's WABA ID, Phone Number ID, and System User Token in secure application configuration.
+    *   Ensure robust tenant-to-landlord mapping exists and is queryable.
+    *   Maintain existing message logging schema, adapting `landlordId` determination.
+*   **Documentation:**
+    *   Update internal technical documentation.
+    *   Update landlord-facing guides on using the new WhatsApp feature.
+
+**Phase 2: Advanced Routing & User Experience (Potential Follow-up)**
+
+*   Handling unknown tenants or tenants associated with multiple landlords (initial disambiguation logic).
+*   Centralized template management for ZenRent's WABA.
+*   Enhanced UI for landlords to view conversations clearly segregated by tenant.
+*   Admin interface for ZenRent to monitor overall WhatsApp usage and troubleshoot.
+
+**4. Non-Goals (for Phase 1)**
+
+*   Advanced bot-like interactions for message disambiguation.
+*   Landlord-specific WhatsApp profiles or branding at the WhatsApp level (profile will be ZenRent's).
+*   UI for landlords to manage WhatsApp templates directly (will be managed by ZenRent admins initially).
+*   Real-time, character-by-character chat interface (notifications of new messages suffice for MVP).
+
+**5. Key Changes from Current Plan**
+
+*   **From:** Landlord-owned WABAs, Embedded Signup, per-landlord tokens.
+*   **To:** ZenRent-owned WABA, simple opt-in, central system token, complex incoming message routing.
+
+**6. Technical Considerations**
+
+*   **Tenant Identification:** Robust lookup of tenant by incoming phone number.
+*   **Landlord Routing Logic:** Accurately mapping an incoming message to the correct landlord. The initial assumption is a tenant is actively associated with only one landlord through ZenRent for messaging purposes.
+*   **Message Attribution:** Clear in-message text to show which landlord sent the message.
+*   **Webhook Security:** Verify webhook signature.
+*   **Scalability:** Ensure webhook processing and message sending can handle increasing volume.
+*   **Rate Limits:** Monitor WhatsApp API rate limits for ZenRent's central number.
+*   **Compliance:** ZenRent is responsible for all communication from its number; opt-in records for tenants are crucial (assumed to be handled by landlords, but ZenRent facilitates).
+*   **Testing:** Extensive testing of message routing for various scenarios (known tenant, tenant with multiple historic landlords, unknown tenant).
+
+**7. Success Metrics (Phase 1)**
+
+*   Landlords can successfully opt-in to use WhatsApp communication.
+*   Landlords can send messages to their tenants via ZenRent.
+*   Incoming messages from tenants are correctly routed to and visible by the intended landlord.
+*   Message history is accurately logged.
+*   Reduction in landlord support issues related to WhatsApp setup.
+
+**8. Assumptions**
+
+*   ZenRent can procure and manage its own WABA and phone number.
+*   Existing database schema allows reliable mapping of a tenant phone number to a unique, active landlord.
+*   ZenRent has a mechanism to notify landlords of new messages (e.g., in-app notification system). 

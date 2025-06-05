@@ -1,0 +1,38 @@
+WHATSAPP ENVIRONMENT CONFIGURATION UPDATE INSTRUCTIONS
+================================================================
+
+Please manually update your .env.local file with the following changes:
+
+1. ADD these new lines:
+   WHATSAPP_WABA_ID=596136450071721
+   WHATSAPP_PHONE_NUMBER_ID=564943553373191
+
+2. CHANGE this line:
+   FROM: WHATSAPP_ACCESS_TOKEN=EAANi75PUoDwBO3om7CwCZA7R5IJx2PouQxQgmECFSBVjGdGFK3WXUD3jpDflpvtZAjoAwFG8VZB4R27AiRKU4shxWkomjWZCSZC90CxXKiEOgx1jwj94PLa5ZCHYg1tbbMlZCSXp7kkKKaGUhBy2F7pg3cxPiore2OKm3E21jrgCLDVZAUfYXKvjrOzmHd78Ejf22I21QaRNZAYtmn8aWcKKET0NFcCMjIGCEYtYzvtjl
+   TO:   WHATSAPP_SYSTEM_USER_TOKEN=EAANi75PUoDwBO3om7CwCZA7R5IJx2PouQxQgmECFSBVjGdGFK3WXUD3jpDflpvtZAjoAwFG8VZB4R27AiRKU4shxWkomjWZCSZC90CxXKiEOgx1jwj94PLa5ZCHYg1tbbMlZCSXp7kkKKaGUhBy2F7pg3cxPiore2OKm3E21jrgCLDVZAUfYXKvjrOzmHd78Ejf22I21QaRNZAYtmn8aWcKKET0NFcCMjIGCEYtYzvtjl
+
+3. CHANGE this line:
+   FROM: WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id
+   TO:   WHATSAPP_PHONE_NUMBER_ID=564943553373191
+
+After making these changes, your WhatsApp configuration section should look like:
+
+# WhatsApp Configuration - Centralized Model
+WHATSAPP_WABA_ID=596136450071721
+WHATSAPP_PHONE_NUMBER_ID=564943553373191
+WHATSAPP_SYSTEM_USER_TOKEN=EAANi75PUoDwBO3om7CwCZA7R5IJx2PouQxQgmECFSBVjGdGFK3WXUD3jpDflpvtZAjoAwFG8VZB4R27AiRKU4shxWkomjWZCSZC90CxXKiEOgx1jwj94PLa5ZCHYg1tbbMlZCSXp7kkKKaGUhBy2F7pg3cxPiore2OKm3E21jrgCLDVZAUfYXKvjrOzmHd78Ejf22I21QaRNZAYtmn8aWcKKET0NFcCMjIGCEYtYzvtjl
+WHATSAPP_VERIFY_TOKEN=zenrent5512429
+FB_APP_ID=953206047023164
+FB_APP_SECRET=76e16d5ea4d3dd0dbb21c41703947995
+
+STEPS TO COMPLETE:
+1. Open .env.local in your text editor
+2. Make the changes above
+3. Save the file
+4. Restart your development server: npm run dev
+5. Test the WhatsApp configuration
+
+CONFIGURATION DETAILS:
+- Phone Number: +1 555 629 6578 (Test Number)
+- Status: Connected and ready for messaging
+- This is a test phone number - perfect for development 

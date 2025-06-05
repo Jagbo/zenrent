@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { SidebarLayout } from "../../../components/sidebar-layout";
 import { SideboardOnboardingContent } from "../../../components/sideboard-onboarding-content";
@@ -8,12 +8,34 @@ import { CheckIcon as CheckIconSolid } from "@heroicons/react/24/solid";
 import { AddressAutocomplete } from "../../../components/address-autocomplete";
 import { RadioGroup, RadioField, Radio } from "../../../components/radio";
 import { OnboardingProgress } from "../../../components/onboarding-progress";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
-// Create Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Define Property type if not already defined globally
+interface Property {
+  id: string | number;
+  property_name?: string;
+  address_line1?: string;
+  address_line2?: string;
+  town_city?: string;
+  county?: string;
+  postcode?: string;
+  property_type?: string;
+  number_of_bedrooms?: number;
+  number_of_bathrooms?: number;
+  rent_amount?: number;
+  target_weekly_rent?: number;
+  target_monthly_rent?: number;
+}
+
+// Interface for address fields from AddressAutocomplete
+interface AddressFields {
+  addressLine1: string;
+  addressLine2: string;
+  townCity: string;
+  county: string;
+  postcode: string;
+}
 
 type Step = {
   id: string;
@@ -45,585 +67,286 @@ const steps: Step[] = [
   { id: "05", name: "Setup", href: "#", status: "upcoming" },
 ];
 
-export default function AddProperty() {
+export default function AddPropertyPage() {
   const router = useRouter();
-
-  // Track property number and list of saved properties
-  const [propertyCount, setPropertyCount] = useState(1);
-  const [savedProperties, setSavedProperties] = useState<any[]>([]);
-
-  // Add Supabase related state
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [propertyCount, setPropertyCount] = useState(1);
+  const [savedProperties, setSavedProperties] = useState<Partial<Property & {addressFull?: string}>[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [hasExistingProperties, setHasExistingProperties] = useState(false);
 
   // Basic property state
-  const [formData, setFormData] = useState({
-    // Property Basics
-    address: "",
-    propertyType: "",
-    propertySubtype: "",
-    bedrooms: "",
-    bathrooms: "",
-    furnishingStatus: "",
-
-    // Property Details
-    squareFootage: "",
-    councilTaxBand: "",
-    epcRating: "",
-    heatingType: "",
-    parking: "",
-    outdoorSpace: "",
-    features: [] as string[],
-
-    // HMO Information
-    isHmo: false,
-    hmoLicenseNumber: "",
-    hmoLicenseExpiry: "",
-    hmoMaxOccupancy: "",
-    hmoSharedFacilities: [] as string[],
-
-    // Leasehold Information
-    propertyOwnership: "freehold",
-    leaseLengthRemaining: "",
-    groundRent: "",
-    serviceCharge: "",
-    managementCompany: "",
-  });
+  const [propertyName, setPropertyName] = useState("");
+  const [address, setAddress] = useState<AddressFields | null>(null);
+  const [propertyType, setPropertyType] = useState("");
+  const [bedrooms, setBedrooms] = useState<number | string>("");
+  const [bathrooms, setBathrooms] = useState<number | string>("");
+  const [parking, setParking] = useState("");
+  const [furnishing, setFurnishing] = useState("");
+  const [squareFootage, setSquareFootage] = useState<number | string>("");
+  const [constructionDate, setConstructionDate] = useState("");
+  const [purchaseDate, setPurchaseDate] = useState("");
+  const [purchasePrice, setPurchasePrice] = useState<number | string>("");
+  const [mortgageInterest, setMortgageInterest] = useState<number | string>("");
+  const [propertyTax, setPropertyTax] = useState<number | string>("");
+  const [insuranceCost, setInsuranceCost] = useState<number | string>("");
+  const [notes, setNotes] = useState("");
 
   // Fetch current user on component mount
   useEffect(() => {
-    const getUser = async () => {
+    async function getUser() {
       try {
-        // In development, use a fixed user ID for testing
-        if (process.env.NODE_ENV === "development") {
-          setUserId("00000000-0000-0000-0000-000000000001");
+        const { data: userData, error: userError } =
+          await supabase.auth.getUser();
+
+        if (userError) {
+          console.error("Error fetching user:", userError);
+          router.push("/sign-up");
           return;
         }
 
-        const { data, error } = await supabase.auth.getUser();
-
-        if (error) {
-          console.error("Error fetching user:", error);
-          setError("Authentication error. Please sign in again.");
-          router.push("/sign-in");
-          return;
-        }
-
-        if (data && data.user) {
-          setUserId(data.user.id);
+        if (userData && userData.user) {
+          setUserId(userData.user.id);
         } else {
-          // Redirect to sign in if no user is found
-          router.push("/sign-in");
+          router.push("/sign-up");
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error in getUser:", error);
-        setError("Authentication error. Please sign in again.");
+        router.push("/sign-up");
       }
-    };
-
+    }
     getUser();
+  }, [router, supabase.auth]);
 
-    // Load saved properties from localStorage
+  useEffect(() => {
     try {
-      const existingProperties = JSON.parse(
-        localStorage.getItem("savedProperties") || "[]",
-      );
-      if (existingProperties.length > 0) {
-        setSavedProperties(existingProperties);
-        setPropertyCount(existingProperties.length + 1);
-      }
-    } catch (error) {
-      console.error("Error loading saved properties:", error);
-    }
-  }, [router]);
-
-  // Handle input changes
-  const handleInputChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >,
-  ) => {
-    const { name, value, type, checked } = e.target as HTMLInputElement;
-
-    if (type === "checkbox") {
-      if (name === "isHmo") {
-        setFormData({
-          ...formData,
-          [name]: checked,
-        });
-      } else if (
-        name.startsWith("features-") ||
-        name.startsWith("hmoSharedFacilities-")
-      ) {
-        const field = name.startsWith("features-")
-          ? "features"
-          : "hmoSharedFacilities";
-        const feature = name.split("-").slice(1).join("-"); // Handle feature IDs that might contain hyphens
-
-        if (checked) {
-          // Add the feature to the array if it's not already there
-          const currentFeatures = formData[
-            field as keyof typeof formData
-          ] as string[];
-          if (!currentFeatures.includes(feature)) {
-            setFormData({
-              ...formData,
-              [field]: [...currentFeatures, feature],
-            });
-          }
+      const existingPropertiesItem = localStorage.getItem("onboardingProperties");
+      if (existingPropertiesItem) {
+        const parsedProperties = JSON.parse(existingPropertiesItem) as Partial<Property & {addressFull?: string}>[]; 
+        if (Array.isArray(parsedProperties)) {
+            setSavedProperties(parsedProperties);
+            setPropertyCount(parsedProperties.length + 1);
         } else {
-          // Remove the feature from the array
-          const currentFeatures = formData[
-            field as keyof typeof formData
-          ] as string[];
-          setFormData({
-            ...formData,
-            [field]: currentFeatures.filter((item) => item !== feature),
-          });
+            setSavedProperties([]);
+            setPropertyCount(1);
         }
-      }
-    } else {
-      // For property type changes, update isHmo field automatically
-      if (name === "propertyType") {
-        setFormData({
-          ...formData,
-          [name]: value,
-          isHmo: value === "hmo", // Set isHmo field to true if property type is 'hmo'
-        });
       } else {
-        setFormData({
-          ...formData,
-          [name]: value,
-        });
+        setSavedProperties([]);
+        setPropertyCount(1);
+      }
+    } catch (error: any) { 
+      console.error("Error loading saved properties:", error);
+      setSavedProperties([]);
+      setPropertyCount(1);
+    }
+  }, []);
+
+  // Load existing properties from DB to check if any exist
+  useEffect(() => {
+    async function loadExistingProperties() {
+      if (!userId) return;
+      setLoading(true);
+      try {
+        const { data, error: dbError } = await supabase
+          .from("properties")
+          .select("id")
+          .eq("user_id", userId)
+          .limit(1);
+
+        if (dbError) throw dbError;
+        setHasExistingProperties(data && data.length > 0);
+      } catch (dbError: any) {
+        console.error("Error loading existing properties:", dbError);
+        setError("Failed to check for existing properties.");
+      } finally {
+        setLoading(false);
       }
     }
+    if (userId) {
+      loadExistingProperties();
+    }
+  }, [userId, supabase]);
+
+  const resetFormFields = () => {
+    setPropertyName("");
+    setAddress(null);
+    setPropertyType("");
+    setBedrooms("");
+    setBathrooms("");
+    setParking("");
+    setFurnishing("");
+    setSquareFootage("");
+    setConstructionDate("");
+    setPurchaseDate("");
+    setPurchasePrice("");
+    setMortgageInterest("");
+    setPropertyTax("");
+    setInsuranceCost("");
+    setNotes("");
   };
 
-  // Handle form submission
+  const preparePropertyData = () => {
+    if (!userId || !address) {
+      setError("User or address information is missing.");
+      return null;
+    }
+    const postcodePart = address.postcode?.replace(/\s+/g, "").substring(0, 4) || "PROP";
+    const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const propertyCode = `${postcodePart}-${randomPart}`;
+
+    return {
+      user_id: userId,
+      property_code: propertyCode,
+      property_name: propertyName || `${address.addressLine1}, ${address.postcode}`,
+      address_line1: address.addressLine1,
+      address_line2: address.addressLine2,
+      town_city: address.townCity,
+      county: address.county,
+      postcode: address.postcode,
+      property_type: propertyType,
+      number_of_bedrooms: bedrooms ? parseInt(String(bedrooms)) : undefined,
+      number_of_bathrooms: bathrooms ? parseFloat(String(bathrooms)) : undefined,
+      parking_availability: parking,
+      furnishing_status: furnishing,
+      square_footage: squareFootage ? parseFloat(String(squareFootage)) : undefined,
+      construction_date: constructionDate || null,
+      purchase_date: purchaseDate || null,
+      purchase_price: purchasePrice ? parseFloat(String(purchasePrice)) : undefined,
+      mortgage_interest_rate: mortgageInterest ? parseFloat(String(mortgageInterest)) : undefined, // Assuming this is rate
+      council_tax_band: propertyTax, // Assuming propertyTax state is for council tax band
+      insurance_cost: insuranceCost ? parseFloat(String(insuranceCost)) : undefined,
+      notes: notes,
+      status: "active", // Default status
+    };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Basic validation to ensure required fields are filled
-    if (
-      !formData.address ||
-      !formData.propertyType ||
-      !formData.bedrooms ||
-      !formData.bathrooms
-    ) {
-      alert("Please fill in all required fields");
+    if (!userId || !address || !propertyType || !bedrooms || !bathrooms) {
+      setError("Please fill in all required fields: Address, Property Type, Bedrooms, Bathrooms.");
       return;
     }
-
-    if (!userId) {
-      setError("User not authenticated. Please sign in again.");
-      return;
-    }
-
     setIsSubmitting(true);
     setError(null);
+    const propertyData = preparePropertyData();
+    if (!propertyData) {
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
-      console.log("Submitting property data to Supabase:", formData);
-
-      // Generate a property code based on postcode and random string
-      const postcodePart =
-        formData.address
-          .split(",")
-          .pop()
-          ?.trim()
-          .replace(/\s+/g, "")
-          .substring(0, 4) || "PROP";
-      const randomPart = Math.random()
-        .toString(36)
-        .substring(2, 6)
-        .toUpperCase();
-      const propertyCode = `${postcodePart}-${randomPart}`;
-
-      // Extract city and postcode from address
-      const addressParts = formData.address.split(",");
-      const postcode = addressParts.pop()?.trim() || "";
-      const city = addressParts.pop()?.trim() || "";
-
-      // Prepare property data for Supabase
-      const propertyData = {
-        user_id: userId,
-        property_code: propertyCode,
-        address: formData.address,
-        city: city,
-        postcode: postcode,
-        property_type: formData.propertyType,
-        bedrooms: parseInt(formData.bedrooms),
-        bathrooms: parseFloat(formData.bathrooms),
-        is_furnished:
-          formData.furnishingStatus === "furnished"
-            ? true
-            : formData.furnishingStatus === "partFurnished"
-              ? true
-              : false,
-        description: "",
-        status: "active",
-        has_garden: formData.features.includes("garden"),
-        has_parking: formData.parking !== "none" && formData.parking !== "",
-        notes: "",
-        metadata: {
-          propertySubtype: formData.propertySubtype,
-          furnishingStatus: formData.furnishingStatus,
-          squareFootage: formData.squareFootage,
-          councilTaxBand: formData.councilTaxBand,
-          epcRating: formData.epcRating,
-          heatingType: formData.heatingType,
-          parking: formData.parking,
-          outdoorSpace: formData.outdoorSpace,
-          features: formData.features,
-          isHmo: formData.isHmo,
-          hmoDetails: formData.isHmo
-            ? {
-                licenseNumber: formData.hmoLicenseNumber,
-                licenseExpiry: formData.hmoLicenseExpiry,
-                maxOccupancy: formData.hmoMaxOccupancy,
-                sharedFacilities: formData.hmoSharedFacilities,
-              }
-            : null,
-          propertyOwnership: formData.propertyOwnership,
-          leaseholdDetails:
-            formData.propertyOwnership === "leasehold"
-              ? {
-                  leaseLengthRemaining: formData.leaseLengthRemaining,
-                  groundRent: formData.groundRent,
-                  serviceCharge: formData.serviceCharge,
-                  managementCompany: formData.managementCompany,
-                }
-              : null,
-        },
-      };
-
-      // Insert property into Supabase
-      const { data, error } = await supabase
+      const { data, error: insertError } = await supabase
         .from("properties")
         .insert(propertyData)
         .select();
 
-      if (error) {
-        throw error;
-      }
-
+      if (insertError) throw insertError;
       console.log("Property saved to Supabase:", data);
-
-      // Also save to localStorage for backup and to show in the UI
-      try {
-        const existingProperties = JSON.parse(
-          localStorage.getItem("savedProperties") || "[]",
-        );
-        existingProperties.push({
-          ...formData,
-          supabaseId: data[0]?.id,
-          propertyCode: propertyCode,
-        });
-        localStorage.setItem(
-          "savedProperties",
-          JSON.stringify(existingProperties),
-        );
-        setSavedProperties(existingProperties);
-      } catch (storageError) {
-        console.error("Error saving to localStorage:", storageError);
-      }
-
-      // Navigate to the next step
-      router.push("/onboarding/tenant/import-options");
-    } catch (error: unknown) {
-      console.error("Error saving property to Supabase:", error);
-      setError(error.message || "Failed to save property. Please try again.");
+      // Navigate to the next step or show success
+      router.push("/onboarding/tenant/import-options"); 
+    } catch (err: any) {
+      console.error("Error saving property:", err);
+      setError(err.message || "Failed to save property.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Handle save as draft
   const handleSaveAsDraft = async () => {
-    if (!userId) {
-      setError("User not authenticated. Please sign in again.");
+    if (!userId || !address) {
+      setError("User or address information is missing to save a draft.");
       return;
     }
-
     setIsSubmitting(true);
     setError(null);
+    let propertyData = preparePropertyData();
+    if (!propertyData) {
+       setIsSubmitting(false);
+       return;
+    }
+    propertyData = { ...propertyData, status: "draft" };
 
     try {
-      console.log("Saving property data as draft to Supabase:", formData);
-
-      // Generate a property code
-      const postcodePart =
-        formData.address
-          .split(",")
-          .pop()
-          ?.trim()
-          .replace(/\s+/g, "")
-          .substring(0, 4) || "DRAFT";
-      const randomPart = Math.random()
-        .toString(36)
-        .substring(2, 6)
-        .toUpperCase();
-      const propertyCode = `${postcodePart}-${randomPart}`;
-
-      // Extract city and postcode from address (if available)
-      const addressParts = formData.address.split(",");
-      const postcode =
-        addressParts.length > 1 ? addressParts.pop()?.trim() || "" : "";
-      const city =
-        addressParts.length > 1 ? addressParts.pop()?.trim() || "" : "";
-
-      // Prepare property data for Supabase with draft status
-      const propertyData = {
-        user_id: userId,
-        property_code: propertyCode,
-        address: formData.address || "Draft Property",
-        city: city || "",
-        postcode: postcode || "",
-        property_type: formData.propertyType || "",
-        bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : 0,
-        bathrooms: formData.bathrooms ? parseFloat(formData.bathrooms) : 0,
-        status: "draft", // Mark as draft
-        metadata: {
-          isDraft: true,
-          draftData: formData,
-        },
-      };
-
-      // Insert draft property into Supabase
-      const { data, error } = await supabase
+      const { data, error: insertError } = await supabase
         .from("properties")
         .insert(propertyData)
         .select();
 
-      if (error) {
-        throw error;
-      }
-
+      if (insertError) throw insertError;
       console.log("Property draft saved to Supabase:", data);
-
-      // Also save to localStorage
-      try {
-        localStorage.setItem(
-          "propertyDataDraft",
-          JSON.stringify({
-            ...formData,
-            supabaseId: data[0]?.id,
-            propertyCode: propertyCode,
-            status: "draft",
-          }),
-        );
-      } catch (storageError) {
-        console.error("Error saving draft to localStorage:", storageError);
-      }
-
-      alert("Your property details have been saved as draft");
-    } catch (error: unknown) {
-      console.error("Error saving property draft to Supabase:", error);
-      setError(error.message || "Failed to save draft. Please try again.");
-
-      // Fall back to localStorage if Supabase fails
-      try {
-        localStorage.setItem("propertyDataDraft", JSON.stringify(formData));
-        alert(
-          "Your property details have been saved locally (failed to save to database)",
-        );
-      } catch (storageError) {
-        console.error("Error saving property draft data:", storageError);
-      }
+      alert("Property saved as draft.");
+      // Optionally reset form or navigate
+    } catch (err: any) {
+      console.error("Error saving property draft:", err);
+      setError(err.message || "Failed to save property draft.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Handle add another property
   const handleAddAnother = async () => {
-    if (!userId) {
-      setError("User not authenticated. Please sign in again.");
+    if (!userId || !address || !propertyType || !bedrooms || !bathrooms) {
+      setError("Please fill in current property's required fields before adding another.");
+      return;
+    }
+    setIsSubmitting(true);
+    setError(null);
+    const propertyData = preparePropertyData();
+     if (!propertyData) {
+      setIsSubmitting(false);
       return;
     }
 
-    // First save the current property
-    setIsSubmitting(true);
-    setError(null);
-
     try {
-      console.log(
-        "Adding another property after saving current one to Supabase:",
-        formData,
-      );
-
-      // Only proceed if we have the minimum required data
-      if (!formData.address || !formData.propertyType) {
-        alert(
-          "Please fill in at least the address and property type before adding another property",
-        );
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Generate a property code
-      const postcodePart =
-        formData.address
-          .split(",")
-          .pop()
-          ?.trim()
-          .replace(/\s+/g, "")
-          .substring(0, 4) || "PROP";
-      const randomPart = Math.random()
-        .toString(36)
-        .substring(2, 6)
-        .toUpperCase();
-      const propertyCode = `${postcodePart}-${randomPart}`;
-
-      // Extract city and postcode from address
-      const addressParts = formData.address.split(",");
-      const postcode = addressParts.pop()?.trim() || "";
-      const city =
-        addressParts.length > 0 ? addressParts.pop()?.trim() || "" : "";
-
-      // Prepare property data for Supabase
-      const propertyData = {
-        user_id: userId,
-        property_code: propertyCode,
-        address: formData.address,
-        city: city,
-        postcode: postcode,
-        property_type: formData.propertyType,
-        bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : 0,
-        bathrooms: formData.bathrooms ? parseFloat(formData.bathrooms) : 0,
-        is_furnished:
-          formData.furnishingStatus === "furnished"
-            ? true
-            : formData.furnishingStatus === "partFurnished"
-              ? true
-              : false,
-        description: "",
-        status: "active",
-        has_garden: formData.features.includes("garden"),
-        has_parking: formData.parking !== "none" && formData.parking !== "",
-        metadata: {
-          propertySubtype: formData.propertySubtype,
-          furnishingStatus: formData.furnishingStatus,
-          squareFootage: formData.squareFootage,
-          councilTaxBand: formData.councilTaxBand,
-          epcRating: formData.epcRating,
-          heatingType: formData.heatingType,
-          parking: formData.parking,
-          outdoorSpace: formData.outdoorSpace,
-          features: formData.features,
-          isHmo: formData.isHmo,
-          hmoDetails: formData.isHmo
-            ? {
-                licenseNumber: formData.hmoLicenseNumber,
-                licenseExpiry: formData.hmoLicenseExpiry,
-                maxOccupancy: formData.hmoMaxOccupancy,
-                sharedFacilities: formData.hmoSharedFacilities,
-              }
-            : null,
-          propertyOwnership: formData.propertyOwnership,
-          leaseholdDetails:
-            formData.propertyOwnership === "leasehold"
-              ? {
-                  leaseLengthRemaining: formData.leaseLengthRemaining,
-                  groundRent: formData.groundRent,
-                  serviceCharge: formData.serviceCharge,
-                  managementCompany: formData.managementCompany,
-                }
-              : null,
-        },
-      };
-
-      // Insert property into Supabase
-      const { data, error } = await supabase
+      const { data, error: insertError } = await supabase
         .from("properties")
         .insert(propertyData)
         .select();
 
-      if (error) {
-        throw error;
-      }
-
+      if (insertError) throw insertError;
       console.log("Property saved to Supabase:", data);
-
-      // Also save to localStorage and update state
-      try {
-        const existingProperties = JSON.parse(
-          localStorage.getItem("savedProperties") || "[]",
-        );
-        const newProperty = {
-          ...formData,
-          supabaseId: data[0]?.id,
-          propertyCode: propertyCode,
-        };
-        existingProperties.push(newProperty);
-        localStorage.setItem(
-          "savedProperties",
-          JSON.stringify(existingProperties),
-        );
-
-        // Update state with new property
-        setSavedProperties(existingProperties);
-        setPropertyCount(existingProperties.length + 1);
-      } catch (storageError) {
-        console.error("Error saving to localStorage:", storageError);
-      }
-
-      // Reset form for new property
-      setFormData({
-        // Property Basics
-        address: "",
-        propertyType: "",
-        propertySubtype: "",
-        bedrooms: "",
-        bathrooms: "",
-        furnishingStatus: "",
-
-        // Property Details
-        squareFootage: "",
-        councilTaxBand: "",
-        epcRating: "",
-        heatingType: "",
-        parking: "",
-        outdoorSpace: "",
-        features: [],
-
-        // HMO Information
-        isHmo: false,
-        hmoLicenseNumber: "",
-        hmoLicenseExpiry: "",
-        hmoMaxOccupancy: "",
-        hmoSharedFacilities: [],
-
-        // Leasehold Information
-        propertyOwnership: "freehold",
-        leaseLengthRemaining: "",
-        groundRent: "",
-        serviceCharge: "",
-        managementCompany: "",
-      });
-
-      // Show confirmation
+      
+      const newSavedProperty: Partial<Property & {addressFull?: string}> = {
+        id: data && data[0] ? data[0].id : Date.now(),
+        property_name: propertyData.property_name,
+        addressFull: address ? `${address.addressLine1}, ${address.postcode}` : undefined,
+        property_type: propertyType,
+        number_of_bedrooms: Number(bedrooms),
+      };
+      const updatedSavedProperties = [...savedProperties, newSavedProperty];
+      setSavedProperties(updatedSavedProperties);
+      localStorage.setItem("onboardingProperties", JSON.stringify(updatedSavedProperties));
+      
+      setPropertyCount(propertyCount + 1);
+      resetFormFields();
       alert("Property saved. You can now add another property.");
-    } catch (error: unknown) {
-      console.error("Error saving property to Supabase:", error);
-      setError(error.message || "Failed to save property. Please try again.");
+
+    } catch (err: any) {
+      console.error("Error saving property before adding another:", err);
+      setError(err.message || "Failed to save property.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Custom sidebar content without saved properties
-  const CustomSidebar = () => (
-    <div className="h-full flex flex-col">
-      <SideboardOnboardingContent />
-    </div>
-  );
+  // Show loading indicator while fetching user data or existing properties
+  if (loading) {
+    return (
+      <SidebarLayout isOnboarding={true}>
+        <div className="flex items-center justify-center h-full">
+          <LoadingSpinner label="Loading..." />
+        </div>
+      </SidebarLayout>
+    );
+  }
 
   return (
-    <SidebarLayout sidebar={<CustomSidebar />} isOnboarding={true}>
+    <SidebarLayout isOnboarding={true}>
       <div className="space-y-8">
-        {/* Progress Bar */}
+        {/* Page Header */}
         <OnboardingProgress steps={steps} />
 
         <div className="grid grid-cols-1 gap-x-8 gap-y-8 py-8 md:grid-cols-3">
@@ -663,23 +386,23 @@ export default function AddProperty() {
             )}
 
             {/* Display saved properties below the description */}
-            {savedProperties.length > 0 && (
+            {Array.isArray(savedProperties) && savedProperties.length > 0 && (
               <div className="mt-6">
                 <h3 className="text-sm font-medium text-gray-500">
-                  Previously Added Properties
+                  Previously Added Properties ({savedProperties.length})
                 </h3>
                 <ul className="mt-2 space-y-3">
                   {savedProperties.map((property, index) => (
-                    <li key={index}>
+                    <li key={property.id || index}>
                       <div className="bg-white shadow overflow-hidden sm:rounded-md p-4 border border-gray-200">
                         <div className="flex items-start justify-between">
                           <div>
                             <p className="text-sm font-medium text-gray-900">
-                              {property.address}
+                              {property.property_name || property.addressFull || `Property ${index + 1}`}
                             </p>
                             <p className="mt-1 text-xs text-gray-500">
-                              {property.propertyType} • {property.bedrooms}{" "}
-                              {parseInt(property.bedrooms) > 1
+                              {property.property_type} • {property.number_of_bedrooms}{" "}
+                              {Number(property.number_of_bedrooms) > 1
                                 ? "Bedrooms"
                                 : "Bedroom"}
                             </p>
@@ -726,28 +449,34 @@ export default function AddProperty() {
 
                   <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-6">
                     <div className="sm:col-span-6">
+                      <label htmlFor="propertyName"
+                        className="block text-sm font-medium leading-6 text-gray-900"
+                      >
+                        Property Name (Optional)
+                      </label>
+                      <div className="mt-2">
+                        <input type="text"
+                          name="propertyName"
+                          id="propertyName"
+                          value={propertyName}
+                          onChange={(e) => setPropertyName(e.target.value)}
+                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                          placeholder="e.g., 123 Main St Apartment"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="sm:col-span-6">
                       <label htmlFor="address"
                         className="block text-sm font-medium leading-6 text-gray-900"
                       >
                         Property address <span className="text-red-500">*</span>
                       </label>
                       <div className="mt-2">
-                        <AddressAutocomplete addressLine1={formData.address}
-                          onAddressSelect={(address) => {
-                            setFormData({
-                              ...formData,
-                              address:
-                                address.addressLine1 +
-                                (address.addressLine2
-                                  ? ", " + address.addressLine2
-                                  : "") +
-                                ", " +
-                                address.townCity +
-                                ", " +
-                                address.county +
-                                ", " +
-                                address.postcode,
-                            });
+                        <AddressAutocomplete 
+                          addressLine1={address?.addressLine1 || ""}
+                          onAddressSelect={(selectedAddress) => {
+                            setAddress(selectedAddress);
                           }}
                         />
                       </div>
@@ -766,8 +495,8 @@ export default function AddProperty() {
                         <select id="propertyType"
                           name="propertyType"
                           required
-                          value={formData.propertyType}
-                          onChange={handleInputChange}
+                          value={propertyType}
+                          onChange={(e) => setPropertyType(e.target.value)}
                           className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                         >
                           <option value="">Select property type</option>
@@ -781,56 +510,6 @@ export default function AddProperty() {
                     </div>
 
                     <div className="sm:col-span-3">
-                      <label htmlFor="propertySubtype"
-                        className="block text-sm font-medium leading-6 text-gray-900"
-                      >
-                        Property subtype
-                      </label>
-                      <div className="mt-2">
-                        <select id="propertySubtype"
-                          name="propertySubtype"
-                          value={formData.propertySubtype}
-                          onChange={handleInputChange}
-                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                        >
-                          <option value="">Select subtype</option>
-                          {formData.propertyType === "flat" && (
-                            <>
-                              <option value="purpose-built">
-                                Purpose Built
-                              </option>
-                              <option value="converted">Converted</option>
-                              <option value="maisonette">Maisonette</option>
-                            </>
-                          )}
-                          {formData.propertyType === "house" && (
-                            <>
-                              <option value="detached">Detached</option>
-                              <option value="semi-detached">
-                                Semi-Detached
-                              </option>
-                              <option value="terraced">Terraced</option>
-                              <option value="end-of-terrace">
-                                End of Terrace
-                              </option>
-                              <option value="cottage">Cottage</option>
-                              <option value="bungalow">Bungalow</option>
-                            </>
-                          )}
-                          {formData.propertyType === "hmo" && (
-                            <>
-                              <option value="shared-house">Shared House</option>
-                              <option value="bedsits">Bedsits</option>
-                              <option value="student-accommodation">
-                                Student Accommodation
-                              </option>
-                            </>
-                          )}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="sm:col-span-2">
                       <label htmlFor="bedrooms"
                         className="block text-sm font-medium leading-6 text-gray-900"
                       >
@@ -842,14 +521,14 @@ export default function AddProperty() {
                           id="bedrooms"
                           required
                           min="0"
-                          value={formData.bedrooms}
-                          onChange={handleInputChange}
+                          value={bedrooms}
+                          onChange={(e) => setBedrooms(e.target.value)}
                           className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                         />
                       </div>
                     </div>
 
-                    <div className="sm:col-span-2">
+                    <div className="sm:col-span-3">
                       <label htmlFor="bathrooms"
                         className="block text-sm font-medium leading-6 text-gray-900"
                       >
@@ -862,24 +541,24 @@ export default function AddProperty() {
                           required
                           min="0"
                           step="0.5"
-                          value={formData.bathrooms}
-                          onChange={handleInputChange}
+                          value={bathrooms}
+                          onChange={(e) => setBathrooms(e.target.value)}
                           className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                         />
                       </div>
                     </div>
 
                     <div className="sm:col-span-2">
-                      <label htmlFor="furnishingStatus"
+                      <label htmlFor="furnishing"
                         className="block text-sm font-medium leading-6 text-gray-900"
                       >
                         Furnishing status
                       </label>
                       <div className="mt-2">
-                        <select id="furnishingStatus"
-                          name="furnishingStatus"
-                          value={formData.furnishingStatus}
-                          onChange={handleInputChange}
+                        <select id="furnishing"
+                          name="furnishing"
+                          value={furnishing}
+                          onChange={(e) => setFurnishing(e.target.value)}
                           className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                         >
                           <option value="">Select status</option>
@@ -913,443 +592,134 @@ export default function AddProperty() {
                           name="squareFootage"
                           id="squareFootage"
                           min="0"
-                          value={formData.squareFootage}
-                          onChange={handleInputChange}
+                          value={squareFootage}
+                          onChange={(e) => setSquareFootage(e.target.value)}
                           className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
                         />
                       </div>
                     </div>
 
                     <div className="sm:col-span-2">
-                      <label htmlFor="councilTaxBand"
+                      <label htmlFor="constructionDate"
                         className="block text-sm font-medium leading-6 text-gray-900"
                       >
-                        Council tax band
+                        Construction date
                       </label>
                       <div className="mt-2">
-                        <select id="councilTaxBand"
-                          name="councilTaxBand"
-                          value={formData.councilTaxBand}
-                          onChange={handleInputChange}
+                        <input type="date"
+                          name="constructionDate"
+                          id="constructionDate"
+                          value={constructionDate}
+                          onChange={(e) => setConstructionDate(e.target.value)}
                           className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                        >
-                          <option value="">Select band</option>
-                          <option value="A">Band A</option>
-                          <option value="B">Band B</option>
-                          <option value="C">Band C</option>
-                          <option value="D">Band D</option>
-                          <option value="E">Band E</option>
-                          <option value="F">Band F</option>
-                          <option value="G">Band G</option>
-                          <option value="H">Band H</option>
-                        </select>
+                        />
                       </div>
                     </div>
 
                     <div className="sm:col-span-2">
-                      <label htmlFor="epcRating"
+                      <label htmlFor="purchaseDate"
                         className="block text-sm font-medium leading-6 text-gray-900"
                       >
-                        EPC rating
+                        Purchase date
                       </label>
                       <div className="mt-2">
-                        <select id="epcRating"
-                          name="epcRating"
-                          value={formData.epcRating}
-                          onChange={handleInputChange}
+                        <input type="date"
+                          name="purchaseDate"
+                          id="purchaseDate"
+                          value={purchaseDate}
+                          onChange={(e) => setPurchaseDate(e.target.value)}
                           className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                        >
-                          <option value="">Select rating</option>
-                          <option value="A">A</option>
-                          <option value="B">B</option>
-                          <option value="C">C</option>
-                          <option value="D">D</option>
-                          <option value="E">E</option>
-                          <option value="F">F</option>
-                          <option value="G">G</option>
-                        </select>
+                        />
                       </div>
                     </div>
 
                     <div className="sm:col-span-3">
-                      <label htmlFor="heatingType"
+                      <label htmlFor="purchasePrice"
                         className="block text-sm font-medium leading-6 text-gray-900"
                       >
-                        Heating type
+                        Purchase price (£)
                       </label>
                       <div className="mt-2">
-                        <select id="heatingType"
-                          name="heatingType"
-                          value={formData.heatingType}
-                          onChange={handleInputChange}
+                        <input type="text"
+                          name="purchasePrice"
+                          id="purchasePrice"
+                          value={purchasePrice}
+                          onChange={(e) => setPurchasePrice(e.target.value)}
                           className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                        >
-                          <option value="">Select heating type</option>
-                          <option value="gas-central">
-                            Gas Central Heating
-                          </option>
-                          <option value="electric">Electric Heating</option>
-                          <option value="oil">Oil Heating</option>
-                          <option value="solid-fuel">Solid Fuel</option>
-                          <option value="air-source">
-                            Air Source Heat Pump
-                          </option>
-                          <option value="ground-source">
-                            Ground Source Heat Pump
-                          </option>
-                          <option value="district">District Heating</option>
-                          <option value="none">No Heating</option>
-                        </select>
+                          placeholder="0.00"
+                        />
                       </div>
                     </div>
 
                     <div className="sm:col-span-3">
-                      <label htmlFor="parking"
+                      <label htmlFor="mortgageInterest"
                         className="block text-sm font-medium leading-6 text-gray-900"
                       >
-                        Parking availability
+                        Mortgage interest (£/year)
                       </label>
                       <div className="mt-2">
-                        <select id="parking"
-                          name="parking"
-                          value={formData.parking}
-                          onChange={handleInputChange}
+                        <input type="text"
+                          name="mortgageInterest"
+                          id="mortgageInterest"
+                          value={mortgageInterest}
+                          onChange={(e) => setMortgageInterest(e.target.value)}
                           className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                        >
-                          <option value="">Select parking</option>
-                          <option value="on-street">On-street Parking</option>
-                          <option value="off-street">Off-street Parking</option>
-                          <option value="garage">Garage</option>
-                          <option value="allocated">Allocated Space</option>
-                          <option value="none">No Parking</option>
-                        </select>
+                          placeholder="0.00"
+                        />
                       </div>
                     </div>
 
                     <div className="sm:col-span-3">
-                      <label htmlFor="outdoorSpace"
+                      <label htmlFor="propertyTax"
                         className="block text-sm font-medium leading-6 text-gray-900"
                       >
-                        Garden/outdoor space
+                        Property tax (£/year)
                       </label>
                       <div className="mt-2">
-                        <select id="outdoorSpace"
-                          name="outdoorSpace"
-                          value={formData.outdoorSpace}
-                          onChange={handleInputChange}
+                        <input type="text"
+                          name="propertyTax"
+                          id="propertyTax"
+                          value={propertyTax}
+                          onChange={(e) => setPropertyTax(e.target.value)}
                           className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                        >
-                          <option value="">Select outdoor space</option>
-                          <option value="private-garden">Private Garden</option>
-                          <option value="shared-garden">Shared Garden</option>
-                          <option value="patio">Patio/Terrace</option>
-                          <option value="balcony">Balcony</option>
-                          <option value="none">No Outdoor Space</option>
-                        </select>
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="sm:col-span-3">
+                      <label htmlFor="insuranceCost"
+                        className="block text-sm font-medium leading-6 text-gray-900"
+                      >
+                        Insurance cost (£/year)
+                      </label>
+                      <div className="mt-2">
+                        <input type="text"
+                          name="insuranceCost"
+                          id="insuranceCost"
+                          value={insuranceCost}
+                          onChange={(e) => setInsuranceCost(e.target.value)}
+                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                          placeholder="0.00"
+                        />
                       </div>
                     </div>
 
                     <div className="sm:col-span-6">
                       <label className="block text-sm font-medium leading-6 text-gray-900">
-                        Property features
+                        Notes
                       </label>
-                      <div className="mt-2 grid grid-cols-1 gap-y-2 sm:grid-cols-2 md:grid-cols-3">
-                        {[
-                          { id: "double-glazing", label: "Double Glazing" },
-                          { id: "garden", label: "Garden" },
-                          { id: "garage", label: "Garage" },
-                          { id: "driveway", label: "Driveway" },
-                          { id: "balcony", label: "Balcony" },
-                          { id: "fireplace", label: "Fireplace" },
-                          { id: "washing-machine", label: "Washing Machine" },
-                          { id: "dishwasher", label: "Dishwasher" },
-                          { id: "burglar-alarm", label: "Burglar Alarm" },
-                          { id: "pets-allowed", label: "Pets Allowed" },
-                          {
-                            id: "wheelchair-access",
-                            label: "Wheelchair Access",
-                          },
-                          { id: "satellite-tv", label: "Satellite/Cable TV" },
-                        ].map((feature) => (
-                          <div key={feature.id}
-                            className="relative flex items-start"
-                          >
-                            <div className="flex h-6 items-center">
-                              <input id={`features-${feature.id}`}
-                                name={`features-${feature.id}`}
-                                type="checkbox"
-                                checked={formData.features.includes(feature.id)}
-                                onChange={handleInputChange}
-                                className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-[#D9E8FF]"
-                              />
-                            </div>
-                            <div className="ml-3 text-sm leading-6">
-                              <label htmlFor={`features-${feature.id}`}
-                                className="font-medium text-gray-900 cursor-pointer"
-                              >
-                                {feature.label}
-                              </label>
-                            </div>
-                          </div>
-                        ))}
+                      <div className="mt-2">
+                        <textarea
+                          name="notes"
+                          id="notes"
+                          value={notes}
+                          onChange={(e) => setNotes(e.target.value)}
+                          className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
+                          placeholder="Enter any additional notes about the property"
+                        />
                       </div>
                     </div>
-                  </div>
-                </div>
-
-                {/* HMO Information - Only show if property type is HMO */}
-                {formData.propertyType === "hmo" && (
-                  <div className="border-b border-gray-900/10 pb-6">
-                    <h2 className="text-base/7 font-semibold text-gray-900">
-                      HMO Information
-                    </h2>
-                    <p className="mt-1 text-sm/6 text-gray-600">
-                      Details about your House in Multiple Occupation.
-                    </p>
-
-                    <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-6">
-                      <div className="sm:col-span-3">
-                        <label htmlFor="hmoLicenseNumber"
-                          className="block text-sm font-medium leading-6 text-gray-900"
-                        >
-                          HMO license number
-                        </label>
-                        <div className="mt-2">
-                          <input type="text"
-                            name="hmoLicenseNumber"
-                            id="hmoLicenseNumber"
-                            value={formData.hmoLicenseNumber}
-                            onChange={handleInputChange}
-                            className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="sm:col-span-3">
-                        <label htmlFor="hmoLicenseExpiry"
-                          className="block text-sm font-medium leading-6 text-gray-900"
-                        >
-                          License expiry date
-                        </label>
-                        <div className="mt-2">
-                          <input type="date"
-                            name="hmoLicenseExpiry"
-                            id="hmoLicenseExpiry"
-                            value={formData.hmoLicenseExpiry}
-                            onChange={handleInputChange}
-                            className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="sm:col-span-3">
-                        <label htmlFor="hmoMaxOccupancy"
-                          className="block text-sm font-medium leading-6 text-gray-900"
-                        >
-                          Maximum occupancy
-                        </label>
-                        <div className="mt-2">
-                          <input type="number"
-                            name="hmoMaxOccupancy"
-                            id="hmoMaxOccupancy"
-                            min="1"
-                            value={formData.hmoMaxOccupancy}
-                            onChange={handleInputChange}
-                            className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="sm:col-span-6">
-                        <label className="block text-sm font-medium leading-6 text-gray-900">
-                          Shared facilities
-                        </label>
-                        <div className="mt-2 grid grid-cols-1 gap-y-2 sm:grid-cols-2 md:grid-cols-3">
-                          {[
-                            { id: "kitchen", label: "Kitchen" },
-                            { id: "bathroom", label: "Bathroom" },
-                            { id: "toilet", label: "Toilet" },
-                            { id: "living-room", label: "Living Room" },
-                            { id: "dining-room", label: "Dining Room" },
-                            { id: "garden", label: "Garden" },
-                            { id: "laundry", label: "Laundry Facilities" },
-                          ].map((facility) => (
-                            <div key={facility.id}
-                              className="relative flex items-start"
-                            >
-                              <div className="flex h-6 items-center">
-                                <input id={`hmoSharedFacilities-${facility.id}`}
-                                  name={`hmoSharedFacilities-${facility.id}`}
-                                  type="checkbox"
-                                  checked={formData.hmoSharedFacilities.includes(
-                                    facility.id,
-                                  )}
-                                  onChange={handleInputChange}
-                                  className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-[#D9E8FF]"
-                                />
-                              </div>
-                              <div className="ml-3 text-sm leading-6">
-                                <label htmlFor={`hmoSharedFacilities-${facility.id}`}
-                                  className="font-medium text-gray-900"
-                                >
-                                  {facility.label}
-                                </label>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Leasehold Information */}
-                <div className="border-b border-gray-900/10 pb-6">
-                  <h2 className="text-base/7 font-semibold text-gray-900">
-                    Leasehold Information
-                  </h2>
-                  <p className="mt-1 text-sm/6 text-gray-600">
-                    Details about the property ownership.
-                  </p>
-
-                  <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-6">
-                    <div className="sm:col-span-6">
-                      <label className="text-sm font-medium leading-6 text-gray-900">
-                        Property ownership
-                      </label>
-                      <div className="mt-2 space-y-4">
-                        <RadioGroup value={formData.propertyOwnership}
-                          onChange={(value: string) =>
-                            setFormData({
-                              ...formData,
-                              propertyOwnership: value,
-                            })
-                          }
-                        >
-                          <RadioField className="w-full">
-                            <div className="flex w-full">
-                              <div className="flex items-start">
-                                <Radio color="custom" value="freehold" />
-                                <div className="ml-2 flex flex-col"
-                                  style={{ width: "450px" }}
-                                >
-                                  <span className="text-sm font-medium text-gray-900 block">
-                                    Freehold
-                                  </span>
-                                  <span className="text-sm text-gray-500 block">
-                                    You own the property and land outright
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          </RadioField>
-                          <RadioField className="w-full">
-                            <div className="flex w-full">
-                              <div className="flex items-start">
-                                <Radio color="custom" value="leasehold" />
-                                <div className="ml-2 flex flex-col"
-                                  style={{ width: "450px" }}
-                                >
-                                  <span className="text-sm font-medium text-gray-900 block">
-                                    Leasehold
-                                  </span>
-                                  <span className="text-sm text-gray-500 block">
-                                    You own the property for a fixed period but
-                                    not the land
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          </RadioField>
-                        </RadioGroup>
-                      </div>
-                    </div>
-
-                    {(formData.propertyOwnership === "leasehold" ||
-                      formData.propertyOwnership === "share-of-freehold") && (
-                      <>
-                        <div className="sm:col-span-3">
-                          <label htmlFor="leaseLengthRemaining"
-                            className="block text-sm font-medium leading-6 text-gray-900"
-                          >
-                            Lease length remaining (years)
-                          </label>
-                          <div className="mt-2">
-                            <input type="number"
-                              name="leaseLengthRemaining"
-                              id="leaseLengthRemaining"
-                              min="0"
-                              value={formData.leaseLengthRemaining}
-                              onChange={handleInputChange}
-                              className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="sm:col-span-3">
-                          <label htmlFor="groundRent"
-                            className="block text-sm font-medium leading-6 text-gray-900"
-                          >
-                            Ground rent (£/year)
-                          </label>
-                          <div className="relative mt-2">
-                            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                              <span className="text-gray-500 sm:text-sm">
-                                £
-                              </span>
-                            </div>
-                            <input type="text"
-                              name="groundRent"
-                              id="groundRent"
-                              value={formData.groundRent}
-                              onChange={handleInputChange}
-                              className="block w-full rounded-md border border-gray-300 py-1.5 pl-7 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                              placeholder="0.00"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="sm:col-span-3">
-                          <label htmlFor="serviceCharge"
-                            className="block text-sm font-medium leading-6 text-gray-900"
-                          >
-                            Service charge (£/year)
-                          </label>
-                          <div className="relative mt-2">
-                            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                              <span className="text-gray-500 sm:text-sm">
-                                £
-                              </span>
-                            </div>
-                            <input type="text"
-                              name="serviceCharge"
-                              id="serviceCharge"
-                              value={formData.serviceCharge}
-                              onChange={handleInputChange}
-                              className="block w-full rounded-md border border-gray-300 py-1.5 pl-7 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                              placeholder="0.00"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="sm:col-span-3">
-                          <label htmlFor="managementCompany"
-                            className="block text-sm font-medium leading-6 text-gray-900"
-                          >
-                            Management company
-                          </label>
-                          <div className="mt-2">
-                            <input type="text"
-                              name="managementCompany"
-                              id="managementCompany"
-                              value={formData.managementCompany}
-                              onChange={handleInputChange}
-                              className="block w-full rounded-md border border-gray-300 py-1.5 text-gray-900 shadow-sm focus:border-[#D9E8FF] focus:ring-[#D9E8FF] sm:text-sm sm:leading-6"
-                            />
-                          </div>
-                        </div>
-                      </>
-                    )}
                   </div>
                 </div>
               </div>
@@ -1371,9 +741,9 @@ export default function AddProperty() {
               </button>
               <button type="submit"
                 disabled={isSubmitting}
-                className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-[#D9E8FF]/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9E8FF] disabled:opacity-50"
+                className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:bg-[#C9DFFF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B9D7FF] disabled:opacity-50"
               >
-                {isSubmitting ? "Saving..." : "Save Property"}
+                {isSubmitting ? "Saving..." : "Save Property & Continue"}
               </button>
             </div>
           </form>

@@ -5,13 +5,9 @@ import { useRouter } from "next/navigation";
 import { SidebarLayout } from "../../../components/sidebar-layout";
 import { SideboardOnboardingContent } from "../../../components/sideboard-onboarding-content";
 import { CheckIcon as CheckIconSolid } from "@heroicons/react/24/solid";
-import { UserPlusIcon, TableCellsIcon } from "@heroicons/react/24/outline";
-import { createClient } from "@supabase/supabase-js";
-
-// Create Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { UserPlusIcon, TableCellsIcon, DocumentTextIcon, PlusCircleIcon } from "@heroicons/react/24/outline";
+import { supabase } from "@/lib/supabase";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 const steps = [
   {
@@ -64,71 +60,48 @@ export default function TenantImportOptions() {
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [properties, setProperties] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Get the current user and user's properties on component mount
   useEffect(() => {
-    async function fetchUserAndProperties() {
+    async function getUserAndPropertyData() {
       try {
-        // In development, use the test user ID
-        if (process.env.NODE_ENV === "development") {
-          setUserId("00000000-0000-0000-0000-000000000001");
-
-          // Fetch properties for the test user
-          const { data: propertiesData, error: propertiesError } =
-            await supabase
-              .from("properties")
-              .select("*")
-              .eq("user_id", "00000000-0000-0000-0000-000000000001")
-              .eq("status", "active");
-
-          if (propertiesError) {
-            console.error("Error fetching properties:", propertiesError);
-          } else if (propertiesData) {
-            setProperties(propertiesData);
-          }
-
-          return;
-        }
-
-        // For production
         const { data: userData, error: userError } =
           await supabase.auth.getUser();
 
-        if (userError) {
-          console.error("Error fetching user:", userError);
-          setError("Authentication error. Please sign in again.");
-          router.push("/sign-in");
+        if (userError || !userData?.user) {
+          console.error("Error fetching user or no user:", userError);
+          router.push("/sign-up");
           return;
         }
+        setUserId(userData.user.id);
 
-        if (userData && userData.user) {
-          setUserId(userData.user.id);
+        // Fetch properties for this user
+        const { data: propertiesData, error: propertiesError } = await supabase
+          .from("properties")
+          .select("id, property_name, address_line1, postcode") // Select necessary fields
+          .eq("user_id", userData.user.id);
 
-          // Fetch properties for this user
-          const { data: propertiesData, error: propertiesError } =
-            await supabase
-              .from("properties")
-              .select("*")
-              .eq("user_id", userData.user.id)
-              .eq("status", "active");
-
-          if (propertiesError) {
-            console.error("Error fetching properties:", propertiesError);
-          } else if (propertiesData) {
-            setProperties(propertiesData);
-          }
-        } else {
-          setError("User not authenticated. Please sign in again.");
-          router.push("/sign-in");
+        if (propertiesError) {
+          console.error("Error fetching properties:", propertiesError);
+          setError("Failed to load properties.");
+        } else if (propertiesData) {
+          setProperties(propertiesData.map(p => ({
+            id: p.id,
+            name: p.property_name || `${p.address_line1}, ${p.postcode}`
+          })));
         }
-      } catch (error) {
-        console.error("Error in fetchUserAndProperties:", error);
-        setError("An error occurred while loading your data.");
+
+      } catch (error: any) {
+        console.error("Error in getUserAndPropertyData:", error);
+        setError("An unexpected error occurred.");
+        // router.push("/sign-up"); // Optional: redirect on generic error
+      } finally {
+        setLoading(false);
       }
     }
-
-    fetchUserAndProperties();
-  }, [router]);
+    getUserAndPropertyData();
+  }, [router, supabase.auth, supabase]); // Added supabase to dependencies
 
   // Handle option selection
   const handleOptionSelect = (optionId: string) => {
@@ -194,8 +167,18 @@ export default function TenantImportOptions() {
     }
   };
 
+  if (loading) {
+    return (
+      <SidebarLayout isOnboarding={true}>
+        <div className="flex items-center justify-center h-full">
+          <LoadingSpinner label="Loading tenant options..." />
+        </div>
+      </SidebarLayout>
+    );
+  }
+
   return (
-    <SidebarLayout sidebar={<SideboardOnboardingContent />} isOnboarding={true}>
+    <SidebarLayout isOnboarding={true}>
       <div className="space-y-8">
         {/* Progress Bar */}
         <div className="py-0">

@@ -47,10 +47,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { SidebarContent } from "../components/sidebar-content";
 import { classNames } from "@/utils/classNames";
-import { WhatsAppBusinessDrawer } from "../components/WhatsAppBusinessDrawer";
 import { BankAccountDrawer } from "./components/BankAccountDrawer";
 import { AccountingSoftwareDrawer } from "../components/AccountingSoftwareDrawer";
 import { Wallet } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface IntegrationOptionProps {
   logo: string;
@@ -115,7 +115,7 @@ function IntegrationOption({
 }
 
 export default function Integrations() {
-  const [isWhatsAppDrawerOpen, setIsWhatsAppDrawerOpen] = useState(false);
+  const router = useRouter();
   const [isBankAccountDrawerOpen, setIsBankAccountDrawerOpen] = useState(false);
   const [isAccountingDrawerOpen, setIsAccountingDrawerOpen] = useState(false);
   const [isBankDrawerOpen, setIsBankDrawerOpen] = useState(false);
@@ -292,7 +292,7 @@ export default function Integrations() {
   };
 
   return (
-    <SidebarLayout sidebar={<SidebarContent currentPath="/integrations" />}>
+    <SidebarLayout>
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
@@ -309,18 +309,18 @@ export default function Integrations() {
 
           {/* Messaging */}
           <Card className="cursor-pointer hover:border-blue-200 transition-colors"
-            onClick={() => setIsWhatsAppDrawerOpen(true)}
+            onClick={() => router.push('/settings/whatsapp')}
           >
             <CardHeader className="pb-3">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                 <CardTitle className="text-xl">Messaging</CardTitle>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 w-fit">
-                  <XCircleIcon className="h-4 w-4 mr-1" />
-                  Disconnected
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 w-fit">
+                  <CogIcon className="h-4 w-4 mr-1" />
+                  Configure
                 </span>
               </div>
               <CardDescription className="mt-1">
-                WhatsApp messaging for tenants and contractors
+                WhatsApp messaging for tenants via ZenRent's central number
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -330,22 +330,22 @@ export default function Integrations() {
                     alt="WhatsApp"
                     width={32}
                     height={32}
-                    className="rounded mr-2 opacity-50"
+                    className="rounded mr-2"
                   />
                   <div>
-                    <p className="text-sm font-medium text-gray-500">
+                    <p className="text-sm font-medium">
                       WhatsApp Business
                     </p>
-                    <p className="text-xs text-gray-500">Not connected</p>
+                    <p className="text-xs text-gray-500">Centralized messaging</p>
                   </div>
                 </div>
                 <button className="text-sm text-blue-600 hover:underline w-fit">
-                  Connect
+                  Settings
                 </button>
               </div>
             </CardContent>
             <CardFooter className="border-t pt-4 text-xs text-gray-500 flex-wrap">
-              Enable WhatsApp messaging with tenants and contractors
+              Manage WhatsApp opt-in settings in your account preferences
             </CardFooter>
           </Card>
 
@@ -407,11 +407,6 @@ export default function Integrations() {
                 : 'Enable direct bank payments and reconciliation'}
             </CardFooter>
           </Card>
-
-          {/* WhatsApp Business Drawer */}
-          <WhatsAppBusinessDrawer isOpen={isWhatsAppDrawerOpen}
-            onClose={() => setIsWhatsAppDrawerOpen(false)}
-          />
 
           {/* Bank Account Drawer */}
           <BankAccountDrawer isOpen={isBankDrawerOpen}

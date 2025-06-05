@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { SidebarLayout } from "../components/sidebar-layout";
 import { Heading } from "../components/heading";
 import { Text } from "../components/text";
@@ -28,6 +28,7 @@ import {
   CloudArrowUpIcon,
   PlusIcon,
   ChevronDownIcon,
+  XCircleIcon,
 } from "@heroicons/react/24/solid";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import {
@@ -61,7 +62,6 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SidebarContent } from "../components/sidebar-content";
 import { ReportGenerationDrawer } from "../components/ReportGenerationDrawer";
 
 // Icons for navigation items
@@ -135,6 +135,7 @@ interface Transaction {
   property: string;
   amount: number; // Changed to number
   status: string;
+  receipt_url?: string; // Add receipt URL field
 }
 
 // Update tabs array with current menu items
@@ -417,6 +418,9 @@ export default function Financial() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] =
     useState<Transaction | null>(null);
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [financialData, setFinancialData] = useState<FinancialData | null>(
     null,
   );
@@ -767,6 +771,121 @@ export default function Financial() {
     setIsDrawerOpen(true);
   };
 
+  const handleCategoryChange = async (
+    transactionId: string,
+    newCategory: string,
+  ) => {
+    try {
+      const response = await fetch(`/api/transactions/${transactionId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ category: newCategory }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update category");
+      }
+
+      // Update financial data to reflect the change
+      if (financialData) {
+        const updateTransactionsInData = (data: FinancialData): FinancialData => {
+          // Update direct transactions array if it exists
+          const updatedTransactions = data.transactions?.map((t) =>
+            t.id === transactionId ? { ...t, category: newCategory } : t,
+          ) || [];
+
+          // Update transactions in properties array if it exists
+          const updatedProperties = data.properties?.map((property) => ({
+            ...property,
+            transactions: property.transactions?.map((t) =>
+              t.id === transactionId ? { ...t, category: newCategory } : t,
+            ) || [],
+          })) || [];
+
+          return {
+            ...data,
+            transactions: updatedTransactions,
+            properties: updatedProperties,
+          };
+        };
+
+        setFinancialData(updateTransactionsInData(financialData));
+        
+        // Update selected transaction if it's the one being edited
+        if (selectedTransaction?.id === transactionId) {
+          setSelectedTransaction({ ...selectedTransaction, category: newCategory });
+        }
+      }
+      
+      setEditingCategory(null);
+    } catch (error) {
+      console.error("Error updating category:", error);
+      // You might want to show an error toast here
+    }
+  };
+
+  // Add receipt upload handler
+  const handleReceiptUpload = async (transactionId: string, file: File) => {
+    try {
+      setUploadingReceipt(true);
+      setUploadError(null);
+
+      const formData = new FormData();
+      formData.append("receipt", file);
+
+      const response = await fetch(
+        `/api/transactions/${transactionId}/receipt`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to upload receipt");
+      }
+
+      const data = await response.json();
+
+      // Update financial data with new receipt URL
+      if (financialData) {
+        const updateTransactionsInData = (financialDataParam: FinancialData): FinancialData => {
+          const updatedTransactions = financialDataParam.transactions?.map((t) =>
+            t.id === transactionId ? { ...t, receipt_url: data.receipt_url } : t,
+          ) || [];
+
+          const updatedProperties = financialDataParam.properties?.map((property) => ({
+            ...property,
+            transactions: property.transactions?.map((t) =>
+              t.id === transactionId ? { ...t, receipt_url: data.receipt_url } : t,
+            ) || [],
+          })) || [];
+
+          return {
+            ...financialDataParam,
+            transactions: updatedTransactions,
+            properties: updatedProperties,
+          };
+        };
+
+        setFinancialData(updateTransactionsInData(financialData));
+
+        if (selectedTransaction?.id === transactionId) {
+          setSelectedTransaction({ ...selectedTransaction, receipt_url: data.receipt_url });
+        }
+      }
+    } catch (error) {
+      console.error("Error uploading receipt:", error);
+      setUploadError(
+        error instanceof Error ? error.message : "Failed to upload receipt",
+      );
+    } finally {
+      setUploadingReceipt(false);
+    }
+  };
+
   const handleReportSubmit = (reportConfig: unknown) => {
     // Here you would typically generate the report based on the config
     console.log("Generating report with config:", reportConfig);
@@ -774,272 +893,516 @@ export default function Financial() {
   };
 
   return (
-    <SidebarLayout sidebar={<SidebarContent currentPath="/financial" />}>
-      <div className="space-y-6">
-        {/* Page Header */}
-        <div className="md:flex md:items-center md:justify-between">
-          <div className="min-w-0 flex-1">
-            <Heading level={1}
-              className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight"
-            >
-              Financial Overview
-            </Heading>
-            <div className="mt-1 flex flex-col sm:flex-row sm:flex-wrap sm:space-x-6">
-              <p className="text-sm text-gray-500">
-                Track your financial performance across all your properties.
-              </p>
+    <SidebarLayout>
+      {error ? (
+        <div className="bg-red-50 border-l-4 border-red-400 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <XCircleIcon className="h-5 w-5 text-red-400" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">{error}</p>
             </div>
           </div>
-          {/* Property Selector */}
-          <div className="mt-4 flex md:mt-0 md:ml-4">
-            <div className="w-full md:w-auto relative" ref={dropdownRef}>
-              <button type="button"
-                className="inline-flex items-center gap-x-2 rounded-md bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-                onClick={() =>
-                  setIsPropertyDropdownOpen(!isPropertyDropdownOpen)
-                }
-              >
-                <BuildingOfficeIcon className="h-5 w-5 text-gray-400"
-                  aria-hidden="true"
-                />
-                {selectedPropertyId === "all"
-                  ? "All Properties"
-                  : properties.find((p) => p.id === selectedPropertyId)
-                      ?.address || "Select Property"}
-                <ChevronDownIcon className="h-5 w-5 text-gray-400"
-                  aria-hidden="true"
-                />
-              </button>
+        </div>
+      ) : null}
 
-              {/* Dropdown Menu */}
-              {isPropertyDropdownOpen && (
-                <div className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                  <div className="py-1">
-                    <button onClick={() => handlePropertySelect("all")}
-                      className={`${
-                        selectedPropertyId === "all"
-                          ? "bg-gray-100 text-gray-900"
-                          : "text-gray-700"
-                      } block w-full px-4 py-2 text-left text-sm hover:bg-gray-50`}
-                    >
-                      All Properties
-                    </button>
-                    {properties.map((property) => (
-                      <button key={property.id}
-                        onClick={() => handlePropertySelect(property.id)}
+      {loading ? (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-gray-500">Loading financial data...</div>
+        </div>
+      ) : (
+        <>
+          {/* Page Header */}
+          <div className="md:flex md:items-center md:justify-between">
+            <div className="min-w-0 flex-1">
+              <Heading level={1}
+                className="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight"
+              >
+                Financial Overview
+              </Heading>
+              <div className="mt-1 flex flex-col sm:flex-row sm:flex-wrap sm:space-x-6">
+                <p className="text-sm text-gray-500">
+                  Track your financial performance across all your properties.
+                </p>
+              </div>
+            </div>
+            {/* Property Selector */}
+            <div className="mt-4 flex md:mt-0 md:ml-4">
+              <div className="w-full md:w-auto relative" ref={dropdownRef}>
+                <button type="button"
+                  className="inline-flex items-center gap-x-2 rounded-md bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                  onClick={() =>
+                    setIsPropertyDropdownOpen(!isPropertyDropdownOpen)
+                  }
+                >
+                  <BuildingOfficeIcon className="h-5 w-5 text-gray-400"
+                    aria-hidden="true"
+                  />
+                  {selectedPropertyId === "all"
+                    ? "All Properties"
+                    : properties.find((p) => p.id === selectedPropertyId)
+                        ?.address || "Select Property"}
+                  <ChevronDownIcon className="h-5 w-5 text-gray-400"
+                    aria-hidden="true"
+                  />
+                </button>
+
+                {/* Dropdown Menu */}
+                {isPropertyDropdownOpen && (
+                  <div className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                    <div className="py-1">
+                      <button onClick={() => handlePropertySelect("all")}
                         className={`${
-                          selectedPropertyId === property.id
+                          selectedPropertyId === "all"
                             ? "bg-gray-100 text-gray-900"
                             : "text-gray-700"
                         } block w-full px-4 py-2 text-left text-sm hover:bg-gray-50`}
                       >
-                        {property.address}
+                        All Properties
                       </button>
-                    ))}
+                      {properties.map((property) => (
+                        <button key={property.id}
+                          onClick={() => handlePropertySelect(property.id)}
+                          className={`${
+                            selectedPropertyId === property.id
+                              ? "bg-gray-100 text-gray-900"
+                              : "text-gray-700"
+                          } block w-full px-4 py-2 text-left text-sm hover:bg-gray-50`}
+                        >
+                          {property.address}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <button type="button"
+                onClick={() => setIsReportDrawerOpen(true)}
+                className="ml-3 inline-flex items-center rounded-md border border-transparent bg-[#D9E8FF] px-4 py-2 text-sm font-medium text-black shadow-sm hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" data-component-name="Financial"
+              >
+                Generate Report
+              </button>
+            </div>
+          </div>
+
+          {/* Only show content when data is loaded */}
+          {!loading && !error && financialData && (
+            <>
+              {/* Report Generation Drawer */}
+              <ReportGenerationDrawer isOpen={isReportDrawerOpen}
+                onClose={() => setIsReportDrawerOpen(false)}
+                onSubmit={handleReportSubmit}
+              />
+
+              {/* Financial Summary Cards */}
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mt-8">
+                {/* Total Revenue */}
+                <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                  <h3 className="text-sm font-cabinet-grotesk-bold text-gray-500">
+                    Total Revenue (YTD)
+                  </h3>
+                  <p className="mt-2 text-3xl font-bold text-gray-900">
+                    {financialData?.total_income
+                      ? `£${financialData.total_income.toLocaleString()}`
+                      : "N/A"}
+                  </p>
+                  <div className="mt-4 flex items-center text-sm text-green-600">
+                    <ArrowUpIcon className="h-4 w-4 mr-1" />
+                    <span>8.2% from last year</span>
                   </div>
                 </div>
-              )}
-            </div>
-            <button type="button"
-              onClick={() => setIsReportDrawerOpen(true)}
-              className="ml-3 inline-flex items-center rounded-md border border-transparent bg-[#D9E8FF] px-4 py-2 text-sm font-medium text-blue-600 shadow-sm hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              Generate Report
-            </button>
-          </div>
-        </div>
 
-        {/* Loading and Error States */}
-        {loading && (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-gray-500">Loading financial data...</div>
-          </div>
-        )}
+                {/* Total Expenses */}
+                <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                  <h3 className="text-sm font-cabinet-grotesk-bold text-gray-500">
+                    Total Expenses (YTD)
+                  </h3>
+                  <p className="mt-2 text-3xl font-bold text-gray-900">
+                    {financialData?.total_expenses
+                      ? `£${financialData.total_expenses.toLocaleString()}`
+                      : "N/A"}
+                  </p>
+                  <div className="mt-4 flex items-center text-sm text-red-600">
+                    <ArrowUpIcon className="h-4 w-4 mr-1" />
+                    <span>5.4% from last year</span>
+                  </div>
+                </div>
 
-        {error && (
-          <div className="bg-red-50 p-4 rounded-md">
-            <div className="text-red-700">{error}</div>
-          </div>
-        )}
+                {/* Net Operating Income */}
+                <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                  <h3 className="text-sm font-cabinet-grotesk-bold text-gray-500">
+                    Net Operating Income
+                  </h3>
+                  <p className="mt-2 text-3xl font-bold text-gray-900">
+                    {financialData?.net_profit
+                      ? `£${financialData.net_profit.toLocaleString()}`
+                      : "N/A"}
+                  </p>
+                  <div className="mt-4 flex items-center text-sm text-green-600">
+                    <ArrowUpIcon className="h-4 w-4 mr-1" />
+                    <span>10.3% from last year</span>
+                  </div>
+                </div>
 
-        {/* Only show content when data is loaded */}
-        {!loading && !error && financialData && (
-          <>
-            {/* Report Generation Drawer */}
-            <ReportGenerationDrawer isOpen={isReportDrawerOpen}
-              onClose={() => setIsReportDrawerOpen(false)}
-              onSubmit={handleReportSubmit}
-            />
-
-            {/* Financial Summary Cards */}
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {/* Total Revenue */}
-              <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                <h3 className="text-sm font-cabinet-grotesk-bold text-gray-500">
-                  Total Revenue (YTD)
-                </h3>
-                <p className="mt-2 text-3xl font-bold text-gray-900">
-                  {financialData?.total_income
-                    ? `£${financialData.total_income.toLocaleString()}`
-                    : "N/A"}
-                </p>
-                <div className="mt-4 flex items-center text-sm text-green-600">
-                  <ArrowUpIcon className="h-4 w-4 mr-1" />
-                  <span>8.2% from last year</span>
+                {/* Cash on Cash Return */}
+                <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                  <h3 className="text-sm font-cabinet-grotesk-bold text-gray-500">
+                    Cash on Cash Return
+                  </h3>
+                  <p className="mt-2 text-3xl font-bold text-gray-900">
+                    {financialData?.metrics?.roi
+                      ? `${financialData.metrics.roi.toFixed(1)}%`
+                      : "N/A"}
+                  </p>
+                  <div className="mt-4 flex items-center text-sm text-green-600">
+                    <ArrowUpIcon className="h-4 w-4 mr-1" />
+                    <span>0.6% from last year</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Total Expenses */}
-              <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                <h3 className="text-sm font-cabinet-grotesk-bold text-gray-500">
-                  Total Expenses (YTD)
-                </h3>
-                <p className="mt-2 text-3xl font-bold text-gray-900">
-                  {financialData?.total_expenses
-                    ? `£${financialData.total_expenses.toLocaleString()}`
-                    : "N/A"}
-                </p>
-                <div className="mt-4 flex items-center text-sm text-red-600">
-                  <ArrowUpIcon className="h-4 w-4 mr-1" />
-                  <span>5.4% from last year</span>
+              {/* Financial Tabs */}
+              <div className="mt-8">
+                <div className="grid grid-cols-1 sm:hidden">
+                  <select value={selectedTab}
+                    onChange={(e) => handleTabChange(e.target.value)}
+                    aria-label="Select a tab"
+                    className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-2 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-[#D9E8FF]"
+                  >
+                    {tabs.map((tab) => (
+                      <option key={tab.name} value={tab.value}>
+                        {tab.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDownIcon aria-hidden="true"
+                    className="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end fill-gray-500"
+                  />
                 </div>
-              </div>
-
-              {/* Net Operating Income */}
-              <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                <h3 className="text-sm font-cabinet-grotesk-bold text-gray-500">
-                  Net Operating Income
-                </h3>
-                <p className="mt-2 text-3xl font-bold text-gray-900">
-                  {financialData?.net_profit
-                    ? `£${financialData.net_profit.toLocaleString()}`
-                    : "N/A"}
-                </p>
-                <div className="mt-4 flex items-center text-sm text-green-600">
-                  <ArrowUpIcon className="h-4 w-4 mr-1" />
-                  <span>10.3% from last year</span>
-                </div>
-              </div>
-
-              {/* Cash on Cash Return */}
-              <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                <h3 className="text-sm font-cabinet-grotesk-bold text-gray-500">
-                  Cash on Cash Return
-                </h3>
-                <p className="mt-2 text-3xl font-bold text-gray-900">
-                  {financialData?.metrics?.roi
-                    ? `${financialData.metrics.roi.toFixed(1)}%`
-                    : "N/A"}
-                </p>
-                <div className="mt-4 flex items-center text-sm text-green-600">
-                  <ArrowUpIcon className="h-4 w-4 mr-1" />
-                  <span>0.6% from last year</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Financial Tabs */}
-            <div>
-              <div className="grid grid-cols-1 sm:hidden">
-                <select value={selectedTab}
-                  onChange={(e) => handleTabChange(e.target.value)}
-                  aria-label="Select a tab"
-                  className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white py-2 pr-8 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-[#D9E8FF]"
-                >
-                  {tabs.map((tab) => (
-                    <option key={tab.name} value={tab.value}>
-                      {tab.name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDownIcon aria-hidden="true"
-                  className="pointer-events-none col-start-1 row-start-1 mr-2 size-5 self-center justify-self-end fill-gray-500"
-                />
-              </div>
-              <div className="hidden sm:block">
-                <nav aria-label="Tabs"
-                  className="isolate flex divide-x divide-gray-200 rounded-lg shadow-sm"
-                >
-                  {tabs.map((tab, tabIdx) => (
-                    <button key={tab.name}
-                      onClick={() => handleTabChange(tab.value)}
-                      aria-current={tab.current ? "page" : undefined}
-                      className={classNames(
-                        tab.current
-                          ? "text-gray-900"
-                          : "text-gray-500 hover:text-gray-700",
-                        tabIdx === 0 ? "rounded-l-lg" : "",
-                        tabIdx === tabs.length - 1 ? "rounded-r-lg" : "",
-                        "group relative min-w-0 flex-1 overflow-hidden bg-white px-4 py-4 text-center text-sm font-medium hover:bg-gray-50 focus:z-10",
-                      )}
-                    >
-                      <span>{tab.name}</span>
-                      <span aria-hidden="true"
+                <div className="hidden sm:block">
+                  <nav aria-label="Tabs"
+                    className="isolate flex divide-x divide-gray-200 rounded-lg shadow-sm"
+                  >
+                    {tabs.map((tab, tabIdx) => (
+                      <button key={tab.name}
+                        onClick={() => handleTabChange(tab.value)}
+                        aria-current={tab.current ? "page" : undefined}
                         className={classNames(
-                          tab.current ? "bg-[#FF503E]" : "bg-transparent",
-                          "absolute inset-x-0 bottom-0 h-0.5",
+                          tab.current
+                            ? "text-gray-900"
+                            : "text-gray-500 hover:text-gray-700",
+                          tabIdx === 0 ? "rounded-l-lg" : "",
+                          tabIdx === tabs.length - 1 ? "rounded-r-lg" : "",
+                          "group relative min-w-0 flex-1 overflow-hidden bg-white px-4 py-4 text-center text-sm font-medium hover:bg-gray-50 focus:z-10",
                         )}
-                      />
-                    </button>
-                  ))}
-                </nav>
-              </div>
-            </div>
-
-            <Tabs value={selectedTab}
-              onValueChange={handleTabChange}
-              className="w-full"
-            >
-              <TabsContent value="overview">
-                {/* Revenue vs Expenses Chart */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Revenue vs Expenses</CardTitle>
-                    <CardDescription>
-                      {revenueExpenseData.length === 0 ? "Calculating date range..." : `From ${revenueExpenseData[0].month} to ${revenueExpenseData[revenueExpenseData.length - 1].month}`}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ChartContainer config={chartConfig}>
-                      <BarChart accessibilityLayer
-                        data={revenueExpenseData}
                       >
-                        <CartesianGrid vertical={false} />
-                        <XAxis dataKey="month"
-                          tickLine={false}
-                          tickMargin={10}
-                          axisLine={false}
+                        <span>{tab.name}</span>
+                        <span aria-hidden="true"
+                          className={classNames(
+                            tab.current ? "bg-[#FF503E]" : "bg-transparent",
+                            "absolute inset-x-0 bottom-0 h-0.5",
+                          )}
                         />
-                        <ChartTooltip cursor={false}
-                          content={
-                            <ChartTooltipContent
-                              indicator="dashed"
-                            />
-                          }
-                        />
-                        <Bar dataKey="income" fill="#E9823F" radius={4} />
-                        <Bar dataKey="expenses" fill="#E95D3F" radius={4} />
-                      </BarChart>
-                    </ChartContainer>
-                  </CardContent>
-                  <CardFooter className="flex-col items-start gap-2 text-sm">
-                    <div className="flex gap-2 font-medium leading-none text-green-600">
-                      <TrendingUp className="h-4 w-4" />
-                      <span>Revenue is trending up by 5.2% this quarter</span>
-                    </div>
-                    <div className="leading-none text-muted-foreground">
-                      Expenses remain stable compared to previous months
-                    </div>
-                  </CardFooter>
-                </Card>
+                      </button>
+                    ))}
+                  </nav>
+                </div>
+              </div>
 
-                {/* Charts Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                  {/* Expense Breakdown by Category */}
+              <Tabs value={selectedTab}
+                onValueChange={handleTabChange}
+                className="w-full mt-6"
+              >
+                <TabsContent value="overview">
+                  {/* Revenue vs Expenses Chart */}
                   <Card>
                     <CardHeader>
-                      <CardTitle>Expense Breakdown by Category</CardTitle>
-                      <CardDescription>January - June 2024</CardDescription>
+                      <CardTitle>Revenue vs Expenses</CardTitle>
+                      <CardDescription>
+                        {revenueExpenseData.length === 0 ? "Calculating date range..." : `From ${revenueExpenseData[0].month} to ${revenueExpenseData[revenueExpenseData.length - 1].month}`}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ChartContainer config={chartConfig}>
+                        <BarChart accessibilityLayer
+                          data={revenueExpenseData}
+                        >
+                          <CartesianGrid vertical={false} />
+                          <XAxis dataKey="month"
+                            tickLine={false}
+                            tickMargin={10}
+                            axisLine={false}
+                          />
+                          <ChartTooltip cursor={false}
+                            content={
+                              <ChartTooltipContent
+                                indicator="dashed"
+                              />
+                            }
+                          />
+                          <Bar dataKey="income" fill="#E9823F" radius={4} />
+                          <Bar dataKey="expenses" fill="#E95D3F" radius={4} />
+                        </BarChart>
+                      </ChartContainer>
+                    </CardContent>
+                    <CardFooter className="flex-col items-start gap-2 text-sm">
+                      <div className="flex gap-2 font-medium leading-none text-green-600">
+                        <TrendingUp className="h-4 w-4" />
+                        <span>Revenue is trending up by 5.2% this quarter</span>
+                      </div>
+                      <div className="leading-none text-muted-foreground">
+                        Expenses remain stable compared to previous months
+                      </div>
+                    </CardFooter>
+                  </Card>
+
+                  {/* Charts Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                    {/* Expense Breakdown by Category */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Expense Breakdown by Category</CardTitle>
+                        <CardDescription>January - June 2024</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ChartContainer config={{
+                            maintenance: {
+                              label: "Maintenance",
+                              color: "#E95D3F",
+                            },
+                            utilities: {
+                              label: "Utilities",
+                              color: "#E9823F",
+                            },
+                            taxes: {
+                              label: "Property Taxes",
+                              color: "#29A3BE",
+                            },
+                            insurance: {
+                              label: "Insurance",
+                              color: "#4264CB",
+                            },
+                            other: {
+                              label: "Other",
+                              color: "#F5A623",
+                            },
+                          }}
+                          className="mx-auto aspect-square max-h-[300px]"
+                        >
+                          <PieChart>
+                            <Pie data={expenseBreakdownData}
+                              dataKey="value"
+                              nameKey="name"
+                            />
+                            <Legend verticalAlign="bottom"
+                              height={36}
+                              wrapperStyle={{
+                                paddingTop: "20px",
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: "8px",
+                                justifyContent: "center",
+                              }}
+                            />
+                          </PieChart>
+                        </ChartContainer>
+                      </CardContent>
+                    </Card>
+
+                    {/* Occupancy Trend */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Occupancy Trend</CardTitle>
+                        <CardDescription>January - June 2024</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ChartContainer config={{
+                            occupancy: {
+                              label: "Occupancy Rate (%)",
+                              color: "#E9823F",
+                            },
+                          }}
+                        >
+                          <LineChart accessibilityLayer
+                            data={[
+                              { month: "January", occupancy: 89 },
+                              { month: "February", occupancy: 91 },
+                              { month: "March", occupancy: 92 },
+                              { month: "April", occupancy: 92 },
+                              { month: "May", occupancy: 93 },
+                              { month: "June", occupancy: 94 },
+                            ]}
+                            margin={{
+                              top: 20,
+                              left: 12,
+                              right: 12,
+                            }}
+                          >
+                            <CartesianGrid vertical={false} />
+                            <XAxis dataKey="month"
+                              tickLine={false}
+                              axisLine={false}
+                              tickMargin={8}
+                              tickFormatter={(value) => value.slice(0, 3)}
+                            />
+                            <ChartTooltip cursor={false}
+                              content={<ChartTooltipContent indicator="line" />}
+                            />
+                            <Line dataKey="occupancy"
+                              type="natural"
+                              stroke="#E9823F"
+                              strokeWidth={2}
+                              dot={{
+                                fill: "#E9823F",
+                              }}
+                              activeDot={{
+                                r: 6,
+                              }}
+                            >
+                              <LabelList position="top"
+                                offset={12}
+                                className="fill-foreground"
+                                fontSize={12}
+                              />
+                            </Line>
+                          </LineChart>
+                        </ChartContainer>
+                      </CardContent>
+                      <CardFooter className="flex-col items-start gap-2 text-sm">
+                        <div className="flex gap-2 font-medium leading-none text-green-600">
+                          <TrendingUp className="h-4 w-4" />
+                          <span>Occupancy trending up by 5.2% this month</span>
+                        </div>
+                        <div className="leading-none text-muted-foreground">
+                          Showing occupancy rates for the last 6 months
+                        </div>
+                      </CardFooter>
+                    </Card>
+                  </div>
+
+                  {/* Financial Data Table */}
+                  <div className="bg-white rounded-lg border border-gray-200 shadow-sm mt-6">
+                    <div className="px-6 py-4 border-b border-gray-200">
+                      <h3 className="text-lg font-cabinet-grotesk-bold text-gray-900">
+                        Property Financial Performance
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        Revenue and expense breakdown by property.
+                      </p>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th scope="col"
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            >
+                              Property
+                            </th>
+                            <th scope="col"
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            >
+                              Rooms
+                            </th>
+                            <th scope="col"
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            >
+                              Monthly Revenue
+                            </th>
+                            <th scope="col"
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            >
+                              Monthly Expenses
+                            </th>
+                            <th scope="col"
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            >
+                              NOI
+                            </th>
+                            <th scope="col"
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            >
+                              Cap Rate
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {getCombinedPropertyPerformance(financialData).map(
+                            (property) => (
+                              <tr key={property.id}>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                  {property.address}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                  {property.total_units}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                  £
+                                  {property.monthly_revenue.toLocaleString(
+                                    undefined,
+                                    {
+                                      minimumFractionDigits: 0,
+                                      maximumFractionDigits: 0,
+                                    },
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                  £
+                                  {property.monthly_expenses.toLocaleString(
+                                    undefined,
+                                    {
+                                      minimumFractionDigits: 0,
+                                      maximumFractionDigits: 0,
+                                    },
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                  £
+                                  {property.noi.toLocaleString(undefined, {
+                                    minimumFractionDigits: 0,
+                                    maximumFractionDigits: 0,
+                                  })}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                      property.cap_rate >= 8
+                                        ? "bg-green-100 text-green-800"
+                                        : property.cap_rate >= 7
+                                          ? "bg-yellow-100 text-yellow-800"
+                                          : "bg-red-100 text-red-800"
+                                    }`}
+                                  >
+                                    {property.cap_rate.toFixed(1)}%
+                                  </span>
+                                </td>
+                              </tr>
+                            ),
+                          )}
+                          {getCombinedPropertyPerformance(financialData)
+                            .length === 0 && (
+                            <tr>
+                              <td colSpan={6}
+                                className="px-6 py-4 text-center text-sm text-gray-500"
+                              >
+                                No property performance data available
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="expense">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Expense Breakdown</CardTitle>
+                      <CardDescription>
+                        Monthly expenses by category
+                      </CardDescription>
                     </CardHeader>
                     <CardContent>
                       <ChartContainer config={{
@@ -1064,514 +1427,336 @@ export default function Financial() {
                             color: "#F5A623",
                           },
                         }}
-                        className="mx-auto aspect-square max-h-[300px]"
                       >
-                        <PieChart>
-                          <Pie data={expenseBreakdownData}
-                            dataKey="value"
-                            nameKey="name"
-                          />
-                          <Legend verticalAlign="bottom"
-                            height={36}
-                            wrapperStyle={{
-                              paddingTop: "20px",
-                              display: "flex",
-                              flexWrap: "wrap",
-                              gap: "8px",
-                              justifyContent: "center",
-                            }}
-                          />
-                        </PieChart>
-                      </ChartContainer>
-                    </CardContent>
-                  </Card>
-
-                  {/* Occupancy Trend */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Occupancy Trend</CardTitle>
-                      <CardDescription>January - June 2024</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <ChartContainer config={{
-                          occupancy: {
-                            label: "Occupancy Rate (%)",
-                            color: "#E9823F",
-                          },
-                        }}
-                      >
-                        <LineChart accessibilityLayer
-                          data={[
-                            { month: "January", occupancy: 89 },
-                            { month: "February", occupancy: 91 },
-                            { month: "March", occupancy: 92 },
-                            { month: "April", occupancy: 92 },
-                            { month: "May", occupancy: 93 },
-                            { month: "June", occupancy: 94 },
-                          ]}
-                          margin={{
-                            top: 20,
-                            left: 12,
-                            right: 12,
-                          }}
+                        <BarChart accessibilityLayer
+                          data={expenseBreakdownData}
                         >
                           <CartesianGrid vertical={false} />
-                          <XAxis dataKey="month"
+                          <XAxis dataKey="name"
                             tickLine={false}
+                            tickMargin={10}
                             axisLine={false}
-                            tickMargin={8}
-                            tickFormatter={(value) => value.slice(0, 3)}
+                            tickFormatter={(value) => {
+                              try {
+                                const [year, monthNum] = value.split("-");
+                                const date = new Date(
+                                  parseInt(year),
+                                  parseInt(monthNum) - 1,
+                                  1,
+                                );
+                                return date.toLocaleString("default", {
+                                  month: "short",
+                                });
+                              } catch (e) {
+                                return value;
+                              }
+                            }}
                           />
                           <ChartTooltip cursor={false}
-                            content={<ChartTooltipContent indicator="line" />}
+                            content={
+                              <ChartTooltipContent
+                                indicator="dashed"
+                              />
+                            }
                           />
-                          <Line dataKey="occupancy"
-                            type="natural"
-                            stroke="#E9823F"
-                            strokeWidth={2}
-                            dot={{
-                              fill: "#E9823F",
-                            }}
-                            activeDot={{
-                              r: 6,
-                            }}
-                          >
-                            <LabelList position="top"
-                              offset={12}
-                              className="fill-foreground"
-                              fontSize={12}
-                            />
-                          </Line>
-                        </LineChart>
+                          <Bar dataKey="value" fill="#E9823F" radius={4} />
+                        </BarChart>
                       </ChartContainer>
                     </CardContent>
                     <CardFooter className="flex-col items-start gap-2 text-sm">
-                      <div className="flex gap-2 font-medium leading-none text-green-600">
+                      <div className="flex gap-2 font-medium leading-none text-red-600">
                         <TrendingUp className="h-4 w-4" />
-                        <span>Occupancy trending up by 5.2% this month</span>
-                      </div>
-                      <div className="leading-none text-muted-foreground">
-                        Showing occupancy rates for the last 6 months
+                        <span>
+                          Maintenance costs increased by 22% in the last 6 months
+                        </span>
                       </div>
                     </CardFooter>
                   </Card>
-                </div>
+                </TabsContent>
 
-                {/* Financial Data Table */}
-                <div className="bg-white rounded-lg border border-gray-200 shadow-sm mt-6">
-                  <div className="px-6 py-4 border-b border-gray-200">
-                    <h3 className="text-lg font-cabinet-grotesk-bold text-gray-900">
-                      Property Financial Performance
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      Revenue and expense breakdown by property.
-                    </p>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Property
-                          </th>
-                          <th scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Rooms
-                          </th>
-                          <th scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Monthly Revenue
-                          </th>
-                          <th scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Monthly Expenses
-                          </th>
-                          <th scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            NOI
-                          </th>
-                          <th scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Cap Rate
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {getCombinedPropertyPerformance(financialData).map(
-                          (property) => (
-                            <tr key={property.id}>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {property.address}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {property.total_units}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                £
-                                {property.monthly_revenue.toLocaleString(
-                                  undefined,
-                                  {
-                                    minimumFractionDigits: 0,
-                                    maximumFractionDigits: 0,
-                                  },
-                                )}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                £
-                                {property.monthly_expenses.toLocaleString(
-                                  undefined,
-                                  {
-                                    minimumFractionDigits: 0,
-                                    maximumFractionDigits: 0,
-                                  },
-                                )}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                £
-                                {property.noi.toLocaleString(undefined, {
-                                  minimumFractionDigits: 0,
-                                  maximumFractionDigits: 0,
-                                })}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                    property.cap_rate >= 8
-                                      ? "bg-green-100 text-green-800"
-                                      : property.cap_rate >= 7
-                                        ? "bg-yellow-100 text-yellow-800"
-                                        : "bg-red-100 text-red-800"
-                                  }`}
-                                >
-                                  {property.cap_rate.toFixed(1)}%
-                                </span>
-                              </td>
-                            </tr>
-                          ),
-                        )}
-                        {getCombinedPropertyPerformance(financialData)
-                          .length === 0 && (
-                          <tr>
-                            <td colSpan={6}
-                              className="px-6 py-4 text-center text-sm text-gray-500"
-                            >
-                              No property performance data available
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="expense">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Expense Breakdown</CardTitle>
-                    <CardDescription>
-                      Monthly expenses by category
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ChartContainer config={{
-                        maintenance: {
-                          label: "Maintenance",
-                          color: "#E95D3F",
-                        },
-                        utilities: {
-                          label: "Utilities",
-                          color: "#E9823F",
-                        },
-                        taxes: {
-                          label: "Property Taxes",
-                          color: "#29A3BE",
-                        },
-                        insurance: {
-                          label: "Insurance",
-                          color: "#4264CB",
-                        },
-                        other: {
-                          label: "Other",
-                          color: "#F5A623",
-                        },
-                      }}
-                    >
-                      <BarChart accessibilityLayer
-                        data={expenseBreakdownData}
-                      >
-                        <CartesianGrid vertical={false} />
-                        <XAxis dataKey="name"
-                          tickLine={false}
-                          tickMargin={10}
-                          axisLine={false}
-                          tickFormatter={(value) => {
-                            try {
-                              const [year, monthNum] = value.split("-");
-                              const date = new Date(
-                                parseInt(year),
-                                parseInt(monthNum) - 1,
-                                1,
-                              );
-                              return date.toLocaleString("default", {
-                                month: "short",
-                              });
-                            } catch (e) {
-                              return value;
-                            }
-                          }}
-                        />
-                        <ChartTooltip cursor={false}
-                          content={
-                            <ChartTooltipContent
-                              indicator="dashed"
-                            />
-                          }
-                        />
-                        <Bar dataKey="value" fill="#E9823F" radius={4} />
-                      </BarChart>
-                    </ChartContainer>
-                  </CardContent>
-                  <CardFooter className="flex-col items-start gap-2 text-sm">
-                    <div className="flex gap-2 font-medium leading-none text-red-600">
-                      <TrendingUp className="h-4 w-4" />
-                      <span>
-                        Maintenance costs increased by 22% in the last 6 months
-                      </span>
-                    </div>
-                  </CardFooter>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="transactions">
-                <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-                  <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                    <div>
-                      <h3 className="text-lg font-cabinet-grotesk-bold text-gray-900">
-                        Recent Transactions
-                      </h3>
-                      <p className="text-sm text-gray-500">
-                        Recent financial activities across all properties.
-                      </p>
-                    </div>
-                    {/* Search/Filter controls can be added here later */}
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Date
-                          </th>
-                          <th scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Type
-                          </th>
-                          <th scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Category
-                          </th>
-                          <th scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Description
-                          </th>
-                          <th scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Property
-                          </th>
-                          <th scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Amount
-                          </th>
-                          <th scope="col"
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            Status
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {getCombinedTransactions(financialData)
-                          .slice(0, 10)
-                          .map((transaction) => (
-                            <tr key={transaction.id}
-                              onClick={() => handleViewTransaction(transaction)}
-                              className="hover:bg-gray-50 cursor-pointer transition-colors duration-150"
-                            >
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {formatDate(transaction.date)}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {transaction.type}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {transaction.category}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {transaction.description}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {transaction.property}
-                              </td>
-                              <td className={`px-6 py-4 whitespace-nowrap text-sm ${transaction.amount >= 0 ? "text-green-600" : "text-red-600"}`}
-                              >
-                                {formatCurrency(transaction.amount)}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                    transaction.status === "Completed"
-                                      ? "bg-green-100 text-green-800"
-                                      : "bg-yellow-100 text-yellow-800"
-                                  }`}
-                                >
-                                  {transaction.status}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        {getCombinedTransactions(financialData).length === 0 && (
-                          <tr>
-                            <td colSpan={7}
-                              className="px-6 py-4 text-center text-sm text-gray-500"
-                            >
-                              No transaction data available
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="px-6 py-4 border-t border-gray-200">
-                    <Link href="/financial/transactions"
-                      className="text-sm text-blue-600 hover:underline"
-                    >
-                      View all transactions
-                    </Link>
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="properties">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {(() => {
-                    console.log("[Properties Tab Render] financialData:", financialData);
-                    console.log("[Properties Tab Render] financialData.properties:", financialData?.properties);
-                    console.log("[Properties Tab Render] financialData.properties.length:", financialData?.properties?.length);
-                    console.log("[Properties Tab Render] loading:", loading);
-                    
-                    if (financialData && financialData.properties && financialData.properties.length > 0) {
-                      return financialData.properties.map((property) => (
-                        <Card key={property.property_id} className="shadow-sm hover:shadow-md transition-shadow duration-200">
-                          <CardHeader>
-                            <CardTitle>
-                              {property.property_address || "Unknown Address"}
-                            </CardTitle>
-                            <CardDescription>
-                              {property.property_performance &&
-                              property.property_performance.length > 0
-                                ? `${property.property_performance[0].total_units} Units`
-                                : "Units N/A"}
-                            </CardDescription>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <p className="text-xs text-gray-500">
-                                  Monthly Revenue
-                                </p>
-                                <p className="text-lg font-bold text-gray-900">
-                                  £{property.total_income?.toLocaleString() || 0}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-gray-500">Expenses</p>
-                                <p className="text-lg font-bold text-gray-900">
-                                  £
-                                  {property.total_expenses?.toLocaleString() || 0}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-gray-500">NOI</p>
-                                <p className="text-lg font-bold text-gray-900">
-                                  £{property.net_profit?.toLocaleString() || 0}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-gray-500">Cap Rate</p>
-                                <p className={`text-lg font-bold ${
-                                    property.property_performance &&
-                                    property.property_performance.length > 0 &&
-                                    property.property_performance[0].cap_rate >= 8
-                                      ? "text-green-600"
-                                      : property.property_performance &&
-                                          property.property_performance.length >
-                                            0 &&
-                                          property.property_performance[0]
-                                            .cap_rate >= 7
-                                        ? "text-yellow-600"
-                                        : "text-red-600"
-                                  }`}
-                                >
-                                  {property.property_performance &&
-                                  property.property_performance.length > 0
-                                    ? `${property.property_performance[0].cap_rate?.toFixed(1)}%`
-                                    : "N/A"}
-                                </p>
-                              </div>
-                            </div>
-                          </CardContent>
-                          <CardFooter className="border-t pt-4">
-                            <Link href={`/properties/${property.property_id}`}
-                              className="text-sm text-blue-600 hover:underline"
-                            >
-                              View property details
-                            </Link>
-                          </CardFooter>
-                        </Card>
-                      ));
-                    } else {
-                      return (
-                        <div className="col-span-full text-center text-gray-500 py-8">
-                          {loading
-                            ? "Loading properties..."
-                            : "No property financial data available."}
+                <TabsContent value="transactions">
+                  <div className="bg-white shadow-sm rounded-xl border border-gray-200/50 overflow-hidden">
+                    <div className="bg-gradient-to-r from-gray-50 to-gray-50/70 px-6 py-4 border-b border-gray-200/50">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            Recent Transactions
+                          </h3>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Recent financial activities across all properties.
+                          </p>
                         </div>
-                      );
-                    }
-                  })()}
-                </div>
-              </TabsContent>
-            </Tabs>
-          </>
-        )}
-      </div>
+                        <div className="text-sm text-gray-500">
+                          {getCombinedTransactions(financialData).length} transactions
+                        </div>
+                      </div>
+                    </div>
 
-      {/* Transaction Details Drawer - Update to use formatted data */}
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th scope="col"
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            >
+                              Date
+                            </th>
+                            <th scope="col"
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            >
+                              Type
+                            </th>
+                            <th scope="col"
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            >
+                              Category
+                            </th>
+                            <th scope="col"
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            >
+                              Description
+                            </th>
+                            <th scope="col"
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            >
+                              Property
+                            </th>
+                            <th scope="col"
+                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            >
+                              Amount
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {getCombinedTransactions(financialData)
+                            .slice(0, 10)
+                            .map((transaction, index) => (
+                              <tr key={transaction.id || index}
+                                className={`hover:bg-gray-50 transition-colors duration-150 ${
+                                  selectedTransaction?.id === transaction.id
+                                    ? "bg-blue-50"
+                                    : ""
+                                }`}
+                              >
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 cursor-pointer"
+                                  onClick={() => handleViewTransaction(transaction)}
+                                >
+                                  {formatDate(transaction.date)}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 cursor-pointer"
+                                  onClick={() => handleViewTransaction(transaction)}
+                                >
+                                  {transaction.type}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingCategory(transaction.id);
+                                  }}
+                                >
+                                  {editingCategory === transaction.id ? (
+                                    <select className="form-select rounded-md border-gray-300 py-1 pl-2 pr-8 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                      value={transaction.category || "exclude"}
+                                      onChange={(e) => {
+                                        e.stopPropagation();
+                                        handleCategoryChange(
+                                          transaction.id,
+                                          e.target.value,
+                                        );
+                                      }}
+                                      onBlur={() => setEditingCategory(null)}
+                                      autoFocus
+                                    >
+                                      <option value="Maintenance">Maintenance</option>
+                                      <option value="Utilities">Utilities</option>
+                                      <option value="Insurance">Insurance</option>
+                                      <option value="Property Management">Property Management</option>
+                                      <option value="Rent">Rent</option>
+                                      <option value="Other Income">Other Income</option>
+                                      <option value="Other Expense">Other Expense</option>
+                                      <option value="exclude">Exclude</option>
+                                    </select>
+                                  ) : (
+                                    <div className="flex items-center justify-between cursor-pointer hover:text-blue-600">
+                                      <span>{transaction.category || "Uncategorized"}</span>
+                                      <svg className="h-4 w-4 text-gray-400 ml-2"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                                        />
+                                      </svg>
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 cursor-pointer"
+                                  onClick={() => handleViewTransaction(transaction)}
+                                >
+                                  {transaction.description}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 cursor-pointer"
+                                  onClick={() => handleViewTransaction(transaction)}
+                                >
+                                  {transaction.property}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm cursor-pointer"
+                                  onClick={() => handleViewTransaction(transaction)}
+                                >
+                                  <span className={
+                                      transaction.amount >= 0
+                                        ? "text-green-600"
+                                        : "text-red-600"
+                                    }
+                                  >
+                                    {formatCurrency(transaction.amount)}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          {getCombinedTransactions(financialData).length === 0 && (
+                            <tr>
+                              <td colSpan={6}
+                                className="px-6 py-10 text-center text-sm text-gray-500"
+                              >
+                                No transaction data available
+                                <div className="mt-2">
+                                  <Link href="/financial/transactions"
+                                    className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                  >
+                                    View all transactions
+                                  </Link>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="px-6 py-4 border-t border-gray-200 bg-gray-50/30">
+                      <Link href="/financial/transactions"
+                        className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                      >
+                        View all transactions
+                        <svg className="ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </Link>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="properties">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {(() => {
+                      console.log("[Properties Tab Render] financialData:", financialData);
+                      console.log("[Properties Tab Render] financialData.properties:", financialData?.properties);
+                      console.log("[Properties Tab Render] financialData.properties.length:", financialData?.properties?.length);
+                      console.log("[Properties Tab Render] loading:", loading);
+                      
+                      if (financialData && financialData.properties && financialData.properties.length > 0) {
+                        return financialData.properties.map((property) => (
+                          <Card key={property.property_id} className="shadow-sm hover:shadow-md transition-shadow duration-200">
+                            <CardHeader>
+                              <CardTitle>
+                                {property.property_address || "Unknown Address"}
+                              </CardTitle>
+                              <CardDescription>
+                                {property.property_performance &&
+                                property.property_performance.length > 0
+                                  ? `${property.property_performance[0].total_units} Units`
+                                  : "Units N/A"}
+                              </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <p className="text-xs text-gray-500">
+                                    Monthly Revenue
+                                  </p>
+                                  <p className="text-lg font-bold text-gray-900">
+                                    £{property.total_income?.toLocaleString() || 0}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500">Expenses</p>
+                                  <p className="text-lg font-bold text-gray-900">
+                                    £
+                                    {property.total_expenses?.toLocaleString() || 0}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500">NOI</p>
+                                  <p className="text-lg font-bold text-gray-900">
+                                    £{property.net_profit?.toLocaleString() || 0}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500">Cap Rate</p>
+                                  <p className={`text-lg font-bold ${
+                                      property.property_performance &&
+                                      property.property_performance.length > 0 &&
+                                      property.property_performance[0].cap_rate >= 8
+                                        ? "text-green-600"
+                                        : property.property_performance &&
+                                            property.property_performance.length >
+                                              0 &&
+                                            property.property_performance[0]
+                                              .cap_rate >= 7
+                                          ? "text-yellow-600"
+                                          : "text-red-600"
+                                    }`}
+                                  >
+                                    {property.property_performance &&
+                                    property.property_performance.length > 0
+                                      ? `${property.property_performance[0].cap_rate?.toFixed(1)}%`
+                                      : "N/A"}
+                                  </p>
+                                </div>
+                              </div>
+                            </CardContent>
+                            <CardFooter className="border-t pt-4">
+                              <Link href={`/properties/${property.property_id}`}
+                                className="text-sm text-blue-600 hover:underline"
+                              >
+                                View property details
+                              </Link>
+                            </CardFooter>
+                          </Card>
+                        ));
+                      } else {
+                        return (
+                          <div className="col-span-full text-center text-gray-500 py-8">
+                            {loading
+                              ? "Loading properties..."
+                              : "No property financial data available."}
+                          </div>
+                        );
+                      }
+                    })()}
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </>
+          )}
+        </>
+      )}
+
+      {/* Transaction Details Drawer */}
       {isDrawerOpen && selectedTransaction && (
         <div className="fixed inset-0 overflow-hidden z-50">
           <div className="absolute inset-0 overflow-hidden">
-            <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+            <div className="fixed inset-0 bg-black/30 backdrop-blur-sm transition-opacity"
               onClick={() => setIsDrawerOpen(false)}
             />
             <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
-              <div className="pointer-events-auto w-screen max-w-md">
-                <div className="flex h-full flex-col bg-white shadow-xl">
+              <div className="pointer-events-auto w-screen max-w-md transform transition ease-in-out duration-300">
+                <div className="flex h-full flex-col overflow-y-auto bg-white shadow-xl">
                   <div className="flex-1 overflow-y-auto py-6">
                     <div className="px-4 sm:px-6">
                       <div className="flex items-start justify-between">
@@ -1609,7 +1794,47 @@ export default function Financial() {
                             Category
                           </dt>
                           <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">
-                            {selectedTransaction.category}
+                            {editingCategory === selectedTransaction.id ? (
+                              <select className="form-select w-full rounded-md border-gray-300 py-1 pl-2 pr-8 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                value={selectedTransaction.category || "exclude"}
+                                onChange={(e) => {
+                                  handleCategoryChange(
+                                    selectedTransaction.id,
+                                    e.target.value,
+                                  );
+                                }}
+                                onBlur={() => setEditingCategory(null)}
+                                autoFocus
+                              >
+                                <option value="Maintenance">Maintenance</option>
+                                <option value="Utilities">Utilities</option>
+                                <option value="Insurance">Insurance</option>
+                                <option value="Property Management">Property Management</option>
+                                <option value="Rent">Rent</option>
+                                <option value="Other Income">Other Income</option>
+                                <option value="Other Expense">Other Expense</option>
+                                <option value="exclude">Exclude</option>
+                              </select>
+                            ) : (
+                              <div className="flex items-center justify-between cursor-pointer hover:text-blue-600"
+                                onClick={() =>
+                                  setEditingCategory(selectedTransaction.id)
+                                }
+                              >
+                                <span>{selectedTransaction.category || "Uncategorized"}</span>
+                                <svg className="h-4 w-4 text-gray-400 ml-2"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                                  />
+                                </svg>
+                              </div>
+                            )}
                           </dd>
                         </div>
                         <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
@@ -1639,17 +1864,109 @@ export default function Financial() {
                         </div>
                         <div className="py-4 sm:grid sm:grid-cols-3 sm:gap-4">
                           <dt className="text-sm font-medium text-gray-500">
-                            Status
+                            ID
                           </dt>
-                          <dd className="mt-1 text-sm sm:col-span-2 sm:mt-0">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                selectedTransaction.status === "Completed"
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-yellow-100 text-yellow-800"
-                              }`}
-                            >
-                              {selectedTransaction.status}
-                            </span>
+                          <dd className="mt-1 text-sm text-gray-500 sm:col-span-2 sm:mt-0">
+                            {selectedTransaction.id}
+                          </dd>
+                        </div>
+                        {/* Receipt Upload Section */}
+                        <div className="py-4">
+                          <dt className="text-sm font-medium text-gray-500 mb-2">
+                            Receipt
+                          </dt>
+                          <dd className="mt-1">
+                            {selectedTransaction.receipt_url ? (
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <a href={selectedTransaction.receipt_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-blue-600 hover:text-blue-800 flex items-center space-x-1"
+                                  >
+                                    <svg className="h-4 w-4"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                                      />
+                                    </svg>
+                                    <span>View Receipt</span>
+                                  </a>
+                                  <button type="button"
+                                    className="text-sm text-red-600 hover:text-red-800"
+                                    onClick={() => {
+                                      // Add delete receipt functionality here
+                                      console.log("Delete receipt");
+                                    }}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                                <div className="border rounded-lg p-2 bg-gray-50">
+                                  <Image 
+                                    src={selectedTransaction.receipt_url}
+                                    alt="Receipt thumbnail"
+                                    width={300}
+                                    height={128}
+                                    className="w-full h-32 object-cover rounded"
+                                  />
+                                </div>
+                              </div>
+                            ) : (
+                              <div>
+                                <div className="flex items-center justify-center w-full">
+                                  <label htmlFor="receipt-upload"
+                                    className={`flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 ${
+                                      uploadingReceipt
+                                        ? "opacity-50 cursor-not-allowed"
+                                        : ""
+                                    }`}
+                                  >
+                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                      {uploadingReceipt ? (
+                                        <div className="flex items-center space-x-2">
+                                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                                          <span className="text-sm text-gray-500">Uploading...</span>
+                                        </div>
+                                      ) : (
+                                        <>
+                                          <CloudArrowUpIcon className="w-8 h-8 mb-2 text-gray-400" />
+                                          <p className="mb-2 text-sm text-gray-500">
+                                            <span className="font-semibold">Click to upload</span> or drag and drop
+                                          </p>
+                                          <p className="text-xs text-gray-500">PNG, JPG or PDF (MAX. 10MB)</p>
+                                        </>
+                                      )}
+                                    </div>
+                                    <input id="receipt-upload"
+                                      type="file"
+                                      className="hidden"
+                                      accept=".png,.jpg,.jpeg,.pdf"
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          handleReceiptUpload(
+                                            selectedTransaction.id,
+                                            file,
+                                          );
+                                        }
+                                      }}
+                                      disabled={uploadingReceipt}
+                                    />
+                                  </label>
+                                </div>
+                                {uploadError && (
+                                  <p className="mt-2 text-sm text-red-600">
+                                    {uploadError}
+                                  </p>
+                                )}
+                              </div>
+                            )}
                           </dd>
                         </div>
                       </dl>

@@ -12,12 +12,8 @@ import {
   DevicePhoneMobileIcon,
 } from "@heroicons/react/24/outline";
 import { SelectDropdown } from "../../../../components/ui/select-dropdown";
-import { createClient } from "@supabase/supabase-js";
-
-// Create Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { supabase } from "@/lib/supabase";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 const steps = [
   {
@@ -80,101 +76,53 @@ export default function NotificationPreferences() {
 
   // Fetch user and notification preferences
   useEffect(() => {
-    async function fetchUserAndPreferences() {
-      setIsLoading(true);
-
+    const fetchUserAndPreferences = async () => {
       try {
-        // In development, use test user ID
-        if (process.env.NODE_ENV === "development") {
-          const devUserId =
-            localStorage.getItem("devUserId") ||
-            "00000000-0000-0000-0000-000000000001";
-          setUserId(devUserId);
-          localStorage.setItem("devUserId", devUserId);
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        let currentUserId = null;
 
-          // Fetch notification preferences for test user
-          const { data, error } = await supabase.rpc(
-            "get_user_notification_preferences",
-            { p_user_id: devUserId },
-          );
-
-          if (error) {
-            console.error("Error fetching preferences:", error);
-          } else if (data) {
-            // Set state from fetched preferences
-            updatePreferencesState(data);
-          }
-
-          setIsLoading(false);
+        if (userError || !userData?.user) {
+          console.error("Error fetching user or no user:", userError);
+          router.push("/login"); // Redirect to login if no user
           return;
         }
+        currentUserId = userData.user.id;
+        setUserId(currentUserId);
 
-        // In production, fetch actual user
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
+        // Fetch notification preferences
+        const { data: preferencesData, error: preferencesError } = await supabase
+          .from("notification_preferences")
+          .select("*")
+          .eq("user_id", currentUserId)
+          .single(); // Assuming one row per user
 
-        if (userError) {
-          throw userError;
-        }
+        if (preferencesError && preferencesError.code !== 'PGRST116') { // PGRST116 means no rows found
+          console.error("Error fetching preferences:", preferencesError);
+          setError("Failed to load notification preferences.");
+        } else if (preferencesData) {
+          setEmailRentPayments(preferencesData.email_rent_reminders ?? true);
+          setEmailRentArrears(preferencesData.email_rent_arrears ?? true);
+          setEmailMaintenance(preferencesData.email_maintenance_updates ?? true);
+          setEmailDocuments(preferencesData.email_documents ?? true);
+          setEmailCompliance(preferencesData.email_compliance ?? true);
+          setEmailTenancyExpiry(preferencesData.email_tenancy_expiry ?? true);
+          setEmailFinancialSummaries(preferencesData.email_financial_reports ?? true);
+          setSmsUrgentMaintenance(preferencesData.sms_urgent_maintenance ?? false);
+          setSmsRentPayments(preferencesData.sms_rent_reminders ?? false);
+          setSmsTenantCommunication(preferencesData.sms_tenant_communication ?? false);
+          setAppNotifications(preferencesData.push_new_messages ?? true);
+        } // If no preferences found, default state will be used
 
-        if (user) {
-          setUserId(user.id);
-
-          // Fetch notification preferences
-          const { data, error } = await supabase.rpc(
-            "get_user_notification_preferences",
-            { p_user_id: user.id },
-          );
-
-          if (error) {
-            console.error("Error fetching preferences:", error);
-          } else if (data) {
-            // Set state from fetched preferences
-            updatePreferencesState(data);
-          }
-        } else {
-          // If no user is found, redirect to login
-          router.push("/login");
-          return;
-        }
-      } catch (error) {
-        console.error("Error fetching user:", error);
-        setError("Failed to fetch user information. Please try again.");
+      } catch (err: any) {
+        console.error("Error in fetchUserAndPreferences:", err);
+        setError("An unexpected error occurred while loading your data.");
       } finally {
         setIsLoading(false);
       }
-    }
+    };
 
     fetchUserAndPreferences();
-  }, [router]);
-
-  // Helper function to update all state values from fetched preferences
-  const updatePreferencesState = (preferences: unknown) => {
-    // Email preferences
-    if (preferences.email) {
-      setEmailRentPayments(preferences.email.rentPayments ?? true);
-      setEmailRentArrears(preferences.email.rentArrears ?? true);
-      setEmailMaintenance(preferences.email.maintenance ?? true);
-      setEmailDocuments(preferences.email.documents ?? true);
-      setEmailCompliance(preferences.email.compliance ?? true);
-      setEmailTenancyExpiry(preferences.email.tenancyExpiry ?? true);
-      setEmailFinancialSummaries(preferences.email.financialSummaries ?? true);
-    }
-
-    // SMS preferences
-    if (preferences.sms) {
-      setSmsUrgentMaintenance(preferences.sms.urgentMaintenance ?? false);
-      setSmsRentPayments(preferences.sms.rentPayments ?? false);
-      setSmsTenantCommunication(preferences.sms.tenantCommunication ?? false);
-    }
-
-    // App preferences
-    if (preferences.app) {
-      setAppNotifications(preferences.app.enabled ?? true);
-    }
-  };
+  }, [router, supabase.auth, supabase]); // Added supabase to dependencies
 
   // Helper function to build preferences object from state
   const buildPreferencesObject = () => {
@@ -323,18 +271,16 @@ export default function NotificationPreferences() {
   // Show loading state
   if (isLoading) {
     return (
-      <SidebarLayout sidebar={<SideboardOnboardingContent />}
-        isOnboarding={true}
-      >
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#D9E8FF]"></div>
+      <SidebarLayout isOnboarding={true}>
+        <div className="flex items-center justify-center h-full">
+          <LoadingSpinner label="Loading notification settings..." />
         </div>
       </SidebarLayout>
     );
   }
 
   return (
-    <SidebarLayout sidebar={<SideboardOnboardingContent />} isOnboarding={true}>
+    <SidebarLayout isOnboarding={true}>
       <div className="space-y-8">
         {/* Progress Bar */}
         <div className="py-0">

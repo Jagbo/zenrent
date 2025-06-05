@@ -1,0 +1,77 @@
+# WhatsApp Configuration Environment Variables
+# Copy these to your .env.local file and fill in with your actual values
+
+# === REQUIRED VARIABLES ===
+
+# WhatsApp Business Account ID
+# This is ZenRent's central WABA ID (not individual landlord WABAs)
+WHATSAPP_WABA_ID=your_waba_id_here
+
+# Central Phone Number ID
+# REQUIRED: The phone number ID for ZenRent's central WhatsApp number
+# All tenant messages will be sent from this single phone number
+WHATSAPP_PHONE_NUMBER_ID=your_central_phone_number_id_here
+
+# System User Access Token
+# Long-lived token from Meta Business Manager with WhatsApp permissions
+# This token should have whatsapp_business_messaging and whatsapp_business_management permissions
+WHATSAPP_SYSTEM_USER_TOKEN=your_system_user_token_here
+
+# Webhook Verification Token
+# Random string you create and use in both your code and Meta App dashboard
+# This verifies that webhook calls are coming from Facebook
+WHATSAPP_VERIFY_TOKEN=your_secure_verify_token_here
+
+# Facebook App Secret
+# CRITICAL: Never commit this to version control
+# Used for webhook signature verification (security)
+FB_APP_SECRET=your_fb_app_secret_here
+
+# Facebook App ID (public, can be exposed to client)
+NEXT_PUBLIC_FB_APP_ID=your_app_id_here
+
+# === OPTIONAL VARIABLES ===
+
+# WhatsApp API URL (defaults to production Facebook Graph API)
+# Only set this if using a different API endpoint (testing/development)
+WHATSAPP_API_URL=https://graph.facebook.com/v18.0
+
+# Legacy token (may be deprecated - verify if still needed)
+# WHATSAPP_TOKEN=
+
+# Facebook Config ID for Embedded Signup (not used in centralized model)
+# NEXT_PUBLIC_FB_CONFIG_ID=
+
+# === NOTES ===
+# 1. The WHATSAPP_SYSTEM_USER_TOKEN should be generated from a System User in Meta Business Manager
+# 2. System Users provide long-lived tokens that don't expire like user tokens
+# 3. Ensure your System User has admin access to ZenRent's WABA
+# 4. The WHATSAPP_VERIFY_TOKEN should be a random, hard-to-guess string
+# 5. Never use default values like "your_verify_token" in production
+
+# === VERIFICATION ===
+# Run the verification script to test your configuration:
+# node scripts/verify-whatsapp-config.js
+
+# To test sending a message (replace with a real WhatsApp number):
+# node scripts/verify-whatsapp-config.js 447911123456 
+
+# === PRODUCTION DEPLOYMENT NOTES ===
+
+# 1. Ensure WHATSAPP_PHONE_NUMBER_ID points to a verified phone number
+# 2. Test message sending in development before production deployment
+# 3. Monitor webhook delivery and message status updates
+# 4. Set up proper logging for message delivery tracking
+
+# === CENTRALIZED MODEL CHANGES ===
+
+# These variables are NO LONGER USED in the centralized model:
+# - Individual landlord WABA IDs (stored in whatsapp_accounts table)
+# - Individual landlord phone numbers
+# - Per-landlord access tokens
+
+# All messages now route through:
+# - Single WABA (WHATSAPP_WABA_ID)
+# - Single phone number (WHATSAPP_PHONE_NUMBER_ID)  
+# - Single access token (WHATSAPP_SYSTEM_USER_TOKEN)
+# - Landlord attribution via message prefixing 

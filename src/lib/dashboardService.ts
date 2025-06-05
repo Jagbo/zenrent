@@ -1,12 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import getConfig from "next/config";
 import { supabase } from "./supabase";
-
-// Get runtime config
-const { serverRuntimeConfig, publicRuntimeConfig } = getConfig() || {
-  serverRuntimeConfig: {},
-  publicRuntimeConfig: {},
-};
 
 // Create a Supabase client that uses service role key
 const getDashboardClient = () => {
@@ -556,21 +549,32 @@ const calculateMonthlyOccupancy = (leases: any[], propertyIds: string[], startDa
 // Get rent arrears by month for the last 6 months
 const getArrearsChartData = async (propertyIds: string[], startDate: Date) => {
   try {
-    // Get all rent payments with due dates and actual payment dates
-    const { data: rentPayments, error } = await getDashboardClient()
-      .from('rent_payments')
-      .select('amount, due_date, payment_date, status')
-      .in('property_id', propertyIds)
-      .gte('due_date', startDate.toISOString())
-      .order('due_date', { ascending: true });
+    // Check if the rent_payments table exists first by using a try-catch approach
+    try {
+      // Get all rent payments with due dates and actual payment dates
+      const { data: rentPayments, error } = await getDashboardClient()
+        .from('rent_payments')
+        .select('amount, due_date, payment_date, status')
+        .in('property_id', propertyIds)
+        .gte('due_date', startDate.toISOString())
+        .order('due_date', { ascending: true });
 
-    if (error) {
-      console.error('Error fetching rent arrears data:', error);
+      if (error) {
+        // If we get a specific error about the table not existing, handle it gracefully
+        if (error.code === '42P01') {
+          console.log('The rent_payments table does not exist yet. This is expected in development.');
+          return getEmptyMonthlyData();
+        }
+        console.error('Error fetching rent arrears data:', error);
+        return getEmptyMonthlyData();
+      }
+
+      // Calculate arrears by month
+      return calculateMonthlyArrears(rentPayments);
+    } catch (innerError) {
+      console.log('Could not query rent_payments table, returning empty data:', innerError);
       return getEmptyMonthlyData();
     }
-
-    // Calculate arrears by month
-    return calculateMonthlyArrears(rentPayments);
   } catch (error) {
     console.error('Error in getArrearsChartData:', error);
     return getEmptyMonthlyData();

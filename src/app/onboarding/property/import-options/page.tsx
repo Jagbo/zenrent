@@ -12,6 +12,7 @@ import {
 import { CheckIcon as CheckIconSolid } from "@heroicons/react/24/solid";
 import { ShieldCheckIcon } from "@heroicons/react/24/outline";
 import { supabase } from "@/lib/supabase";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 const steps = [
   {
@@ -68,40 +69,33 @@ export default function PropertyImportOptions() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Get the current user on component mount
   useEffect(() => {
-    async function getUser() {
+    async function getUserData() {
       try {
-        // In development, use the test user ID
-        if (process.env.NODE_ENV === "development") {
-          setUserId("00000000-0000-0000-0000-000000000001");
-          return;
-        }
-
-        // For production
         const { data: userData, error: userError } =
           await supabase.auth.getUser();
 
         if (userError) {
           console.error("Error fetching user:", userError);
-          router.push("/sign-up"); // Redirect to sign up if no user
+          router.push("/sign-up");
           return;
         }
 
         if (userData && userData.user) {
           setUserId(userData.user.id);
         } else {
-          router.push("/sign-up"); // Redirect to sign up if no user
+          router.push("/sign-up");
         }
+        setLoading(false);
       } catch (error) {
-        console.error("Error in getUser:", error);
-        router.push("/sign-up"); // Redirect to sign up on error
+        console.error("Error in getUserData:", error);
+        router.push("/sign-up");
       }
     }
-
-    getUser();
-  }, [router]);
+    getUserData();
+  }, [router, supabase.auth]);
 
   // Handle option selection
   const handleOptionSelect = (optionId: string) => {
@@ -175,8 +169,18 @@ export default function PropertyImportOptions() {
     }
   };
 
+  if (loading) {
+    return (
+      <SidebarLayout isOnboarding={true}>
+        <div className="flex items-center justify-center h-full">
+          <LoadingSpinner label="Loading options..." />
+        </div>
+      </SidebarLayout>
+    );
+  }
+
   return (
-    <SidebarLayout sidebar={<SideboardOnboardingContent />} isOnboarding={true}>
+    <SidebarLayout isOnboarding={true}>
       <div className="space-y-8">
         {/* Progress Bar */}
         <div className="py-0">

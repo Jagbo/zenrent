@@ -14,14 +14,7 @@ function EmailVerificationContent() {
   const [canResend, setCanResend] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Skip verification in development mode
-  useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-      console.log("Development mode: Skipping email verification");
-      router.push("/sign-up/account-creation");
-    }
-  }, [router]);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   // Get email from URL query parameter or localStorage
   useEffect(() => {
@@ -44,14 +37,19 @@ function EmailVerificationContent() {
 
   // Check verified state periodically
   useEffect(() => {
-    if (!email) return;
+    if (!email || isRedirecting) return;
     
     const checkVerificationStatus = async () => {
-      const { data } = await supabase.auth.getSession();
-      
-      // If user is signed in and confirmed their email, proceed to account creation
-      if (data?.session?.user?.email_confirmed_at) {
-        router.push("/sign-up/account-creation");
+      try {
+        const { data } = await supabase.auth.getSession();
+        
+        // If user is signed in and confirmed their email, proceed to account creation
+        if (data?.session?.user?.email_confirmed_at && !isRedirecting) {
+          setIsRedirecting(true);
+          router.push("/sign-up/account-creation");
+        }
+      } catch (error) {
+        console.error("Error checking verification status:", error);
       }
     };
     
@@ -62,7 +60,7 @@ function EmailVerificationContent() {
     const interval = setInterval(checkVerificationStatus, 5000);
     
     return () => clearInterval(interval);
-  }, [email, router]);
+  }, [email, router, isRedirecting]);
 
   // Handle resend code
   const handleResendCode = async () => {
@@ -91,11 +89,10 @@ function EmailVerificationContent() {
 
       // Show success message
       alert("Verification email resent! Please check your inbox.");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Resend error:", err);
-      setError(
-        err.message || "Failed to resend verification email. Please try again.",
-      );
+      const errorMessage = err instanceof Error ? err.message : "Failed to resend verification email. Please try again.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -136,7 +133,7 @@ function EmailVerificationContent() {
 
           <div className="text-center mb-6">
             <p className="text-sm/6 text-gray-600">
-              We've sent a verification email to
+              We&apos;ve sent a verification email to
             </p>
             <p className="text-base/6 font-medium text-gray-900 mt-1">
               {maskedEmail}
@@ -150,7 +147,7 @@ function EmailVerificationContent() {
                 email we sent you.
               </p>
               <p className="text-sm/6 text-gray-500 mt-2">
-                After verifying your email, you'll be automatically redirected to the next step.
+                After verifying your email, you&apos;ll be automatically redirected to the next step.
               </p>
             </div>
           </div>

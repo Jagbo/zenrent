@@ -76,10 +76,11 @@ export default function LoginPage() {
 
       if (error) {
         // Handle rate limit errors specifically
-        if (error.message?.includes("rate limit")) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes("rate limit")) {
           setError("You've reached the authentication rate limit. Please wait a few minutes before trying again.");
         } else {
-          setError(error.message || "Failed to sign in with Google.");
+          setError(errorMessage || "Failed to sign in with Google.");
         }
       } else {
         // Trigger property enrichment in the background on successful OAuth sign-in
@@ -90,7 +91,8 @@ export default function LoginPage() {
       console.error("Google login error:", err);
       // Check for rate limit in the caught error as well
       const authError = err as AuthError;
-      if (authError.message?.includes("rate limit")) {
+      const errorMessage = authError.message || String(err);
+      if (errorMessage.includes("rate limit")) {
         setError("You've reached the authentication rate limit. Please wait a few minutes before trying again.");
       } else {
         setError("An unexpected error occurred. Please try again.");
@@ -109,10 +111,11 @@ export default function LoginPage() {
 
       if (error) {
         // Handle rate limit errors specifically
-        if (error.message?.includes("rate limit")) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes("rate limit")) {
           setError("You've reached the authentication rate limit. Please wait a few minutes before trying again.");
         } else {
-          setError(error.message || "Failed to sign in with Facebook.");
+          setError(errorMessage || "Failed to sign in with Facebook.");
         }
       } else {
         // Trigger property enrichment in the background on successful OAuth sign-in
@@ -123,7 +126,8 @@ export default function LoginPage() {
       console.error("Facebook login error:", err);
       // Check for rate limit in the caught error as well
       const authError = err as AuthError;
-      if (authError.message?.includes("rate limit")) {
+      const errorMessage = authError.message || String(err);
+      if (errorMessage.includes("rate limit")) {
         setError("You've reached the authentication rate limit. Please wait a few minutes before trying again.");
       } else {
         setError("An unexpected error occurred. Please try again.");
@@ -155,7 +159,7 @@ export default function LoginPage() {
                 {error}
               </div>
             )}
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} method="post" action="#" className="space-y-6">
               <div>
                 <label htmlFor="email"
                   className="block text-sm/6 font-medium text-gray-900"

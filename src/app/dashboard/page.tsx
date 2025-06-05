@@ -4,39 +4,18 @@ import { useState, useEffect } from "react";
 import { SidebarLayout } from "../components/sidebar-layout";
 import { Heading } from "../components/heading";
 import { Text } from "../components/text";
-import {
-  Sidebar,
-  SidebarHeader,
-  SidebarBody,
-  SidebarFooter,
-  SidebarItem,
-  SidebarSection,
-  SidebarHeading,
-  SidebarLabel,
-} from "../components/sidebar";
 import Link from "next/link";
-import Image from "next/image";
 import {
-  HomeIcon,
   BuildingOfficeIcon,
-  UsersIcon,
   CalendarIcon,
   ExclamationCircleIcon,
   BanknotesIcon,
   ShoppingBagIcon,
-  CodeBracketIcon,
   ArrowUpIcon,
-  CheckIcon,
-  MapPinIcon,
-  EllipsisVerticalIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  ArrowDownIcon,
   ChevronDownIcon,
 } from "@heroicons/react/24/solid";
 import {
   CheckIcon as CheckIcon20,
-  HandThumbUpIcon,
   UserIcon,
 } from "@heroicons/react/20/solid";
 import { TrendingUp, TrendingDown } from "lucide-react";
@@ -47,11 +26,8 @@ import {
   BarChart,
   Line,
   LineChart,
-  ResponsiveContainer,
   CartesianGrid,
-  Tooltip,
   XAxis,
-  YAxis,
 } from "recharts";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
@@ -59,8 +35,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SidebarContent } from "../components/sidebar-content";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { IssueDrawer } from "../components/IssueDrawer";
 import { IssueFormDrawer } from "../components/IssueFormDrawer";
 import { getRecentIssues, createIssue } from "../../lib/issueService";
@@ -68,38 +43,6 @@ import { getDashboardStats, getDashboardChartData } from "../../lib/dashboardSer
 import { getRecentNotifications, Notification, BaseNotification, markNotificationAsRead, markAllNotificationsAsRead } from "../../lib/notificationService";
 import { supabase } from "../../lib/supabase";
 
-// Icons for navigation items
-function DashboardIcon() {
-  return <HomeIcon className="w-5 h-5" />;
-}
-
-function PropertiesIcon() {
-  return <BuildingOfficeIcon className="w-5 h-5" />;
-}
-
-function ResidentsIcon() {
-  return <UsersIcon className="w-5 h-5" />;
-}
-
-function CalendarIconComponent() {
-  return <CalendarIcon className="w-5 h-5" />;
-}
-
-function IssuesIcon() {
-  return <ExclamationCircleIcon className="w-5 h-5" />;
-}
-
-function FinancialIcon() {
-  return <BanknotesIcon className="w-5 h-5" />;
-}
-
-function SuppliersIcon() {
-  return <ShoppingBagIcon className="w-5 h-5" />;
-}
-
-function IntegrationsIcon() {
-  return <CodeBracketIcon className="w-5 h-5" />;
-}
 
 // Utility function for combining class names
 function classNames(...classes: string[]) {
@@ -289,7 +232,6 @@ export default function Dashboard() {
   const [selectedTab, setSelectedTab] = useState("overview");
   const [issues, setIssues] = useState<Issue[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [dashboardStats, setDashboardStats] = useState({
     totalProperties: 0,
     expiringContracts: 0,
@@ -318,7 +260,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchData = async () => {
-      setIsLoading(true);
       try {
         await Promise.all([
           fetchIssues(),
@@ -328,8 +269,6 @@ export default function Dashboard() {
         ]);
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
-      } finally {
-        setIsLoading(false);
       }
     };
 
@@ -454,16 +393,7 @@ export default function Dashboard() {
     return result;
   };
   
-  // Format month names for x-axis ticks - now not needed as we're using abbreviated names
-  const xAxisTickFormatter = (value: string) => value;
 
-  // Make sure the chart displays months in chronological order
-  const getTicksArray = (data: ChartDataItem[] | undefined): string[] => {
-    if (!data) return [];
-    // Just extract the month names in their existing order
-    // The data should already be in chronological order from getLastSixMonthsChronologically
-    return data.map(item => item.month);
-  };
 
   // Load more notifications
   const loadMoreNotifications = async () => {
@@ -479,23 +409,23 @@ export default function Dashboard() {
   // Calculate current totals for display
   const getCurrentTotals = () => {
     // Get the last month's data for each chart
-    const currentIssues = chartData.issues.length > 0 ? 
-      chartData.issues[chartData.issues.length - 1].value : 0;
+    const currentIssues = chartData.issues?.length > 0 ? 
+      Number(chartData.issues[chartData.issues.length - 1]?.value) || 0 : 0;
       
-    const currentIncome = chartData.income.length > 0 ? 
-      chartData.income[chartData.income.length - 1].value : 0;
+    const currentIncome = chartData.income?.length > 0 ? 
+      Number(chartData.income[chartData.income.length - 1]?.value) || 0 : 0;
       
-    const currentExpenses = chartData.expenses.length > 0 ? 
-      chartData.expenses[chartData.expenses.length - 1].value : 0;
+    const currentExpenses = chartData.expenses?.length > 0 ? 
+      Number(chartData.expenses[chartData.expenses.length - 1]?.value) || 0 : 0;
       
-    const currentProfitMargin = chartData.profitMargin.length > 0 ? 
-      chartData.profitMargin[chartData.profitMargin.length - 1].value : 0;
+    const currentProfitMargin = chartData.profitMargin?.length > 0 ? 
+      Number(chartData.profitMargin[chartData.profitMargin.length - 1]?.value) || 0 : 0;
       
-    const currentOccupancy = chartData.occupancy.length > 0 ? 
-      chartData.occupancy[chartData.occupancy.length - 1].value : 0;
+    const currentOccupancy = chartData.occupancy?.length > 0 ? 
+      Number(chartData.occupancy[chartData.occupancy.length - 1]?.value) || 0 : 0;
       
-    const currentArrears = chartData.arrears.length > 0 ? 
-      chartData.arrears[chartData.arrears.length - 1].value : 0;
+    const currentArrears = chartData.arrears?.length > 0 ? 
+      Number(chartData.arrears[chartData.arrears.length - 1]?.value) || 0 : 0;
       
     return {
       currentIssues,
@@ -510,13 +440,14 @@ export default function Dashboard() {
   // Calculate percentage change for each chart
   const getPercentageChanges = () => {
     // A function to calculate percentage change between two values
-    const calculateChange = (data: any[]) => {
-      if (data.length < 2) return 0;
-      const current = data[data.length - 1].value;
-      const previous = data[data.length - 2].value;
+    const calculateChange = (data: ChartDataItem[]) => {
+      if (!data || data.length < 2) return 0;
+      const current = Number(data[data.length - 1]?.value) || 0;
+      const previous = Number(data[data.length - 2]?.value) || 0;
       
       if (previous === 0) return current > 0 ? 100 : 0;
-      return Math.round(((current - previous) / previous) * 100);
+      const change = Math.round(((current - previous) / previous) * 100);
+      return isNaN(change) ? 0 : change;
     };
     
     return {
@@ -554,8 +485,22 @@ export default function Dashboard() {
   };
 
   // Function to handle form submission
-  const handleIssueSubmit = async (formData: any) => {
+  const handleIssueSubmit = async (formData: {
+    title: string;
+    description?: string;
+    propertyId: string;
+    unitNumber?: string;
+    priority: "Low" | "Medium" | "High";
+    assignedTo?: string;
+    dueDate?: string;
+  }) => {
     try {
+      // Validate required fields
+      if (!formData.title || !formData.propertyId) {
+        console.error("Missing required fields for issue creation");
+        return;
+      }
+
       // Create issue in Supabase
       const issueData = {
         title: formData.title,
@@ -574,8 +519,12 @@ export default function Dashboard() {
 
       if (newIssueResult) {
         // Refresh the issues list
-        const issues = await getRecentIssues(5);
-        setIssues(issues);
+        try {
+          const issues = await getRecentIssues(5);
+          setIssues(issues);
+        } catch (refreshError) {
+          console.error("Error refreshing issues list:", refreshError);
+        }
       }
     } catch (err) {
       console.error("Error creating issue:", err);
@@ -691,11 +640,12 @@ export default function Dashboard() {
 
   // Fix the getFormattedMessage function to handle type checks properly
   const getFormattedMessage = (notification: Notification) => {
-    const category = notification.notification_type?.category || '';
-    
-    if (category === 'rent_payment') {
-      const rentNotification = notification as RentPaymentNotification;
-      const details = rentNotification.rent_payment_notification?.[0];
+    try {
+      const category = notification.notification_type?.category || '';
+      
+      if (category === 'rent_payment') {
+        const rentNotification = notification as RentPaymentNotification;
+        const details = rentNotification.rent_payment_notification?.[0];
       
       if (details?.tenant_name && details?.property_address) {
         if (details.payment_amount) {
@@ -802,7 +752,11 @@ export default function Dashboard() {
     
     // Default to the standard message if no special formatting applies
     return notification.message;
-  };
+  } catch (error) {
+    console.error("Error formatting notification message:", error);
+    return notification.message || "Notification";
+  }
+};
 
   // Mark a notification as read
   const handleMarkAsRead = async (notificationId: string) => {
@@ -842,7 +796,7 @@ export default function Dashboard() {
   };
 
   return (
-    <SidebarLayout sidebar={<SidebarContent currentPath="/dashboard" />}>
+    <SidebarLayout>
       <div className="space-y-6">
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
@@ -851,7 +805,7 @@ export default function Dashboard() {
               Property Dashboard
             </Heading>
             <Text className="text-gray-500 mt-1">
-              Welcome back! Here's an overview of your properties and recent
+              Welcome back! Here&apos;s an overview of your properties and recent
               activities.
             </Text>
           </div>
@@ -886,7 +840,7 @@ export default function Dashboard() {
             </p>
             <div className="mt-4 flex items-center text-sm text-amber-600">
               <ArrowUpIcon className="h-4 w-4 mr-1" />
-              <span>Next 6 months</span>
+              <span>Next {new Date().getMonth() < 6 ? '6' : '12'} months</span>
             </div>
           </div>
 
@@ -985,7 +939,6 @@ export default function Dashboard() {
                         tickLine={false}
                         tickMargin={10}
                         axisLine={false}
-                        ticks={getTicksArray(chartData.issues)}
                         type="category"
                       />
                       <ChartTooltip cursor={false}
@@ -1029,7 +982,6 @@ export default function Dashboard() {
                         tickLine={false}
                         tickMargin={10}
                         axisLine={false}
-                        ticks={getTicksArray(chartData.profitMargin)}
                         type="category"
                       />
                       <ChartTooltip cursor={false}
@@ -1069,7 +1021,6 @@ export default function Dashboard() {
                         tickLine={false}
                         tickMargin={10}
                         axisLine={false}
-                        ticks={getTicksArray(chartData.occupancy)}
                         type="category"
                       />
                       <ChartTooltip cursor={false}
@@ -1116,7 +1067,6 @@ export default function Dashboard() {
                         tickLine={false}
                         tickMargin={10}
                         axisLine={false}
-                        ticks={getTicksArray(chartData.income)}
                         type="category"
                       />
                       <ChartTooltip cursor={false}
@@ -1157,7 +1107,6 @@ export default function Dashboard() {
                         tickLine={false}
                         tickMargin={10}
                         axisLine={false}
-                        ticks={getTicksArray(chartData.expenses)}
                         type="category"
                       />
                       <ChartTooltip cursor={false}
@@ -1198,7 +1147,6 @@ export default function Dashboard() {
                         tickLine={false}
                         tickMargin={10}
                         axisLine={false}
-                        ticks={getTicksArray(chartData.arrears)}
                         type="category"
                       />
                       <ChartTooltip cursor={false}
@@ -1236,7 +1184,7 @@ export default function Dashboard() {
                 <CardHeader>
                   <h3 className="text-lg font-semibold">Active Issues</h3>
                   <p className="text-sm text-muted-foreground">
-                    January - June 2023
+                    Last 6 months
                   </p>
                 </CardHeader>
                 <CardContent>
@@ -1248,7 +1196,6 @@ export default function Dashboard() {
                         tickLine={false}
                         tickMargin={10}
                         axisLine={false}
-                        ticks={getTicksArray(chartData.issues)}
                         type="category"
                       />
                       <ChartTooltip cursor={false}
@@ -1264,9 +1211,12 @@ export default function Dashboard() {
                   </ChartContainer>
                 </CardContent>
                 <div className="flex-col items-start gap-2 text-sm p-6 pt-0">
-                  <div className="flex gap-2 font-medium leading-none text-red-600">
-                    <TrendingUp className="h-4 w-4" />
-                    <span>3% from last week</span>
+                  <div className={`flex gap-2 font-medium leading-none ${
+                    issuesChange > 0 ? "text-red-600" : issuesChange < 0 ? "text-green-600" : "text-gray-600"
+                  }`}>
+                    {issuesChange > 0 ? <TrendingUp className="h-4 w-4" /> : 
+                     issuesChange < 0 ? <TrendingDown className="h-4 w-4" /> : null}
+                    <span>{Math.abs(issuesChange)}% {issuesChange > 0 ? "increase" : issuesChange < 0 ? "decrease" : "no change"} from last month</span>
                   </div>
                   <div className="leading-none text-muted-foreground">
                     Current active issues: {currentIssues}
@@ -1279,7 +1229,7 @@ export default function Dashboard() {
                 <CardHeader>
                   <h3 className="text-lg font-semibold">Urgent Issues</h3>
                   <p className="text-sm text-muted-foreground">
-                    January - June 2023
+                    Last 6 months
                   </p>
                 </CardHeader>
                 <CardContent>
@@ -1291,7 +1241,6 @@ export default function Dashboard() {
                         tickLine={false}
                         tickMargin={10}
                         axisLine={false}
-                        ticks={getTicksArray(chartData.urgent)}
                         type="category"
                       />
                       <ChartTooltip cursor={false}
@@ -1306,8 +1255,12 @@ export default function Dashboard() {
                   </ChartContainer>
                 </CardContent>
                 <div className="flex-col items-start gap-2 text-sm p-6 pt-0">
-                  <div className="flex gap-2 font-medium leading-none text-gray-600">
-                    <span>No change from last week</span>
+                  <div className={`flex gap-2 font-medium leading-none ${
+                    issuesChange === 0 ? "text-gray-600" : issuesChange > 0 ? "text-red-600" : "text-green-600"
+                  }`}>
+                    {issuesChange > 0 ? <TrendingUp className="h-4 w-4" /> : 
+                     issuesChange < 0 ? <TrendingDown className="h-4 w-4" /> : null}
+                    <span>{issuesChange === 0 ? "No change" : `${Math.abs(issuesChange)}% ${issuesChange > 0 ? "increase" : "decrease"}`} from last month</span>
                   </div>
                   <div className="leading-none text-muted-foreground">
                     Current urgent issues: {currentIssues}
@@ -1320,7 +1273,7 @@ export default function Dashboard() {
                 <CardHeader>
                   <h3 className="text-lg font-semibold">Backlog Issues</h3>
                   <p className="text-sm text-muted-foreground">
-                    January - June 2023
+                    Last 6 months
                   </p>
                 </CardHeader>
                 <CardContent>
@@ -1332,7 +1285,6 @@ export default function Dashboard() {
                         tickLine={false}
                         tickMargin={10}
                         axisLine={false}
-                        ticks={getTicksArray(chartData.backlog)}
                         type="category"
                       />
                       <ChartTooltip cursor={false}
@@ -1348,9 +1300,12 @@ export default function Dashboard() {
                   </ChartContainer>
                 </CardContent>
                 <div className="flex-col items-start gap-2 text-sm p-6 pt-0">
-                  <div className="flex gap-2 font-medium leading-none text-red-600">
-                    <TrendingUp className="h-4 w-4" />
-                    <span>6% from last month</span>
+                  <div className={`flex gap-2 font-medium leading-none ${
+                    issuesChange > 0 ? "text-red-600" : issuesChange < 0 ? "text-green-600" : "text-gray-600"
+                  }`}>
+                    {issuesChange > 0 ? <TrendingUp className="h-4 w-4" /> : 
+                     issuesChange < 0 ? <TrendingDown className="h-4 w-4" /> : null}
+                    <span>{Math.abs(issuesChange)}% {issuesChange > 0 ? "increase" : issuesChange < 0 ? "decrease" : "no change"} from last month</span>
                   </div>
                   <div className="leading-none text-muted-foreground">
                     Current backlog issues: {currentIssues}
@@ -1531,42 +1486,6 @@ export default function Dashboard() {
               >
                 View All Notifications
               </button>
-            </div>
-          </div>
-        </div>
-
-        {/* 3x1 Card Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Card 1 */}
-          <div className="divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow-sm border border-gray-200">
-            <div className="px-4 py-5 sm:p-6">
-              {/* Card 1 Content goes here */}
-            </div>
-            <div className="px-4 py-4 sm:px-6">
-              {/* Card 1 Footer content goes here */}
-              <span className="text-sm text-gray-500">Card 1 Footer</span>
-            </div>
-          </div>
-
-          {/* Card 2 */}
-          <div className="divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow-sm border border-gray-200">
-            <div className="px-4 py-5 sm:p-6">
-              {/* Card 2 Content goes here */}
-            </div>
-            <div className="px-4 py-4 sm:px-6">
-              {/* Card 2 Footer content goes here */}
-              <span className="text-sm text-gray-500">Card 2 Footer</span>
-            </div>
-          </div>
-
-          {/* Card 3 */}
-          <div className="divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow-sm border border-gray-200">
-            <div className="px-4 py-5 sm:p-6">
-              {/* Card 3 Content goes here */}
-            </div>
-            <div className="px-4 py-4 sm:px-6">
-              {/* Card 3 Footer content goes here */}
-              <span className="text-sm text-gray-500">Card 3 Footer</span>
             </div>
           </div>
         </div>

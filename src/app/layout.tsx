@@ -6,6 +6,7 @@ import { initSupabaseEnvironment } from "@/lib/supabase-init";
 import { Toaster } from "react-hot-toast";
 import { ZenAgentProvider } from "@/components/zen-agent-provider";
 import { cabinetGrotesk } from "./fonts";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -34,7 +35,11 @@ export default function RootLayout({
           strategy="beforeInteractive"
         />
         <ZenAgentProvider>
-          <Providers>{children}</Providers>
+          <Providers>
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
+          </Providers>
         </ZenAgentProvider>
         <Toaster position="top-right" />
       </body>

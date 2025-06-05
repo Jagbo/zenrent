@@ -25,7 +25,7 @@ ZenRent is a modern, full-featured property management system built with Next.js
 ## Pricing Plans
 
 ### Essential Plan
-**£5 per month** (£48/year with annual billing)
+**£10 per month** (£96/year with annual billing)
 - For landlords managing 1-2 properties
 - Full access to core property management features
 - Basic tenant portal access
@@ -33,7 +33,7 @@ ZenRent is a modern, full-featured property management system built with Next.js
 - Email support
 
 ### Standard Plan
-**£10 per month** (£96/year with annual billing)
+**£20 per month** (£192/year with annual billing)
 - For landlords managing 2-10 properties
 - All Essential features plus advanced reporting
 - Full HMO property support
@@ -41,7 +41,7 @@ ZenRent is a modern, full-featured property management system built with Next.js
 - Email & chat support
 
 ### Professional Plan
-**£20 per month** (£192/year with annual billing)
+**£30 per month** (£288/year with annual billing)
 - For landlords managing 10+ properties
 - All Standard features plus priority support
 - Enhanced analytics and customization options
@@ -89,6 +89,41 @@ Save 20% with annual billing on all plans!
   - Interactive dashboards
   - Real-time updates
   - Drag-and-drop interfaces
+
+- **Tax Integration**: HMRC MTD (Making Tax Digital) integration for automated tax submissions
+
+## HMRC Integration
+
+ZenRent integrates with HMRC's Making Tax Digital (MTD) API for automated tax submissions. The integration supports both sandbox (development) and production environments:
+
+### Environment Configuration
+
+- **Development Mode**: Automatically uses HMRC sandbox environment (`test-api.service.hmrc.gov.uk`)
+- **Production Mode**: Uses HMRC production environment (`api.service.hmrc.gov.uk`)
+
+### Environment Variables
+
+```bash
+# HMRC Configuration
+HMRC_CLIENT_ID=your_client_id
+HMRC_CLIENT_SECRET=your_client_secret
+HMRC_REDIRECT_URI=your_callback_url
+HMRC_AUTH_URL=https://test-api.service.hmrc.gov.uk/oauth/authorize  # Sandbox
+HMRC_TOKEN_URL=https://test-api.service.hmrc.gov.uk/oauth/token     # Sandbox
+
+# Optional: Force mock data instead of real API calls
+HMRC_USE_MOCK_DATA=false  # Set to 'true' to use mock data instead of sandbox/production APIs
+```
+
+### Testing Tax Submissions
+
+In development mode, tax submissions will:
+1. Use HMRC's sandbox environment for real API testing
+2. Submit actual test data to HMRC's test servers
+3. Receive real sandbox responses and calculation IDs
+4. Allow full end-to-end testing of the MTD integration
+
+To use mock data instead of sandbox APIs, set `HMRC_USE_MOCK_DATA=true` in your environment.
 
 ## Technology Stack
 

@@ -11,6 +11,8 @@ import {
 } from "@heroicons/react/24/outline";
 import { CheckIcon as CheckIconSolid } from "@heroicons/react/24/solid";
 import { supabase } from "@/lib/supabase";
+import { Select, SelectItem } from "@tremor/react";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 const steps = [
   {
@@ -76,51 +78,18 @@ export default function TaxInformation() {
   useEffect(() => {
     async function getUserAndProfile() {
       try {
-        // In development, use the test user ID
-        if (process.env.NODE_ENV === "development") {
-          setUserId("00000000-0000-0000-0000-000000000001");
-
-          // Fetch existing profile data for this user
-          const { data: profileData, error: profileError } = await supabase
-            .from("user_profiles")
-            .select("*")
-            .eq("user_id", "00000000-0000-0000-0000-000000000001")
-            .single();
-
-          if (profileError && profileError.code !== "PGRST116") {
-            // PGRST116 is "no rows returned"
-            console.error("Error fetching profile:", profileError);
-          }
-
-          if (profileData) {
-            // Pre-fill form with existing tax data
-            setTaxStatus(profileData.tax_status || "");
-            setTaxReference(profileData.tax_reference_number || "");
-            setUtr(profileData.utr || "");
-            setMtdStatus(profileData.mtd_status || "");
-            setIsUKTaxResident(profileData.is_uk_tax_resident !== false);
-            setIsNonResidentScheme(profileData.is_non_resident_scheme || false);
-            setAccountingPeriod(profileData.accounting_period || "");
-          }
-
-          setProfileLoaded(true);
-          return;
-        }
-
-        // For production
         const { data: userData, error: userError } =
           await supabase.auth.getUser();
 
         if (userError) {
           console.error("Error fetching user:", userError);
-          router.push("/sign-up"); // Redirect to sign up if no user
+          router.push("/sign-up");
           return;
         }
 
         if (userData && userData.user) {
           setUserId(userData.user.id);
 
-          // Fetch existing profile data for this user
           const { data: profileData, error: profileError } = await supabase
             .from("user_profiles")
             .select("*")
@@ -128,12 +97,10 @@ export default function TaxInformation() {
             .single();
 
           if (profileError && profileError.code !== "PGRST116") {
-            // PGRST116 is "no rows returned"
-            console.error("Error fetching profile:", profileError);
+            console.error("Error fetching tax info:", profileError);
           }
 
           if (profileData) {
-            // Pre-fill form with existing tax data
             setTaxStatus(profileData.tax_status || "");
             setTaxReference(profileData.tax_reference_number || "");
             setUtr(profileData.utr || "");
@@ -143,18 +110,16 @@ export default function TaxInformation() {
             setAccountingPeriod(profileData.accounting_period || "");
           }
         } else {
-          router.push("/sign-up"); // Redirect to sign up if no user
+          router.push("/sign-up");
         }
-
         setProfileLoaded(true);
       } catch (error) {
         console.error("Error in getUserAndProfile:", error);
-        router.push("/sign-up"); // Redirect to sign up on error
+        router.push("/sign-up");
       }
     }
-
     getUserAndProfile();
-  }, [router]);
+  }, [router, supabase.auth]);
 
   // Update tax reference label when tax status changes
   useEffect(() => {
@@ -301,18 +266,16 @@ export default function TaxInformation() {
   // Show loading state if profile is not loaded yet
   if (!profileLoaded) {
     return (
-      <SidebarLayout sidebar={<SideboardOnboardingContent />}
-        isOnboarding={true}
-      >
+      <SidebarLayout isOnboarding={true}>
         <div className="flex items-center justify-center h-full">
-          <p className="text-gray-500">Loading tax information...</p>
+          <LoadingSpinner label="Loading tax information..." />
         </div>
       </SidebarLayout>
     );
   }
 
   return (
-    <SidebarLayout sidebar={<SideboardOnboardingContent />} isOnboarding={true}>
+    <SidebarLayout isOnboarding={true}>
       <div className="space-y-8">
         {/* Progress Bar */}
         <div className="py-0">
@@ -566,7 +529,9 @@ export default function TaxInformation() {
                           type="text"
                           value={utr}
                           onChange={(e) => setUtr(e.target.value)}
-                          placeholder="10 digits"
+                          placeholder="10 digits e.g. 1234567890"
+                          pattern="^[0-9]{10}$"
+                          title="UTR must be 10 digits."
                           className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 border border-gray-300 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-d9e8ff sm:text-sm/6"
                         />
                       </div>

@@ -11,6 +11,7 @@ import { WhatsAppConnectionStatus } from "../../components/WhatsAppConnectionSta
 import { useAuth } from "../../../lib/auth-provider";
 import { getTenants } from "../../../lib/tenantService";
 import { ITenant } from "../../../lib/propertyService";
+import { withRetry, showErrorToast, showSuccessToast } from "../../../lib/utils/errorHandling";
 
 // Helper to create placeholder image URLs from name
 const getInitialsAvatar = (name: string) => {
@@ -28,6 +29,11 @@ interface Message {
   text: string;
   timestamp: string;
   status?: string;
+  messageId?: string;
+  messageType?: string;
+  mediaUrl?: string;
+  deliveredAt?: string;
+  readAt?: string;
 }
 
 // Define tenant with UI specific properties
@@ -48,12 +54,15 @@ interface PropertyListItem {
   name: string;
 }
 
-interface WhatsAppAccount {
-  waba_id: string;
-  phone_number_id: string;
-  phone_number: string;
-  business_name: string;
-  status: string;
+interface WhatsAppOptInStatus {
+  whatsapp_enabled: boolean;
+  whatsapp_opted_in_at: string | null;
+  whatsapp_notifications_enabled: boolean;
+  landlord_id: string;
+  landlord_name: string;
+  tenant_count: number;
+  system_configured: boolean;
+  status_message: string;
 }
 
 export default function ResidentMessages() {
@@ -67,18 +76,20 @@ export default function ResidentMessages() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isWhatsAppConnected, setIsWhatsAppConnected] = useState(false);
-  const [whatsAppAccount, setWhatsAppAccount] =
-    useState<WhatsAppAccount | null>(null);
+  const [whatsAppStatus, setWhatsAppStatus] = useState<WhatsAppOptInStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [messageError, setMessageError] = useState<string | null>(null);
 
   // Fetch tenants when component mounts
   useEffect(() => {
     const fetchTenants = async () => {
       try {
         setLoading(true);
+        setError(null);
         let fetchedTenants: ITenant[] = [];
 
         if (user?.id) {
-          fetchedTenants = await getTenants(user.id);
+          fetchedTenants = await withRetry(() => getTenants(user.id));
         }
 
         // Transform tenants for UI display
@@ -86,17 +97,9 @@ export default function ResidentMessages() {
           ...tenant,
           image: tenant.image || getInitialsAvatar(tenant.name),
           property_name: tenant.property_address || "Unassigned",
-          // Only set unreadCount when there are actual unread messages
+          // Don't set any dummy data - will be populated from real WhatsApp messages
           unreadCount: undefined,
-          lastMessage:
-            Math.random() > 0.5
-              ? {
-                  text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-                  timestamp: new Date(
-                    Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000,
-                  ).toISOString(),
-                }
-              : undefined,
+          lastMessage: undefined,
         }));
 
         setTenants(tenantsWithUI);
@@ -121,6 +124,8 @@ export default function ResidentMessages() {
         setProperties(propertyList);
       } catch (error) {
         console.error("Error fetching tenants:", error);
+        setError("Failed to load tenants. Please try again.");
+        showErrorToast("Failed to load tenants");
         setTenants([]);
         setProperties([]);
       } finally {
@@ -131,22 +136,32 @@ export default function ResidentMessages() {
     fetchTenants();
   }, [user?.id]);
 
-  // Check WhatsApp connection status
+  // Check WhatsApp opt-in status (centralized model)
   useEffect(() => {
-    const checkWhatsAppConnection = async () => {
+    const checkWhatsAppStatus = async () => {
       try {
-        const response = await fetch("/api/whatsapp/connect");
+        const response = await withRetry(() => fetch("/api/whatsapp/opt-in-status"));
         const data = await response.json();
-        setIsWhatsAppConnected(data.connected || false);
-        setWhatsAppAccount(data.account || null);
+        
+        if (response.ok) {
+          setWhatsAppStatus(data);
+          setIsWhatsAppConnected(data.whatsapp_enabled && data.system_configured);
+        } else {
+          console.error("Error checking WhatsApp status:", data);
+          setIsWhatsAppConnected(false);
+          setWhatsAppStatus(null);
+        }
       } catch (error) {
-        console.error("Error checking WhatsApp connection:", error);
+        console.error("Error checking WhatsApp status:", error);
         setIsWhatsAppConnected(false);
+        setWhatsAppStatus(null);
       }
     };
 
-    checkWhatsAppConnection();
-  }, []);
+    if (user?.id) {
+      checkWhatsAppStatus();
+    }
+  }, [user?.id]);
 
   // Fetch WhatsApp messages for selected tenant
   useEffect(() => {
@@ -159,42 +174,75 @@ export default function ResidentMessages() {
 
   const fetchMessages = async (phoneNumber: string) => {
     setIsLoadingMessages(true);
+    setMessageError(null);
     try {
-      const response = await fetch(
-        `/api/whatsapp/messages?phone=${encodeURIComponent(phoneNumber)}`,
+      const response = await withRetry(() =>
+        fetch(`/api/whatsapp/messages?phone=${encodeURIComponent(phoneNumber)}`)
       );
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch messages: ${response.statusText}`);
+      }
+      
       const data = await response.json();
 
-      if (data.messages) {
+      if (data.success && data.messages) {
         setMessages(data.messages);
+        
+        // Update the tenant's last message if there are messages
+        if (data.messages.length > 0) {
+          const lastMessage = data.messages[data.messages.length - 1];
+          setTenants((prevTenants) =>
+            prevTenants.map((tenant) =>
+              tenant.id === selectedTenant?.id
+                ? {
+                    ...tenant,
+                    lastMessage: {
+                      text: lastMessage.text,
+                      timestamp: lastMessage.timestamp,
+                    },
+                  }
+                : tenant,
+            ),
+          );
+        }
       } else {
         setMessages([]);
       }
     } catch (error) {
       console.error("Error fetching WhatsApp messages:", error);
+      setMessageError("Failed to load messages. Please try again.");
+      showErrorToast("Failed to load messages");
       setMessages([]);
     } finally {
       setIsLoadingMessages(false);
     }
   };
 
-  // Send a message via WhatsApp
+  // Send a message via WhatsApp (centralized model)
   const sendMessage = async (messageText: string) => {
     if (!selectedTenant?.phone || !messageText.trim() || !isWhatsAppConnected) {
       return;
     }
 
     try {
-      const response = await fetch("/api/whatsapp/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          to: selectedTenant.phone,
-          message: messageText,
-        }),
-      });
+      const response = await withRetry(() =>
+        fetch("/api/whatsapp/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            to: selectedTenant.phone,
+            message: messageText,
+          }),
+        })
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to send message: ${response.statusText}`);
+      }
 
       const data = await response.json();
 
@@ -217,9 +265,15 @@ export default function ResidentMessages() {
               : tenant,
           ),
         );
+        
+        showSuccessToast("Message sent successfully");
+      } else {
+        throw new Error(data.error || "Failed to send message");
       }
     } catch (error) {
       console.error("Error sending message:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to send message. Please try again.";
+      showErrorToast(errorMessage);
     }
   };
 
@@ -238,7 +292,7 @@ export default function ResidentMessages() {
   };
 
   return (
-    <SidebarLayout sidebar={<SidebarContent currentPath="/residents" />}>
+    <SidebarLayout>
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
@@ -246,7 +300,7 @@ export default function ResidentMessages() {
               Resident Messages
             </Heading>
             <Text className="text-gray-500 mt-1">
-              Communicate with your residents via WhatsApp
+              Communicate with your residents via WhatsApp through ZenRent's central number
             </Text>
           </div>
         </div>
@@ -258,8 +312,36 @@ export default function ResidentMessages() {
           </div>
         )}
 
+        {/* Error state */}
+        {error && !loading && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">Error loading tenants</h3>
+                <div className="mt-2 text-sm text-red-700">
+                  <p>{error}</p>
+                </div>
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    className="bg-red-100 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-200 rounded-md"
+                  >
+                    Retry
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Empty state */}
-        {!loading && tenants.length === 0 && (
+        {!loading && !error && tenants.length === 0 && (
           <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
             <div className="mx-auto h-12 w-12 text-gray-400">
               <svg className="h-full w-full"
@@ -288,7 +370,8 @@ export default function ResidentMessages() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-12rem)]">
             {/* Left Panel - Tenant List */}
             <div className="lg:col-span-1">
-              <TenantsByPropertyForMessages tenants={tenants}
+              <TenantsByPropertyForMessages 
+                tenants={tenants}
                 properties={properties}
                 selectedTenant={selectedTenant}
                 onSelectTenant={handleSelectTenant}
@@ -298,14 +381,16 @@ export default function ResidentMessages() {
             {/* Right Panel - Chat & Status */}
             <div className="lg:col-span-2 flex flex-col space-y-6">
               {/* WhatsApp Connection Status */}
-              <WhatsAppConnectionStatus isConnected={isWhatsAppConnected}
-                phoneNumber={whatsAppAccount?.phone_number}
+              <WhatsAppConnectionStatus 
+                isConnected={isWhatsAppConnected}
+                phoneNumber={whatsAppStatus?.system_configured ? "ZenRent Central Number" : undefined}
               />
 
               {/* Chat Window */}
               {selectedTenant ? (
                 <div className="flex-1">
-                  <ChatWindow tenantName={selectedTenant.name}
+                  <ChatWindow 
+                    tenantName={selectedTenant.name}
                     tenantPhone={selectedTenant.phone || ""}
                     tenantImage={selectedTenant.image}
                     onSendMessage={sendMessage}

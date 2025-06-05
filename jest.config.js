@@ -23,7 +23,7 @@ const config = {
     '!src/lib/auth-provider.tsx', // Exclude auth provider with JSX
   ],
   coverageReporters: ['text', 'lcov'],
-  setupFilesAfterEnv: [],
+  setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },

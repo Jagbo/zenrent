@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { CheckCircleIcon, XCircleIcon } from "@heroicons/react/24/solid";
-import { WhatsAppBusinessDrawer } from "./WhatsAppBusinessDrawer";
+import Link from "next/link";
 
 interface WhatsAppConnectionStatusProps {
   isConnected: boolean;
@@ -13,8 +12,6 @@ export function WhatsAppConnectionStatus({
   isConnected,
   phoneNumber,
 }: WhatsAppConnectionStatusProps) {
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-
   return (
     <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
       <div className="flex items-center justify-between">
@@ -42,35 +39,33 @@ export function WhatsAppConnectionStatus({
         {isConnected ? (
           <div>
             <p className="text-sm text-gray-600">
-              Your WhatsApp Business account is connected and ready to use.
+              Your WhatsApp Business messaging is active and ready to use.
             </p>
             {phoneNumber && (
-              <p className="text-sm text-gray-600 mt-1">Phone: {phoneNumber}</p>
+              <p className="text-sm text-gray-600 mt-1">
+                Messages are sent via: {phoneNumber}
+              </p>
             )}
           </div>
         ) : (
           <p className="text-sm text-gray-600">
-            Connect your WhatsApp Business account to send messages to your
-            tenants.
+            Enable WhatsApp messaging in your settings to communicate with tenants.
           </p>
         )}
       </div>
 
       <div className="mt-4">
-        <button onClick={() => setIsDrawerOpen(true)}
-          className={`text-sm font-medium px-4 py-2 rounded-md w-full ${
+        <Link 
+          href="/settings/whatsapp"
+          className={`inline-flex items-center justify-center text-sm font-medium px-4 py-2 rounded-md w-full transition-colors ${
             isConnected
               ? "bg-gray-100 text-gray-900 hover:bg-gray-200"
-              : "bg-blue-100 text-gray-900 hover:bg-blue-200"
+              : "bg-blue-600 text-white hover:bg-blue-700"
           }`}
         >
-          {isConnected ? "Manage Connection" : "Connect WhatsApp"}
-        </button>
+          {isConnected ? "Manage Settings" : "Enable WhatsApp"}
+        </Link>
       </div>
-
-      <WhatsAppBusinessDrawer isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-      />
     </div>
   );
 }

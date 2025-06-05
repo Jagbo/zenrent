@@ -1,77 +1,175 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthUser } from "@/lib/auth-helpers"; // Import real auth helper
-import { supabase } from "@/lib/supabase"; // Import Supabase client
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 export async function POST(request: NextRequest) {
   try {
-    // Get the authenticated user
-    const user = await getAuthUser();
-    if (!user) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
-    const userId = user.id;
-
-    // Get token from environment variable (System User Token)
-    const token = process.env.WHATSAPP_SYSTEM_USER_TOKEN;
+    const cookieStore = await cookies();
     
-    if (!token) {
-      console.error("WHATSAPP_SYSTEM_USER_TOKEN is not configured.");
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          },
+        },
+      }
+    );
+    
+    // Get the authenticated user (landlord)
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('Authentication error:', authError);
       return NextResponse.json(
-        { success: false, error: "WhatsApp integration is not configured on the server." },
-        { status: 500 }
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
       );
     }
 
+    console.log(`[WhatsApp Send] Message request from landlord ${user.id}`);
+
     // Parse request body
     const body = await request.json();
-    const { phoneNumberId, to, message, messageType = 'text' } = body;
+    const { to, message, messageType = 'text' } = body;
 
-    if (!phoneNumberId || !to || !message) {
+    // Validate required fields
+    if (!to || !message) {
       return NextResponse.json({ 
         success: false, 
-        error: "Phone number ID, recipient number, and message are required" 
+        error: 'Recipient phone number and message are required' 
       }, { status: 400 });
     }
-
-    // --- Authentication Check --- 
-    // Verify the provided phoneNumberId belongs to the authenticated user
-    const { data: account, error: accountError } = await supabase
-      .from('whatsapp_accounts')
-      .select('phone_number_id')
-      .eq('user_id', userId)
-      .eq('phone_number_id', phoneNumberId)
-      .eq('status', 'connected') // Ensure the account is active
-      .maybeSingle();
-
-    if (accountError) {
-      console.error("Error verifying user's WhatsApp account:", accountError);
-      return NextResponse.json({ success: false, error: "Failed to verify sender account" }, { status: 500 });
-    }
-
-    if (!account) {
-      console.warn(`Attempt to send from phoneNumberId ${phoneNumberId} by user ${userId}, but no matching active account found.`);
-      return NextResponse.json({ success: false, error: "WhatsApp account not found or not connected for this user" }, { status: 403 });
-    }
-    // --- End Authentication Check --- 
 
     // Validate phone number format - should be E.164 without the +
     if (!/^\d+$/.test(to)) {
       return NextResponse.json({
         success: false,
-        error: "Recipient phone number should only contain digits (E.164 format without +)"
+        error: 'Recipient phone number should only contain digits (E.164 format without +)'
       }, { status: 400 });
     }
+
+    // Check if landlord has WhatsApp enabled
+    const { data: userProfile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('whatsapp_enabled, first_name, last_name')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profileError) {
+      console.error('[WhatsApp Send] Error fetching user profile:', profileError);
+      return NextResponse.json(
+        { success: false, error: 'Failed to verify user profile' },
+        { status: 500 }
+      );
+    }
+
+    if (!userProfile?.whatsapp_enabled) {
+      console.warn(`[WhatsApp Send] User ${user.id} attempted to send message but WhatsApp is not enabled`);
+      return NextResponse.json(
+        { success: false, error: 'WhatsApp messaging is not enabled for your account' },
+        { status: 403 }
+      );
+    }
+
+    // Verify the recipient is a tenant of this landlord
+    const { data: tenantRouting, error: routingError } = await supabase
+      .rpc('get_landlord_by_tenant_phone', { phone_number: to });
+
+    if (routingError) {
+      console.error('[WhatsApp Send] Error checking tenant routing:', routingError);
+      return NextResponse.json(
+        { success: false, error: 'Failed to verify recipient' },
+        { status: 500 }
+      );
+    }
+
+    if (!tenantRouting || tenantRouting.length === 0) {
+      console.warn(`[WhatsApp Send] Phone ${to} is not associated with any tenant of landlord ${user.id}`);
+      return NextResponse.json(
+        { success: false, error: 'Recipient is not one of your tenants' },
+        { status: 403 }
+      );
+    }
+
+    const tenantInfo = tenantRouting[0];
+    if (tenantInfo.landlord_id !== user.id) {
+      console.warn(`[WhatsApp Send] Phone ${to} belongs to a different landlord`);
+      return NextResponse.json(
+        { success: false, error: 'Recipient is not one of your tenants' },
+        { status: 403 }
+      );
+    }
+
+    // Get central WhatsApp configuration
+    const centralPhoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+    const token = process.env.WHATSAPP_SYSTEM_USER_TOKEN;
     
+    if (!centralPhoneId || !token) {
+      console.error('[WhatsApp Send] Central WhatsApp configuration missing');
+      return NextResponse.json(
+        { success: false, error: 'WhatsApp integration is not configured on the server' },
+        { status: 500 }
+      );
+    }
+
+    // Create landlord attribution
+    const landlordName = userProfile.first_name && userProfile.last_name 
+      ? `${userProfile.first_name} ${userProfile.last_name}`
+      : userProfile.first_name || userProfile.last_name || 'Your Landlord';
+
+    // Prefix message with landlord attribution
+    const attributedMessage = `*From ${landlordName} (via ZenRent):*\n\n${message}`;
+
+    console.log(`[WhatsApp Send] Sending message from ${landlordName} to tenant ${tenantInfo.tenant_name} (${to})`);
+
     // Use production API or mock based on environment
     const useRealApi = process.env.WHATSAPP_API_URL && process.env.NODE_ENV === 'production';
     
+    let result;
     if (useRealApi) {
-      return await sendRealWhatsAppMessage(token, phoneNumberId, to, message, messageType);
+      result = await sendRealWhatsAppMessage(token, centralPhoneId, to, attributedMessage, messageType);
     } else {
-      return await sendMockWhatsAppMessage(token, phoneNumberId, to, message, messageType);
+      result = await sendMockWhatsAppMessage(token, centralPhoneId, to, attributedMessage, messageType, landlordName, tenantInfo.tenant_name);
     }
+
+    // Log the message to database for conversation history if successful
+    if (result.status === 200) {
+      try {
+        const messageData = await result.clone().json();
+        const messageId = messageData.messages?.[0]?.id || `dev_${Date.now()}`;
+        
+        await logMessage(supabase, {
+          landlord_id: user.id,
+          tenant_phone: to,
+          tenant_name: tenantInfo.tenant_name,
+          property_address: tenantInfo.property_address,
+          message_id: messageId,
+          message_content: message, // Store original message without attribution
+          attributed_message: attributedMessage, // Store the sent message with attribution
+          direction: 'outgoing',
+          message_type: messageType,
+          status: 'sent'
+        });
+
+        console.log(`[WhatsApp Send] Message logged with ID: ${messageId}`);
+      } catch (logError) {
+        console.error('[WhatsApp Send] Error logging message:', logError);
+        // Don't fail the request if logging fails
+      }
+    }
+
+    return result;
+
   } catch (error) {
-    console.error("WhatsApp message error:", error);
+    console.error('[WhatsApp Send] Error:', error);
     return NextResponse.json(
       { 
         success: false, 
@@ -90,14 +188,14 @@ async function sendRealWhatsAppMessage(
   messageType: string
 ) {
   // Use a consistent Graph API version
-  const GRAPH_API_VERSION = "v18.0";
+  const GRAPH_API_VERSION = 'v18.0';
   const apiUrl = process.env.WHATSAPP_API_URL || `https://graph.facebook.com/${GRAPH_API_VERSION}`;
   const endpoint = `${apiUrl}/${phoneNumberId}/messages`;
   
   // Prepare request payload based on message type
   let requestBody: any = {
-    messaging_product: "whatsapp",
-    recipient_type: "individual",
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
     to: to,
     type: messageType,
   };
@@ -128,7 +226,7 @@ async function sendRealWhatsAppMessage(
     
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('WhatsApp API error:', errorData);
+      console.error('[WhatsApp API] Error:', errorData);
       
       return NextResponse.json({
         success: false,
@@ -138,13 +236,14 @@ async function sendRealWhatsAppMessage(
     }
     
     const responseData = await response.json();
+    console.log('[WhatsApp API] Message sent successfully:', responseData.messages?.[0]?.id);
     
     return NextResponse.json({
       success: true,
       ...responseData
     });
   } catch (error) {
-    console.error('WhatsApp API call failed:', error);
+    console.error('[WhatsApp API] Call failed:', error);
     return NextResponse.json({
       success: false,
       error: 'Failed to call WhatsApp API',
@@ -158,12 +257,16 @@ async function sendMockWhatsAppMessage(
   phoneNumberId: string, 
   to: string, 
   message: string, 
-  messageType: string
+  messageType: string,
+  landlordName: string,
+  tenantName: string
 ) {
   // Log the request details for development
-  console.log(`[DEV] Sending WhatsApp message to ${to} from phone ID ${phoneNumberId}`);
-  console.log(`[DEV] Message type: ${messageType}`);
-  console.log(`[DEV] Message content:`, typeof message === 'string' ? message : JSON.stringify(message, null, 2));
+  console.log(`[DEV] Sending WhatsApp message:`);
+  console.log(`  From: ${landlordName} (via ZenRent central number: ${phoneNumberId})`);
+  console.log(`  To: ${tenantName} (${to})`);
+  console.log(`  Type: ${messageType}`);
+  console.log(`  Message:`, message);
   
   // Simulate a slight delay like a real API call
   await new Promise(resolve => setTimeout(resolve, 500));
@@ -173,7 +276,7 @@ async function sendMockWhatsAppMessage(
   
   return NextResponse.json({
     success: true,
-    messaging_product: "whatsapp",
+    messaging_product: 'whatsapp',
     contacts: [
       {
         input: to,
@@ -186,4 +289,43 @@ async function sendMockWhatsAppMessage(
       }
     ]
   });
+}
+
+async function logMessage(supabase: any, messageData: {
+  landlord_id: string;
+  tenant_phone: string;
+  tenant_name: string;
+  property_address: string;
+  message_id: string;
+  message_content: string;
+  attributed_message: string;
+  direction: 'incoming' | 'outgoing';
+  message_type: string;
+  status: string;
+}) {
+  try {
+    const { error } = await supabase
+      .from('whatsapp_messages_centralized')
+      .insert({
+        landlord_id: messageData.landlord_id,
+        tenant_phone: messageData.tenant_phone,
+        tenant_name: messageData.tenant_name,
+        property_address: messageData.property_address,
+        message_id: messageData.message_id,
+        message_content: messageData.message_content,
+        attributed_message: messageData.attributed_message,
+        direction: messageData.direction,
+        message_type: messageData.message_type,
+        status: messageData.status,
+        timestamp: new Date().toISOString()
+      });
+
+    if (error) {
+      console.error('[WhatsApp Send] Error logging message:', error);
+    } else {
+      console.log('[WhatsApp Send] Message logged successfully');
+    }
+  } catch (error) {
+    console.error('[WhatsApp Send] Exception logging message:', error);
+  }
 } 

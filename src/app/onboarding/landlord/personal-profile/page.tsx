@@ -2,8 +2,8 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import NextImage from "next/image";
 import { SidebarLayout } from "../../../components/sidebar-layout";
-import { SideboardOnboardingContent } from "../../../components/sideboard-onboarding-content";
 import {
   CheckIcon,
   UserCircleIcon,
@@ -14,6 +14,7 @@ import {
 import { CheckIcon as CheckIconSolid } from "@heroicons/react/24/solid";
 import { AddressAutocomplete } from "../../../components/address-autocomplete";
 import { supabase } from "@/lib/supabase";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 const steps = [
   {
@@ -57,45 +58,6 @@ export default function PersonalProfile() {
   useEffect(() => {
     async function getUserAndProfile() {
       try {
-        // In development, use the test user ID
-        if (process.env.NODE_ENV === "development") {
-          setUserId("00000000-0000-0000-0000-000000000001");
-
-          // Fetch existing profile data for this user
-          const { data: profileData, error: profileError } = await supabase
-            .from("user_profiles")
-            .select("*")
-            .eq("user_id", "00000000-0000-0000-0000-000000000001")
-            .single();
-
-          if (profileError && profileError.code !== "PGRST116") {
-            // PGRST116 is "no rows returned"
-            console.error("Error fetching profile:", profileError);
-          }
-
-          if (profileData) {
-            // Pre-fill form with existing data
-            setProfilePhoto(profileData.profile_photo_url);
-            setDateOfBirth(
-              profileData.date_of_birth
-                ? new Date(profileData.date_of_birth)
-                    .toISOString()
-                    .split("T")[0]
-                : "",
-            );
-            setAddressLine1(profileData.address_line1 || "");
-            setAddressLine2(profileData.address_line2 || "");
-            setTownCity(profileData.town_city || "");
-            setCounty(profileData.county || "");
-            setPostcode(profileData.postcode || "");
-            setIsCompany(profileData.is_company || false);
-          }
-
-          setProfileLoaded(true);
-          return;
-        }
-
-        // For production
         const { data: userData, error: userError } =
           await supabase.auth.getUser();
 
@@ -149,18 +111,32 @@ export default function PersonalProfile() {
     }
 
     getUserAndProfile();
-  }, [router]);
+  }, [router, supabase.auth]);
 
   // Handle profile photo upload
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !userId) return;
 
+    // Client-side validation (size and type)
+    const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+    const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+
+    if (file.size > MAX_SIZE) {
+      setError("File is too large. Maximum size is 5MB.");
+      return;
+    }
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setError("Invalid file type. Only JPG, PNG, GIF, WEBP are allowed.");
+      return;
+    }
+    setError(null); // Clear previous error
+
     try {
       // Show file in UI immediately
       const reader = new FileReader();
-      reader.onload = (e) => {
-        setProfilePhoto(e.target?.result as string);
+      reader.onload = (event) => {
+        setProfilePhoto(event.target?.result as string);
       };
       reader.readAsDataURL(file);
 
@@ -169,15 +145,15 @@ export default function PersonalProfile() {
       const fileName = `${userId}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
       const filePath = `profile-photos/${fileName}`;
 
-      const { data, error } = await supabase.storage
+      const { data, error: uploadError } = await supabase.storage
         .from("user-uploads")
         .upload(filePath, file, {
           cacheControl: "3600",
           upsert: true,
         });
 
-      if (error) {
-        console.error("Error uploading photo:", error);
+      if (uploadError) {
+        console.error("Error uploading photo:", uploadError);
         // We continue anyway, as we'll use the base64 version temporarily
       }
 
@@ -191,8 +167,8 @@ export default function PersonalProfile() {
           setProfilePhoto(publicUrlData.publicUrl);
         }
       }
-    } catch (error) {
-      console.error("Error processing photo:", error);
+    } catch (uploadError) {
+      console.error("Error processing photo:", uploadError);
     }
   };
 
@@ -241,9 +217,9 @@ export default function PersonalProfile() {
       } else {
         router.push("/onboarding/landlord/tax-information");
       }
-    } catch (err) {
-      console.error("Error saving profile:", err);
-      setError(err instanceof Error ? err.message : "Failed to save profile");
+    } catch (submitError) {
+      console.error("Error saving profile:", submitError);
+      setError(submitError instanceof Error ? submitError.message : "Failed to save profile");
     } finally {
       setIsSubmitting(false);
     }
@@ -286,9 +262,9 @@ export default function PersonalProfile() {
       } else {
         router.push("/onboarding/landlord/tax-information");
       }
-    } catch (error) {
-      console.error("Error saving profile draft data:", error);
-      setError(error instanceof Error ? error.message : "Failed to save draft");
+    } catch (draftError) {
+      console.error("Error saving profile draft data:", draftError);
+      setError(draftError instanceof Error ? draftError.message : "Failed to save draft");
     } finally {
       setIsSubmitting(false);
     }
@@ -297,18 +273,16 @@ export default function PersonalProfile() {
   // Show loading state if profile is not loaded yet
   if (!profileLoaded) {
     return (
-      <SidebarLayout sidebar={<SideboardOnboardingContent />}
-        isOnboarding={true}
-      >
+      <SidebarLayout isOnboarding={true}>
         <div className="flex items-center justify-center h-full">
-          <p className="text-gray-500">Loading profile data...</p>
+          <LoadingSpinner label="Loading profile data..." />
         </div>
       </SidebarLayout>
     );
   }
 
   return (
-    <SidebarLayout sidebar={<SideboardOnboardingContent />} isOnboarding={true}>
+    <SidebarLayout isOnboarding={true}>
       <div className="space-y-8">
         {/* Progress Bar */}
         <div className="py-0">
@@ -420,9 +394,12 @@ export default function PersonalProfile() {
                   <div className="mt-4 flex items-center gap-x-6">
                     <div className="relative size-24 overflow-hidden rounded-full border-2 border-gray-300 bg-gray-100 flex items-center justify-center">
                       {profilePhoto ? (
-                        <Image src={profilePhoto}
+                        <NextImage 
+                          src={profilePhoto}
                           alt="Profile"
                           className="size-full object-cover"
+                          width={96}
+                          height={96}
                         />
                       ) : (
                         <UserCircleIcon className="size-16 text-gray-400" />

@@ -6,12 +6,8 @@ import { SidebarLayout } from "../../../components/sidebar-layout";
 import { SideboardOnboardingContent } from "../../../components/sideboard-onboarding-content";
 import { CheckIcon as CheckIconSolid } from "@heroicons/react/24/solid";
 import { PlusIcon } from "@heroicons/react/24/outline";
-import { createClient } from "@supabase/supabase-js";
-
-// Create a Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { supabase } from "@/lib/supabase";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 const steps = [
   {
@@ -49,6 +45,8 @@ export default function TenancySetup() {
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [propertyId, setPropertyId] = useState<string | null>(null);
+  const [properties, setProperties] = useState<{id: string, name: string}[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Property data from localStorage
   const [propertyData, setPropertyData] = useState({
@@ -115,115 +113,51 @@ export default function TenancySetup() {
 
   // Fetch the current user and property when component mounts
   useEffect(() => {
-    const fetchUserAndProperty = async () => {
+    async function getUserAndProperties() {
       try {
-        // In development mode, set a fixed userId for testing
-        if (process.env.NODE_ENV === "development") {
-          const devUserId =
-            localStorage.getItem("devUserId") ||
-            "00000000-0000-0000-0000-000000000000";
-          setUserId(devUserId);
-          localStorage.setItem("devUserId", devUserId);
-        } else {
-          // In production, get the actual user
-          const {
-            data: { user },
-            error: userError,
-          } = await supabase.auth.getUser();
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        if (userError || !userData?.user) {
+          console.error("User not authenticated or error fetching user", userError);
+          router.push("/sign-up");
+          return;
+        }
+        setUserId(userData.user.id);
 
-          if (userError) {
-            throw userError;
-          }
-
-          if (user) {
-            setUserId(user.id);
-          } else {
-            // If no user is found, redirect to login
-            router.push("/login");
-            return;
-          }
+        // Fetch properties for the landlord
+        const { data: propertiesData, error: propertiesError } = await supabase
+          .from("properties")
+          .select("id, property_name, address_line1, postcode")
+          .eq("user_id", userData.user.id);
+        
+        if (propertiesError) {
+          console.error("Error fetching properties:", propertiesError);
+          setError("Failed to load your properties.");
+        } else if (propertiesData) {
+          setProperties(propertiesData.map(p => ({ 
+              id: p.id, 
+              name: p.property_name || `${p.address_line1}, ${p.postcode}`
+            })
+          ));
         }
 
-        // Load property data from localStorage
-        try {
-          const savedProperty = localStorage.getItem("propertyData");
-          console.log("Raw saved property data:", savedProperty);
-
-          // Also check saved properties
-          const savedPropertiesString = localStorage.getItem("savedProperties");
-          console.log("Saved properties:", savedPropertiesString);
-
-          if (savedProperty) {
-            const parsedData = JSON.parse(savedProperty);
-            console.log("Parsed property data:", parsedData);
-            console.log("Property type:", parsedData.propertyType);
-            console.log("Is HMO flag:", parsedData.isHmo);
-
-            setPropertyData({
-              address: parsedData.address || "",
-              propertyType: parsedData.propertyType || "",
-              bedrooms: parsedData.bedrooms || "",
-              isHmo: parsedData.isHmo || parsedData.propertyType === "hmo", // Also check property type as a fallback
-            });
-
-            // If HMO, create tenant entries for each bedroom
-            if (
-              (parsedData.isHmo || parsedData.propertyType === "hmo") &&
-              parsedData.bedrooms
-            ) {
-              console.log(
-                "Setting up HMO tenants for",
-                parsedData.bedrooms,
-                "bedrooms",
-              );
-              const bedroomCount = parseInt(parsedData.bedrooms);
-              if (!isNaN(bedroomCount) && bedroomCount > 0) {
-                setTenants(
-                  Array.from({ length: bedroomCount }, (_, i) => ({
-                    firstName: "",
-                    lastName: "",
-                    phoneNumber: "",
-                    email: "",
-                    roomNumber: (i + 1).toString(),
-                    // Tenancy Type
-                    agreementType: "",
-                    tenancyTerm: "",
-                    // Tenancy Dates
-                    startDate: "",
-                    endDate: "",
-                    hasBreakClause: false,
-                    breakClauseDetails: "",
-                    // Rent Schedule
-                    rentAmount: "",
-                    rentFrequency: "monthly",
-                    rentDueDay: "",
-                    paymentMethod: "",
-                    // Deposit Information
-                    depositAmount: "",
-                    depositScheme: "",
-                    depositRegistrationDate: "",
-                    depositRegistrationRef: "",
-                  })),
-                );
-              }
-            }
-
-            // If we have property UUID in the data, save it
-            if (parsedData.id) {
-              setPropertyId(parsedData.id);
-            }
-          }
-        } catch (error) {
-          console.error("Error loading property data:", error);
-        }
-      } catch (error) {
-        console.error("Error fetching user:", error);
-        setError("Failed to authenticate user. Please try again.");
+      } catch (error: any) {
+        console.error("Error fetching data:", error);
+        setError("An unexpected error occurred.");
+      } finally {
+        setLoading(false);
       }
-    };
+    }
+    getUserAndProperties();
+  }, [router, supabase.auth, supabase]); // Added supabase to dependencies
 
-    fetchUserAndProperty();
-  }, [router]);
+  // Load selected property ID from query params
+  useEffect(() => {
+    const queryParams = new URLSearchParams(window.location.search);
+    const propertyId = queryParams.get("propertyId");
+    if (propertyId) {
+      setPropertyId(propertyId);
+    }
+  }, []);
 
   // Handle input changes for tenancy form
   const handleInputChange = (
@@ -527,8 +461,18 @@ export default function TenancySetup() {
     }
   };
 
+  if (loading) {
+    return (
+      <SidebarLayout isOnboarding={true}>
+        <div className="flex items-center justify-center h-full">
+          <LoadingSpinner label="Loading tenancy setup..." />
+        </div>
+      </SidebarLayout>
+    );
+  }
+
   return (
-    <SidebarLayout sidebar={<SideboardOnboardingContent />} isOnboarding={true}>
+    <SidebarLayout isOnboarding={true}>
       <div className="space-y-8">
         {/* Progress Bar */}
         <div className="py-0">

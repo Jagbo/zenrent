@@ -39,10 +39,11 @@ const nextConfig = {
     NEXT_PUBLIC_RESEND_API_KEY: process.env.NEXT_PUBLIC_RESEND_API_KEY,
   },
   env: {
-    NEXT_PUBLIC_FB_APP_ID: '953206047023164',
+    NEXT_PUBLIC_FB_APP_ID: process.env.NEXT_PUBLIC_FB_APP_ID || '953206047023164',
     NEXT_PUBLIC_FB_CONFIG_ID: process.env.NEXT_PUBLIC_FB_CONFIG_ID,
-    FB_APP_SECRET: '76e16d5ea4d3dd0dbb21c41703947995',
-    WHATSAPP_VERIFY_TOKEN: process.env.WHATSAPP_VERIFY_TOKEN || 'your_verify_token'
+    // SECURITY: FB_APP_SECRET should NEVER be exposed in client-side code
+    // This should only be used server-side and accessed via process.env
+    WHATSAPP_VERIFY_TOKEN: process.env.WHATSAPP_VERIFY_TOKEN
   },
 }
 

@@ -5,8 +5,36 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ExclamationTriangleIcon, CheckCircledIcon } from '@radix-ui/react-icons';
+import { getPlanRecommendation } from '@/lib/services/planRecommendationService';
+import { useAuth } from '@/lib/auth';
 
 export default function HmrcConnectionStatus() {
+  // Check if user is on trial or if feature is available
+  const [isFeatureAvailable, setIsFeatureAvailable] = useState(true);
+  const [userPlan, setUserPlan] = useState('trial');
+  const [isOnTrial, setIsOnTrial] = useState(false);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    const checkFeatureAvailability = async () => {
+      if (!user) return;
+      
+      try {
+        const planRecommendation = await getPlanRecommendation(user.id);
+        setUserPlan(planRecommendation.currentPlan);
+        setIsOnTrial(planRecommendation.isOnTrial);
+        
+        // HMRC tax filing is a premium feature - not available on trial
+        setIsFeatureAvailable(!planRecommendation.isOnTrial);
+      } catch (error) {
+        console.error('Error checking feature availability:', error);
+        setIsFeatureAvailable(false);
+      }
+    };
+
+    checkFeatureAvailability();
+  }, [user]);
+
   const [status, setStatus] = useState<{
     isConnected: boolean;
     authUrl?: string;
@@ -91,6 +119,67 @@ export default function HmrcConnectionStatus() {
   useEffect(() => {
     checkConnectionStatus();
   }, []);
+
+  // Show upgrade prompt for trial users
+  if (!isFeatureAvailable) {
+    return (
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>HMRC Tax Filing</CardTitle>
+          <CardDescription>
+            Premium Feature - HMRC integration requires a paid plan
+          </CardDescription>
+        </CardHeader>
+        
+        <CardContent>
+          <div className="p-4 rounded-lg border border-amber-200 bg-amber-50">
+            <div className="flex items-center space-x-3">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-amber-800">
+                  Upgrade Required
+                </p>
+                <p className="text-sm text-amber-700">
+                  You're currently on a {isOnTrial ? 'free trial' : 'free plan'}. To access HMRC tax filing, upgrade to any paid plan.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            <p className="text-sm text-gray-600">
+              HMRC tax filing is included in all paid plans:
+            </p>
+            <ul className="text-sm text-gray-600 space-y-1">
+              <li>• Essential Plan - £10/month</li>
+              <li>• Standard Plan - £20/month</li>
+              <li>• Professional Plan - £30/month</li>
+            </ul>
+          </div>
+        </CardContent>
+        
+        <CardFooter className="flex space-x-3">
+          <Button 
+            className="flex-1" 
+            onClick={() => window.location.href = '/billing/payment'}
+          >
+            Upgrade Now
+          </Button>
+          <Button 
+            variant="outline" 
+            className="flex-1" 
+            onClick={() => window.history.back()}
+          >
+            Maybe Later
+          </Button>
+        </CardFooter>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full max-w-md">

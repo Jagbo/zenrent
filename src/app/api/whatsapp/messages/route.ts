@@ -1,210 +1,193 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import axios from "axios";
+import { NextRequest, NextResponse } from 'next/server';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
-// Initialize Supabase client with local environment values
-const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost:54321";
-const supabaseKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU";
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-// Facebook Graph API configuration
-const GRAPH_API_VERSION = "v18.0";
-const GRAPH_API_URL = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
-const APP_ID = process.env.FB_APP_ID || "953206047023164";
-const APP_SECRET =
-  process.env.FB_APP_SECRET || "76e16d5ea4d3dd0dbb21c41703947995";
-
-// For real implementation, use proper auth with Supabase
-// This is a placeholder, replace with actual auth logic
-const getUserId = async (request: Request) => {
-  // In a real implementation, you would:
-  // 1. Extract the user token from the request
-  // 2. Validate it against your auth system
-  // 3. Return the authenticated user ID
-
-  // For now, we'll use a test user for demonstration
-  return "auth-user-id-123";
-};
-
-export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const phoneNumber = url.searchParams.get("phone");
-
-  if (!phoneNumber) {
-    return NextResponse.json(
-      { error: "Phone number is required" },
-      { status: 400 },
-    );
-  }
-
+export async function GET(request: NextRequest) {
   try {
-    // Get the authenticated user
-    const userId = await getUserId(request);
-
-    // Get the user's WhatsApp account
-    const { data: accountData, error: accountError } = await supabase
-      .from("whatsapp_accounts")
-      .select("*")
-      .eq("user_id", userId)
-      .order("connected_at", { ascending: false })
-      .limit(1);
-
-    if (accountError || !accountData || accountData.length === 0) {
+    const supabase = createRouteHandlerClient({ 
+      cookies
+    });
+    
+    // Get the authenticated user (landlord)
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('Authentication error:', authError);
       return NextResponse.json(
-        { error: "No WhatsApp account found" },
-        { status: 404 },
+        { error: 'Unauthorized' },
+        { status: 401 }
       );
     }
 
-    // Get messages for this conversation
-    const { data: messagesData, error: messagesError } = await supabase
-      .from("whatsapp_messages")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("from_phone", phoneNumber)
-      .order("timestamp", { ascending: true });
+    // Get tenant phone number from query parameters
+    const { searchParams } = new URL(request.url);
+    const phone = searchParams.get('phone');
+    
+    if (!phone) {
+      return NextResponse.json(
+        { error: 'Phone number is required' },
+        { status: 400 }
+      );
+    }
+
+    console.log(`[Messages API] Fetching messages for landlord ${user.id} and tenant phone ${phone}`);
+
+    // Normalize phone number to match our routing format
+    let normalizedPhone = phone.replace(/\D/g, '');
+    
+    // Handle UK numbers: convert 447xxx to 07xxx format
+    if (normalizedPhone.startsWith('447') && normalizedPhone.length === 13) {
+      normalizedPhone = '0' + normalizedPhone.substring(2);
+    }
+    
+    // Add space after UK area code for consistency
+    if (normalizedPhone.startsWith('07') && normalizedPhone.length === 11) {
+      normalizedPhone = normalizedPhone.substring(0, 5) + ' ' + normalizedPhone.substring(5);
+    }
+
+    // Fetch messages from centralized table for this landlord-tenant conversation
+    const { data: messages, error: messagesError } = await supabase
+      .from('whatsapp_messages_centralized')
+      .select(`
+        id,
+        whatsapp_message_id,
+        direction,
+        from_phone,
+        to_phone,
+        message_type,
+        message_body,
+        media_url,
+        status,
+        timestamp,
+        delivered_at,
+        read_at,
+        tenant_name,
+        contact_name
+      `)
+      .eq('landlord_id', user.id)
+      .eq('tenant_phone', normalizedPhone)
+      .order('timestamp', { ascending: true });
 
     if (messagesError) {
+      console.error('[Messages API] Error fetching messages:', messagesError);
       return NextResponse.json(
-        { error: "Failed to retrieve messages" },
-        { status: 500 },
+        { error: 'Failed to fetch messages' },
+        { status: 500 }
       );
     }
 
-    // Format messages for the frontend
-    const messages = messagesData.map((msg) => ({
-      id: msg.message_id,
-      from: msg.direction === "inbound" ? "user" : "business",
-      text: msg.message_content,
+    // Transform messages to match the expected format
+    const formattedMessages = (messages || []).map(msg => ({
+      id: msg.id,
+      from: msg.direction === 'incoming' ? 'user' : 'business',
+      text: msg.message_body || '[Media message]',
       timestamp: msg.timestamp,
       status: msg.status,
+      messageId: msg.whatsapp_message_id,
+      messageType: msg.message_type,
+      mediaUrl: msg.media_url,
+      deliveredAt: msg.delivered_at,
+      readAt: msg.read_at
     }));
 
-    return NextResponse.json({ messages });
+    console.log(`[Messages API] Retrieved ${formattedMessages.length} messages for conversation`);
+
+    return NextResponse.json({
+      success: true,
+      messages: formattedMessages,
+      conversationInfo: {
+        tenantPhone: normalizedPhone,
+        tenantName: messages?.[0]?.tenant_name || messages?.[0]?.contact_name,
+        messageCount: formattedMessages.length
+      }
+    });
+
   } catch (error) {
-    console.error("Error retrieving messages:", error);
+    console.error('[Messages API] Exception in GET:', error);
     return NextResponse.json(
-      { error: "Failed to retrieve messages" },
-      { status: 500 },
+      { error: 'Internal server error' },
+      { status: 500 }
     );
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const { to, message } = await request.json();
+    const supabase = createRouteHandlerClient({ 
+      cookies
+    });
+    
+    // Get the authenticated user (landlord)
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('Authentication error:', authError);
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Parse request body
+    const body = await request.json();
+    const { to, message } = body;
 
     if (!to || !message) {
       return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 },
+        { error: 'Phone number and message are required' },
+        { status: 400 }
       );
     }
 
-    // Get the authenticated user
-    const userId = await getUserId(request);
+    console.log(`[Messages API] Sending message from landlord ${user.id} to ${to}`);
 
-    // Get the user's WhatsApp account
-    const { data: accountData, error: accountError } = await supabase
-      .from("whatsapp_accounts")
-      .select("*")
-      .eq("user_id", userId)
-      .order("connected_at", { ascending: false })
-      .limit(1);
-
-    if (accountError || !accountData || accountData.length === 0) {
-      return NextResponse.json(
-        { error: "No WhatsApp account found" },
-        { status: 404 },
-      );
-    }
-
-    const account = accountData[0];
-    const phoneNumberId = account.phone_number_id;
-
-    let messageId = "";
-
-    // Send the WhatsApp message via Cloud API
-    try {
-      // Get system user token (simplified here - in production use a stored token)
-      const tokenResponse = await axios.get(
-        `${GRAPH_API_URL}/oauth/access_token?grant_type=client_credentials&client_id=${process.env.FB_APP_ID || APP_ID}&client_secret=${process.env.FB_APP_SECRET || APP_SECRET}`,
-      );
-      const accessToken = tokenResponse.data.access_token;
-
-      // Send the message using WhatsApp Cloud API
-      const response = await axios.post(
-        `${GRAPH_API_URL}/${phoneNumberId}/messages`,
-        {
-          messaging_product: "whatsapp",
-          recipient_type: "individual",
-          to: to,
-          type: "text",
-          text: { body: message },
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-        },
-      );
-
-      // Extract the message ID from the response
-      messageId = response.data.messages[0].id;
-    } catch (error) {
-      console.error("Error sending WhatsApp message:", error);
-      return NextResponse.json(
-        { error: "Failed to send WhatsApp message" },
-        { status: 500 },
-      );
-    }
-
-    // Store the message in the database
-    const { data: msgData, error: msgError } = await supabase
-      .from("whatsapp_messages")
-      .insert({
-        user_id: userId,
-        waba_id: account.waba_id,
-        phone_number_id: phoneNumberId,
-        from_phone: account.phone_number,
-        to_phone: to,
-        message_id: messageId,
-        message_type: "text",
-        message_content: message,
-        timestamp: new Date().toISOString(),
-        direction: "outbound",
-        status: "sent",
+    // Use the centralized send-message API
+    const response = await fetch(`${request.nextUrl.origin}/api/whatsapp/send-message`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': request.headers.get('cookie') || ''
+      },
+      body: JSON.stringify({
+        to,
+        message,
+        messageType: 'text'
       })
-      .select()
-      .single();
+    });
 
-    if (msgError) {
-      console.error("Error storing message:", msgError);
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('[Messages API] Send message failed:', data);
       return NextResponse.json(
-        { error: "Failed to store message" },
-        { status: 500 },
+        { error: data.error || 'Failed to send message' },
+        { status: response.status }
       );
     }
 
-    // Format the sent message for the frontend
-    const sentMessage = {
-      id: messageId,
-      from: "business",
+    // Return success with message data for UI update
+    const messageData = {
+      id: data.messageId || `temp_${Date.now()}`,
+      from: 'business',
       text: message,
       timestamp: new Date().toISOString(),
-      status: "sent",
+      status: 'sent',
+      messageId: data.messageId
     };
 
-    return NextResponse.json({ success: true, message: sentMessage });
+    console.log(`[Messages API] Message sent successfully: ${data.messageId}`);
+
+    return NextResponse.json({
+      success: true,
+      message: messageData,
+      messageId: data.messageId
+    });
+
   } catch (error) {
-    console.error("Error sending message:", error);
+    console.error('[Messages API] Exception in POST:', error);
     return NextResponse.json(
-      { error: "Failed to send message" },
-      { status: 500 },
+      { error: 'Internal server error' },
+      { status: 500 }
     );
   }
 }
