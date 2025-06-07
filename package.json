@@ -5,10 +5,13 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:analyze": "ANALYZE=true next build",
     "start": "next start",
     "lint": "next lint",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "performance:audit": "node scripts/performance-audit.js",
+    "bundle:analyze": "npx @next/bundle-analyzer"
   },
   "dependencies": {
     "@azure/msal-node": "^3.6.0",
@@ -24,6 +27,7 @@
     "@radix-ui/react-select": "^2.1.6",
     "@radix-ui/react-slot": "^1.1.2",
     "@radix-ui/react-tabs": "^1.1.3",
+    "@sentry/nextjs": "^9.27.0",
     "@stripe/stripe-js": "^6.1.0",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/ssr": "^0.6.1",
@@ -36,6 +40,7 @@
     "class-variance-authority": "^0.7.1",
     "claude-task-master": "^1.6.4",
     "clsx": "^2.1.1",
+    "critters": "^0.0.25",
     "dotenv": "^16.5.0",
     "framer-motion": "^12.4.10",
     "fs-extra": "^11.3.0",
@@ -50,6 +55,8 @@
     "pdf-lib": "^1.17.1",
     "pdfkit": "^0.17.1",
     "plaid": "^31.1.0",
+    "posthog-node": "^4.18.0",
+    "qrcode.react": "^4.2.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-dropzone": "^14.3.8",
@@ -69,6 +76,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@headlessui/react": "^2.2.0",
+    "@next/bundle-analyzer": "^15.3.3",
     "@playwright/test": "^1.51.1",
     "@tailwindcss/postcss": "^4",
     "@types/jest": "^29.5.14",

@@ -78,16 +78,20 @@ export class BackupSubmissionService {
     }, this.SYNC_INTERVAL);
 
     // Sync on page visibility change
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) {
-        this.syncPendingSubmissions();
-      }
-    });
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+          this.syncPendingSubmissions();
+        }
+      });
+    }
 
     // Sync when online
-    window.addEventListener('online', () => {
-      this.syncPendingSubmissions();
-    });
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', () => {
+        this.syncPendingSubmissions();
+      });
+    }
   }
 
   /**
@@ -109,6 +113,9 @@ export class BackupSubmissionService {
    */
   private getBackupSubmissions(): BackupSubmission[] {
     try {
+      if (typeof localStorage === 'undefined') {
+        return [];
+      }
       const stored = localStorage.getItem(this.STORAGE_KEY);
       return stored ? JSON.parse(stored) : [];
     } catch (error) {
@@ -122,6 +129,9 @@ export class BackupSubmissionService {
    */
   private saveBackupSubmissions(submissions: BackupSubmission[]): void {
     try {
+      if (typeof localStorage === 'undefined') {
+        return;
+      }
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(submissions));
     } catch (error) {
       console.error('Failed to save backup submissions:', error);
@@ -158,7 +168,7 @@ export class BackupSubmissionService {
       priority,
       metadata: {
         formVersion: '1.0.0', // This could be dynamic
-        userAgent: navigator.userAgent,
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'server',
         timestamp: new Date().toISOString(),
         source
       }
@@ -175,7 +185,7 @@ export class BackupSubmissionService {
     );
 
     // Try immediate sync if online
-    if (navigator.onLine && this.degradationService.isServiceAvailable('hmrc-api')) {
+    if (typeof navigator !== 'undefined' && navigator.onLine && this.degradationService.isServiceAvailable('hmrc-api')) {
       this.syncSubmission(backup.id);
     }
 

@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Session, User, AuthError, AuthResponse } from "@supabase/supabase-js";
+import { MFAService } from "@/lib/services/mfa";
 
 export async function getCurrentUserId(): Promise<string | null> {
   const supabase = createClientComponentClient();
@@ -22,6 +23,8 @@ interface AuthContextType {
   session: Session | null;
   user: User | null;
   loading: boolean;
+  mfaRequired: boolean;
+  mfaVerified: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   signUp: (
@@ -30,30 +33,83 @@ interface AuthContextType {
   ) => Promise<AuthResponse>;
   signInWithGoogle: () => Promise<{ error: unknown }>;
   signInWithFacebook: () => Promise<{ error: unknown }>;
+  refreshMFAStatus: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   session: null,
   user: null,
   loading: true,
+  mfaRequired: false,
+  mfaVerified: false,
   signIn: async () => {},
   signOut: async () => {},
   signUp: async () => ({ data: { user: null, session: null }, error: null }),
   signInWithGoogle: async () => ({ error: null }),
   signInWithFacebook: async () => ({ error: null }),
+  refreshMFAStatus: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [mfaVerified, setMfaVerified] = useState(false);
   const supabase = createClientComponentClient();
+
+  const checkMFAStatus = async (currentUser: User) => {
+    try {
+      // Only check MFA status if we have a valid user
+      if (!currentUser) {
+        setMfaRequired(false);
+        setMfaVerified(true);
+        return;
+      }
+
+      const mfaRequired = await MFAService.isMFARequired();
+      const mfaStatus = await MFAService.getUserMFAStatus();
+      
+      setMfaRequired(mfaRequired);
+      
+      // Check if MFA verification is needed
+      let mfaVerified = true;
+      if (mfaRequired && mfaStatus.isEnrolled) {
+        // Check if user has completed MFA recently
+        const { data: preferences } = await supabase
+          .from('user_mfa_preferences')
+          .select('last_mfa_login')
+          .eq('user_id', currentUser.id)
+          .single();
+
+        if (preferences?.last_mfa_login) {
+          const lastMfaTime = new Date(preferences.last_mfa_login).getTime();
+          const now = new Date().getTime();
+          const sessionDuration = 8 * 60 * 60 * 1000; // 8 hours
+          mfaVerified = now - lastMfaTime < sessionDuration;
+        } else {
+          mfaVerified = false;
+        }
+      }
+      
+      setMfaVerified(mfaVerified);
+    } catch (error) {
+      console.error('Error checking MFA status:', error);
+      setMfaRequired(false);
+      setMfaVerified(true);
+    }
+  };
 
   useEffect(() => {
     // Get initial session with error handling
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        await checkMFAStatus(session.user);
+      }
+      
       setLoading(false);
     }).catch(error => {
       console.error("Error getting auth session:", error);
@@ -66,6 +122,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        await checkMFAStatus(session.user);
+      } else {
+        setMfaRequired(false);
+        setMfaVerified(false);
+      }
+      
       setLoading(false);
     });
 
@@ -142,17 +206,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-
+  const refreshMFAStatus = async () => {
+    if (user) {
+      await checkMFAStatus(user);
+    } else {
+      // Reset MFA state when no user
+      setMfaRequired(false);
+      setMfaVerified(true);
+    }
+  };
 
   const value = {
     session,
     user,
     loading,
+    mfaRequired,
+    mfaVerified,
     signIn,
     signOut,
     signUp,
     signInWithGoogle,
     signInWithFacebook,
+    refreshMFAStatus,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

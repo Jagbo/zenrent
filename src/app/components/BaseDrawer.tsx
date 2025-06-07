@@ -57,39 +57,42 @@ export const BaseDrawer: React.FC<BaseDrawerProps> = ({
   const getOpacityClass = () => {
     switch (overlayOpacity) {
       case "light":
-        return "bg-white/10";
-      case "medium":
-        return "bg-white/20";
-      case "dark":
         return "bg-black/20";
+      case "medium":
+        return "bg-black/40";
+      case "dark":
+        return "bg-black/60";
       default:
-        return "bg-white/10";
+        return "bg-black/20";
     }
   };
 
   return (
     <div className="fixed inset-0 overflow-hidden z-50">
       <div className="absolute inset-0 overflow-hidden">
-        <div className={`fixed inset-0 w-full h-full ${getOpacityClass()} ${getBlurClass()} transition-opacity z-40`}
+        <div 
+          className={`fixed inset-0 w-full h-full ${getOpacityClass()} ${getBlurClass()} transition-opacity duration-300 ease-in-out z-40`}
           onClick={onClose}
           aria-hidden="true"
         />
         <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10 z-50">
-          <div className={`pointer-events-auto w-screen ${getWidthClass()}`}>
-            <div className="flex h-full flex-col bg-white !bg-white shadow-xl">
-              <div className="px-4 pt-5 pb-4 sm:px-6 border-b border-gray-200 bg-white !bg-white">
+          <div className={`pointer-events-auto w-screen ${getWidthClass()} transform transition-transform duration-300 ease-in-out`}>
+            <div className="flex h-full flex-col bg-white shadow-xl border-l border-gray-200">
+              <div className="px-4 pt-5 pb-4 sm:px-6 border-b border-gray-200 bg-white">
                 <div className="flex items-start justify-between">
-                  <h3 className="text-lg font-medium text-gray-900">{title}</h3>
-                  <button type="button"
-                    className="ml-3 flex h-7 w-7 items-center justify-center rounded-md bg-white text-gray-400 hover:text-gray-500"
+                  <h3 className="text-lg font-semibold text-gray-900 font-cabinet-grotesk">{title}</h3>
+                  <button 
+                    type="button"
+                    className="ml-3 flex h-7 w-7 items-center justify-center rounded-md bg-white text-gray-400 hover:text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#D9E8FF] focus:ring-offset-2 transition-colors"
                     onClick={onClose}
+                    aria-label="Close drawer"
                   >
-                    <XMarkIcon className="h-6 w-6" />
+                    <XMarkIcon className="h-5 w-5" />
                   </button>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto py-6 bg-white !bg-white">
-                <div className="px-4 sm:px-6 bg-white !bg-white">{children}</div>
+              <div className="flex-1 overflow-y-auto py-6 bg-white">
+                <div className="px-4 sm:px-6">{children}</div>
               </div>
             </div>
           </div>

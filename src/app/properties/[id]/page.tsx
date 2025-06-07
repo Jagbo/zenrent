@@ -45,6 +45,8 @@ import {
   IPropertyMortgage
 } from "../../../lib/propertyDetailsService";
 import { getPropertyEnergyDataClient } from "../../../services/propertyEnrichmentService";
+import MortgageDocumentUpload from "../../../components/MortgageDocumentUpload";
+import MortgageManualEntry from "../../../components/MortgageManualEntry";
 
 // Define the Property interface for UI
 interface PropertyForUI {
@@ -305,6 +307,10 @@ export default function PropertyDetails() {
   // State for energy efficiency data
   const [energyData, setEnergyData] = useState<any>(null);
   const [energyDataLoading, setEnergyDataLoading] = useState(true);
+  
+  // State for mortgage components
+  const [showMortgageUpload, setShowMortgageUpload] = useState(false);
+  const [showMortgageManual, setShowMortgageManual] = useState(false);
 
   // Update tabs to use state
   const tabs = [
@@ -656,6 +662,27 @@ export default function PropertyDetails() {
     } finally {
       setIsNewIssueDrawerOpen(false);
     }
+  };
+
+  // Mortgage handlers
+  const handleMortgageDataExtracted = (data: any) => {
+    setShowMortgageUpload(false);
+    // Refresh property details to show the newly saved mortgage
+    fetchPropertyDetails(propertyId);
+  };
+
+  const handleMortgageUploadError = (error: string) => {
+    console.error("Mortgage upload error:", error);
+  };
+
+  const handleMortgageManualSave = (data: any) => {
+    setShowMortgageManual(false);
+    // Refresh property details to show the newly saved mortgage
+    fetchPropertyDetails(propertyId);
+  };
+
+  const handleMortgageManualCancel = () => {
+    setShowMortgageManual(false);
   };
 
   if (loading) {
@@ -1177,43 +1204,66 @@ export default function PropertyDetails() {
                           </div>
                         </div>
                       ) : (
-                        <div className="rounded-md border p-4 bg-white">
-                          <div className="space-y-4">
-                            <div className="flex justify-between items-center">
-                              <h4 className="text-sm font-medium text-gray-900">
-                                Add Mortgage Information
-                              </h4>
-                            </div>
-                            <div className="bg-gray-50 p-6 rounded-lg border border-dashed border-gray-300">
-                              <div className="text-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                                <h3 className="mt-2 text-sm font-medium text-gray-900">Upload mortgage documents</h3>
-                                <p className="mt-1 text-sm text-gray-500">
-                                  Upload your mortgage agreement to keep track of your financial details
-                                </p>
-                                <div className="mt-6">
-                                  <label htmlFor="mortgage-file-upload" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-black bg-[#D9E8FF] hover:bg-[#C5DAFF] cursor-pointer" data-component-name="PropertyDetails">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        <div className="space-y-6">
+                          {!showMortgageUpload && !showMortgageManual && (
+                            <div className="rounded-md border p-4 bg-white">
+                              <div className="space-y-4">
+                                <div className="flex justify-between items-center">
+                                  <h4 className="text-sm font-medium text-gray-900">
+                                    Add Mortgage Information
+                                  </h4>
+                                </div>
+                                <div className="bg-gray-50 p-6 rounded-lg border border-dashed border-gray-300">
+                                  <div className="text-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                     </svg>
-                                    Upload Document
-                                  </label>
-                                  <input id="mortgage-file-upload" name="mortgage-file-upload" type="file" className="sr-only" />
+                                    <h3 className="mt-2 text-sm font-medium text-gray-900">Upload mortgage documents</h3>
+                                    <p className="mt-1 text-sm text-gray-500">
+                                      Upload your mortgage agreement to automatically extract key information
+                                    </p>
+                                    <div className="mt-6">
+                                      <button
+                                        onClick={() => setShowMortgageUpload(true)}
+                                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-black bg-[#D9E8FF] hover:bg-[#C5DAFF]"
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                        </svg>
+                                        Upload Document
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="mt-4">
+                                  <h5 className="text-sm font-medium text-gray-700 mb-2">Or enter details manually</h5>
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowMortgageManual(true)}
+                                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50"
+                                  >
+                                    Add Mortgage Details
+                                  </button>
                                 </div>
                               </div>
                             </div>
-                            <div className="mt-4">
-                              <h5 className="text-sm font-medium text-gray-700 mb-2">Or enter details manually</h5>
-                              <button
-                                type="button"
-                                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50"
-                              >
-                                Add Mortgage Details
-                              </button>
-                            </div>
-                          </div>
+                          )}
+
+                          {showMortgageUpload && (
+                            <MortgageDocumentUpload
+                              propertyId={propertyId}
+                              onDataExtracted={handleMortgageDataExtracted}
+                              onError={handleMortgageUploadError}
+                            />
+                          )}
+
+                          {showMortgageManual && (
+                            <MortgageManualEntry
+                              propertyId={propertyId}
+                              onSave={handleMortgageManualSave}
+                              onCancel={handleMortgageManualCancel}
+                            />
+                          )}
                         </div>
                       )}
                     </TabsContent>

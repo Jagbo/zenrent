@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-provider";
 import Link from "next/link";
 import Image from "next/image";
@@ -27,14 +27,34 @@ const triggerPropertyEnrichment = async () => {
   }
 };
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { signIn, signInWithGoogle, signInWithFacebook } = useAuth();
+  const { signIn, signInWithGoogle, signInWithFacebook, user, mfaRequired, mfaVerified, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Handle redirect after successful authentication
+  useEffect(() => {
+    if (!loading && user) {
+      const returnUrl = searchParams.get('returnUrl') || '/dashboard';
+      
+      // If MFA is required and not verified, redirect to MFA verification
+      if (mfaRequired && !mfaVerified) {
+        router.push(`/auth/mfa-verification?returnUrl=${encodeURIComponent(returnUrl)}`);
+        return;
+      }
+      
+      // If authenticated and MFA verified (or not required), redirect to dashboard
+      if (!mfaRequired || mfaVerified) {
+        router.push(returnUrl);
+        return;
+      }
+    }
+  }, [user, mfaRequired, mfaVerified, loading, router, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,7 +67,7 @@ export default function LoginPage() {
       // Trigger property enrichment in the background
       triggerPropertyEnrichment();
       
-      router.push("/dashboard");
+      // Note: Redirect is handled by useEffect above based on MFA status
     } catch (err) {
       console.error("Login error:", err);
       
@@ -136,6 +156,23 @@ export default function LoginPage() {
       setOauthLoading(null);
     }
   };
+
+  // Show loading if checking auth state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If already authenticated and MFA verified, don't show login form
+  if (user && (!mfaRequired || mfaVerified)) {
+    return null;
+  }
 
   return (
     <>
@@ -319,5 +356,20 @@ export default function LoginPage() {
         </div>
       </div>
     </>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

@@ -10,15 +10,23 @@ const getDashboardClient = () => {
 
 // Get the current authenticated user ID
 export const getCurrentUserId = async (): Promise<string> => {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser();
 
-  if (!user) {
-    throw new Error("No authenticated user found");
+    if (error) {
+      console.error("[getCurrentUserId] Auth error:", error);
+      throw new Error(`Authentication error: ${error.message}`);
+    }
+
+    if (!user) {
+      throw new Error("No authenticated user found");
+    }
+
+    return user.id;
+  } catch (error) {
+    console.error("[getCurrentUserId] Unexpected error:", error);
+    throw error;
   }
-
-  return user.id;
 };
 
 export interface DashboardStats {
@@ -30,86 +38,81 @@ export interface DashboardStats {
 
 export const getTotalProperties = async (userId: string): Promise<number> => {
   if (!userId) {
-    throw new Error("User ID is required to fetch properties");
+    console.warn("No user ID provided for getTotalProperties");
+    return 0;
   }
 
   try {
-    console.log(`Fetching total properties for user: ${userId}`);
+    console.log(`[getTotalProperties] Fetching properties for user: ${userId}`);
     const { data, error } = await getDashboardClient()
       .from("properties")
       .select("id")
       .eq("user_id", userId);
 
     if (error) {
-      console.error("Error fetching properties:", error);
+      console.error("[getTotalProperties] Database error:", error);
       return 0;
     }
 
-    console.log(`Retrieved ${data?.length || 0} properties`);
-    return data?.length || 0;
+    const count = data?.length || 0;
+    console.log(`[getTotalProperties] Found ${count} properties`);
+    return count;
   } catch (error) {
-    console.error("Error fetching properties:", error);
+    console.error("[getTotalProperties] Unexpected error:", error);
     return 0;
   }
 };
 
 export const getExpiringContracts = async (userId: string): Promise<number> => {
   if (!userId) {
-    throw new Error("User ID is required to fetch expiring contracts");
+    console.warn("No user ID provided for getExpiringContracts");
+    return 0;
   }
 
   try {
-    console.log(`Fetching expiring contracts for user: ${userId}`);
+    console.log(`[getExpiringContracts] Fetching for user: ${userId}`);
 
-    // First get property IDs for this user
-    let propertyIds: string[] = [];
+    // Get property IDs for this user
+    const { data: properties, error: propertiesError } = await getDashboardClient()
+      .from("properties")
+      .select("id")
+      .eq("user_id", userId);
 
-    try {
-      const { data: properties } = await getDashboardClient()
-        .from("properties")
-        .select("id")
-        .eq("user_id", userId);
-
-      if (properties && properties.length > 0) {
-        propertyIds = properties.map((p) => p.id);
-        console.log(
-          `Found ${propertyIds.length} properties for expiring contracts calculation`,
-        );
-      } else {
-        console.log(
-          "No properties found for user when fetching expiring contracts",
-        );
-        return 0;
-      }
-    } catch (err) {
-      console.error("Error fetching properties for expiring contracts:", err);
+    if (propertiesError) {
+      console.error("[getExpiringContracts] Error fetching properties:", propertiesError);
       return 0;
     }
 
-    if (propertyIds.length === 0) {
+    if (!properties?.length) {
+      console.log("[getExpiringContracts] No properties found");
       return 0;
     }
 
-    // Now get leases for these properties
-    try {
-      const { data } = await getDashboardClient()
-        .from("leases")
-        .select("id")
-        .in("property_id", propertyIds)
-        .lte(
-          "end_date",
-          new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        )
-        .gte("end_date", new Date().toISOString());
+    const propertyIds = properties.map((p) => p.id);
+    console.log(`[getExpiringContracts] Checking ${propertyIds.length} properties`);
 
-      console.log(`Found ${data?.length || 0} expiring contracts`);
-      return data?.length || 0;
-    } catch (err) {
-      console.error("Error fetching expiring contracts:", err);
+    // Calculate date range (next 30 days)
+    const today = new Date();
+    const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    // Get expiring leases
+    const { data: leases, error: leasesError } = await getDashboardClient()
+      .from("leases")
+      .select("id")
+      .in("property_id", propertyIds)
+      .lte("end_date", thirtyDaysFromNow.toISOString())
+      .gte("end_date", today.toISOString());
+
+    if (leasesError) {
+      console.error("[getExpiringContracts] Error fetching leases:", leasesError);
       return 0;
     }
+
+    const count = leases?.length || 0;
+    console.log(`[getExpiringContracts] Found ${count} expiring contracts`);
+    return count;
   } catch (error) {
-    console.error("Error in getExpiringContracts:", error);
+    console.error("[getExpiringContracts] Unexpected error:", error);
     return 0;
   }
 };
@@ -250,36 +253,37 @@ export const getDashboardStats = async (
     try {
       userId = await getCurrentUserId();
     } catch (error) {
-      console.error("Error getting current user ID:", error);
-      throw new Error("Authentication required: No user ID available");
+      console.error("[getDashboardStats] Error getting current user ID:", error);
+      return getDefaultDashboardStats();
     }
   }
 
-  console.log(`Getting dashboard stats for user: ${userId}`);
+  console.log(`[getDashboardStats] Fetching stats for user: ${userId}`);
 
   try {
     const response = await fetch(`/api/dashboard?userId=${userId}`);
 
     if (!response.ok) {
-      throw new Error("Failed to fetch dashboard stats");
+      console.error(`[getDashboardStats] API request failed: ${response.status} ${response.statusText}`);
+      return getDefaultDashboardStats();
     }
 
     const stats = await response.json();
-
-    console.log("Dashboard stats retrieved:", stats);
-
+    console.log("[getDashboardStats] Stats retrieved successfully:", stats);
     return stats;
   } catch (error) {
-    console.error("Error getting dashboard stats:", error);
-    // Return default values
-    return {
-      totalProperties: 0,
-      expiringContracts: 0,
-      occupancyRate: 0,
-      currentMonthIncome: 0,
-    };
+    console.error("[getDashboardStats] Unexpected error:", error);
+    return getDefaultDashboardStats();
   }
 };
+
+// Helper function to return default dashboard stats
+const getDefaultDashboardStats = (): DashboardStats => ({
+  totalProperties: 0,
+  expiringContracts: 0,
+  occupancyRate: 0,
+  currentMonthIncome: 0,
+});
 
 // Function to get data for dashboard charts
 export const getDashboardChartData = async (userId: string) => {

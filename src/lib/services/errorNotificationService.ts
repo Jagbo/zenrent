@@ -511,14 +511,16 @@ export class ErrorNotificationService {
    */
   private handleContactSupportAction(notification: ErrorNotification): void {
     // This would open support chat or redirect to support page
-    window.open('/support', '_blank');
+    if (typeof window !== 'undefined') {
+      window.open('/support', '_blank');
+    }
   }
 
   /**
    * Handle open documentation action
    */
   private handleOpenDocumentationAction(url?: string): void {
-    if (url) {
+    if (url && typeof window !== 'undefined') {
       window.open(url, '_blank');
     }
   }
@@ -527,7 +529,7 @@ export class ErrorNotificationService {
    * Handle redirect action
    */
   private handleRedirectAction(url?: string): void {
-    if (url) {
+    if (url && typeof window !== 'undefined') {
       window.location.href = url;
     }
   }

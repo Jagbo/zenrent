@@ -386,8 +386,10 @@ export default function PropertyImportOptions() {
                       <p className="mt-1 text-sm text-gray-600">
                         Your property data is securely stored and processed in
                         accordance with our
-                        <a href="#"
+                        <a href="/privacy-policy"
                           className="text-gray-900 hover:text-gray-700"
+                          target="_blank"
+                          rel="noopener noreferrer"
                         >
                           {" "}
                           Privacy Policy

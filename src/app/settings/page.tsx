@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertTriangle, Check, Crown, Star, Zap, CreditCard, User, Bell, Shield, HelpCircle } from "lucide-react";
 import { useAuth } from "../../lib/auth-provider";
+import MFASetup from "@/components/auth/MFASetup";
 import { PlanRecommendation, getPlanRecommendation } from '@/lib/services/planRecommendationService';
 import { supabase } from '@/lib/supabase';
 import {
@@ -23,14 +24,8 @@ import {
 } from "@heroicons/react/20/solid";
 import { SidebarLayout } from "../components/sidebar-layout";
 import { Cog6ToothIcon } from "@heroicons/react/24/outline";
-import { loadStripe } from "@stripe/stripe-js";
-import { BankAccountDrawer } from "../components/BankAccountDrawer";
+import { BankAccountDrawer } from "../integrations/components/BankAccountDrawer";
 import { AccountingSoftwareDrawer } from "../components/AccountingSoftwareDrawer";
-
-// Initialize Stripe
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
-);
 
 // Plan configuration - this should ideally come from a database or API
 // but for now we'll use a configuration object that matches the plan_ids in the database
@@ -114,6 +109,7 @@ const formatDate = (dateString: string) => {
 // Secondary navigation for settings sections
 const secondaryNavigation = [
   { name: "Account", href: "#", current: true },
+  { name: "Security", href: "#", current: false },
   { name: "Notifications", href: "#", current: false },
   { name: "Billing", href: "#", current: false },
   { name: "Integrations", href: "#", current: false },
@@ -123,7 +119,7 @@ function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(" ");
 }
 
-type TabType = "Account" | "Notifications" | "Billing" | "Integrations";
+type TabType = "Account" | "Security" | "Notifications" | "Billing" | "Integrations";
 
 // Types for user profile data
 interface UserProfile {
@@ -185,7 +181,7 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabType>("Account");
   const [isChangePlanModalOpen, setIsChangePlanModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isBankAccountDrawerOpen, setIsBankAccountDrawerOpen] = useState(false);
+  const [isBankDrawerOpen, setIsBankDrawerOpen] = useState(false);
   const [isAccountingDrawerOpen, setIsAccountingDrawerOpen] = useState(false);
 
   // Data loading states
@@ -401,7 +397,12 @@ export default function SettingsPage() {
       });
 
       const { sessionId } = await response.json();
-      const stripe = await stripePromise;
+      
+      // Dynamically import and load Stripe
+      const { loadStripe } = await import("@stripe/stripe-js");
+      const stripe = await loadStripe(
+        process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
+      );
 
       // Redirect to Stripe Checkout
       if (stripe) {
@@ -435,6 +436,11 @@ export default function SettingsPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Check for successful bank connection after drawer closes
+  const handleBankDrawerClose = () => {
+    setIsBankDrawerOpen(false);
   };
 
   // Show loading state
@@ -720,6 +726,62 @@ export default function SettingsPage() {
                 >
                   Yes, log out
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "Security" && (
+          <div className="divide-y divide-gray-200">
+            {/* MFA Section */}
+            <div className="grid max-w-7xl grid-cols-1 gap-x-8 gap-y-10 px-4 py-16 sm:px-6 md:grid-cols-3 lg:px-8">
+              <div>
+                <h2 className="text-base/7 font-semibold text-gray-900">
+                  Multi-Factor Authentication
+                </h2>
+                <p className="mt-1 text-sm/6 text-gray-500">
+                  Add an extra layer of security to your account with multi-factor authentication.
+                </p>
+              </div>
+
+              <div className="md:col-span-2">
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                  <MFASetup />
+                </div>
+              </div>
+            </div>
+
+            {/* Session Management */}
+            <div className="grid max-w-7xl grid-cols-1 gap-x-8 gap-y-10 px-4 py-16 sm:px-6 md:grid-cols-3 lg:px-8">
+              <div>
+                <h2 className="text-base/7 font-semibold text-gray-900">
+                  Session Management
+                </h2>
+                <p className="mt-1 text-sm/6 text-gray-500">
+                  Manage your active sessions and security settings.
+                </p>
+              </div>
+
+              <div className="md:col-span-2">
+                <div className="space-y-4">
+                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-900">Current Session</h3>
+                        <p className="text-sm text-gray-500">This device</p>
+                      </div>
+                      <Badge variant="secondary">Active</Badge>
+                    </div>
+                  </div>
+                  
+                  <Button
+                    onClick={handleLogout}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    Sign out of all devices
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -1192,7 +1254,7 @@ export default function SettingsPage() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => setIsBankAccountDrawerOpen(true)}
+                      onClick={() => setIsBankDrawerOpen(true)}
                       className="rounded-md bg-[#D9E8FF] px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-indigo-300 hover:bg-indigo-50" data-component-name="Settings"
                     >
                       Connect
@@ -1256,8 +1318,8 @@ export default function SettingsPage() {
 
       {/* Integration Drawers */}
       <BankAccountDrawer
-        isOpen={isBankAccountDrawerOpen}
-        onClose={() => setIsBankAccountDrawerOpen(false)}
+        isOpen={isBankDrawerOpen}
+        onClose={handleBankDrawerClose}
       />
       <AccountingSoftwareDrawer
         isOpen={isAccountingDrawerOpen}

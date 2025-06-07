@@ -187,7 +187,7 @@ export const IssueFormDrawer: React.FC<IssueFormDrawerProps> = ({
             required
             value={formData.title}
             onChange={handleInputChange}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-gray-900 focus:border-gray-900 sm:text-sm"
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-[#D9E8FF] focus:border-[#D9E8FF] transition-colors sm:text-sm"
             placeholder="e.g., Water leak in bathroom"
           />
         </div>
@@ -369,16 +369,18 @@ export const IssueFormDrawer: React.FC<IssueFormDrawerProps> = ({
         </div>
 
         <div className="mt-5 sm:mt-6 flex justify-end space-x-3">
-          <button type="button"
+          <button 
+            type="button"
             onClick={onClose}
-            className="inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:text-sm"
+            className="inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors sm:text-sm"
           >
             Cancel
           </button>
-          <button type="submit"
-            className="inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-gray-900 text-base font-medium text-white hover:bg-gray-800 focus:outline-none sm:text-sm"
+          <button 
+            type="submit"
+            className="inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-[#D9E8FF] text-base font-medium text-gray-900 hover:bg-[#C8D7EE] focus:outline-none focus:ring-2 focus:ring-[#D9E8FF] focus:ring-offset-2 transition-colors sm:text-sm"
           >
-            Save
+            Save Issue
           </button>
         </div>
       </form>

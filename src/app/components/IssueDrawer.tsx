@@ -76,44 +76,35 @@ export const IssueDrawer: React.FC<IssueDrawerProps> = ({
     if (!issue) return;
     
     try {
-      // Use the actual issue ID directly - no hardcoded mapping needed
-      const databaseIssueId = issue.id.toString();
+      const issueId = issue.id.toString();
+      console.log('Fetching activity logs for issue ID:', issueId);
       
-      console.log('Fetching activity logs for issue ID:', issue.id);
+      const { data: activityData, error: activityError } = await supabase
+        .from("issue_activity_log")
+        .select("*")
+        .eq("issue_id", issueId)
+        .order("created_at", { ascending: true });
       
-      // Query the activity log table
-      try {
-        const { data: activityData, error: activityError } = await supabase
-          .from("issue_activity_log")
-          .select("*")
-          .eq("issue_id", databaseIssueId)
-          .order("created_at", { ascending: true });
-        
-        if (activityError) {
-          console.error("Error fetching activity logs:", activityError);
-          return;
-        }
-        
-        console.log('Activity logs fetched:', activityData);
-        
-        if (activityData && activityData.length > 0) {
-          setActivities(activityData);
-        } else {
-          // If no activities found, create a default one for issue creation
-          setActivities([{
-            id: `default-${issue.id}`,
-            issue_id: databaseIssueId,
-            activity_type: 'issue_created',
-            description: 'Issue was reported',
-            created_at: issue.reported || new Date().toISOString()
-          }]);
-        }
-      } catch (error) {
-        console.error("Error in Supabase activity log query:", error);
-        // Set a default activity even if the query fails
+      if (activityError) {
+        console.error("Error fetching activity logs:", activityError);
+        // Create default activity on error
         setActivities([{
           id: `default-${issue.id}`,
-          issue_id: databaseIssueId,
+          issue_id: issueId,
+          activity_type: 'issue_created',
+          description: 'Issue was reported',
+          created_at: issue.reported || new Date().toISOString()
+        }]);
+        return;
+      }
+      
+      if (activityData && activityData.length > 0) {
+        setActivities(activityData);
+      } else {
+        // Create default activity if none found
+        setActivities([{
+          id: `default-${issue.id}`,
+          issue_id: issueId,
           activity_type: 'issue_created',
           description: 'Issue was reported',
           created_at: issue.reported || new Date().toISOString()
@@ -121,6 +112,7 @@ export const IssueDrawer: React.FC<IssueDrawerProps> = ({
       }
     } catch (error) {
       console.error("Error fetching activity logs:", error);
+      setActivities([]);
     }
   };
   
@@ -129,33 +121,25 @@ export const IssueDrawer: React.FC<IssueDrawerProps> = ({
     if (!issue) return;
     
     try {
-      // Use the actual issue ID directly - no hardcoded mapping needed
-      const databaseIssueId = issue.id.toString();
+      const issueId = issue.id.toString();
+      console.log('Fetching comments for issue ID:', issueId);
       
-      console.log('Fetching comments for issue ID:', issue.id);
-      
-      // Direct query to get comments for this issue
       const { data: commentsData, error: commentsError } = await supabase
         .from("issue_comments")
         .select("*")
-        .eq("issue_id", databaseIssueId)
+        .eq("issue_id", issueId)
         .order("created_at", { ascending: true });
       
       if (commentsError) {
         console.error("Error fetching comments:", commentsError);
+        setComments([]);
         return;
       }
       
-      console.log('Comments fetched:', commentsData);
-      
-      if (commentsData && commentsData.length > 0) {
-        setComments(commentsData);
-      } else {
-        console.log('No comments found for this issue');
-        setComments([]);
-      }
+      setComments(commentsData || []);
     } catch (error) {
       console.error("Error fetching issue comments:", error);
+      setComments([]);
     }
   };
 
@@ -213,33 +197,21 @@ export const IssueDrawer: React.FC<IssueDrawerProps> = ({
       // Clear comment input
       setComment("");
       
-      // For demo purposes, we'll use hardcoded UUIDs that match our database
-      // In a real app, you'd have proper mapping between UI and database IDs
-      const issueIdMap: Record<string | number, string> = {
-        // Map numeric or string IDs to actual UUIDs in the database
-        '1254': 'a1b2c3d4-e5f6-4a5b-9c8d-7e6f5a4b3c2d', // Leaking Faucet
-        '1253': 'c3d4e5f6-a7b8-4a5b-9c8d-7e6f5a4b3c2f', // Roof Inspection
-        '1252': 'b2c3d4e5-f6a7-4a5b-9c8d-7e6f5a4b3c2e', // Heating Issue
-        1254: 'a1b2c3d4-e5f6-4a5b-9c8d-7e6f5a4b3c2d',
-        1253: 'c3d4e5f6-a7b8-4a5b-9c8d-7e6f5a4b3c2f',
-        1252: 'b2c3d4e5-f6a7-4a5b-9c8d-7e6f5a4b3c2e'
-      };
+      // Use the issue ID directly - no hardcoded mappings needed
+      const issueId = issue.id.toString();
+      console.log('Adding comment for issue ID:', issueId);
       
-      // Determine the actual UUID to use for the query
-      let databaseIssueId = issue.id.toString();
-      
-      // If we have a mapping for this ID, use it
-      if (issueIdMap[issue.id]) {
-        databaseIssueId = issueIdMap[issue.id];
-      }
-      
-      console.log('Adding comment for issue ID:', issue.id, 'using database ID:', databaseIssueId);
-      
-      // Use the simplified function that handles UUID conversion internally
-      const { data, error } = await supabase.rpc('add_comment_simple', {
-        p_issue_id: databaseIssueId,
-        p_comment: comment.trim()
-      });
+      // Add comment directly to the database
+      const { data, error } = await supabase
+        .from('issue_comments')
+        .insert({
+          issue_id: issueId,
+          comment: comment.trim(),
+          user_id: user?.id,
+          is_internal: false
+        })
+        .select()
+        .single();
       
       // Check if we got an error response from the function
       if (data && data.error) {
@@ -299,40 +271,29 @@ export const IssueDrawer: React.FC<IssueDrawerProps> = ({
     setIsStatusSelectOpen(false);
     
     try {
-      // For demo purposes, we'll use hardcoded UUIDs that match our database
-      const issueIdMap: Record<string | number, string> = {
-        '1254': 'a1b2c3d4-e5f6-4a5b-9c8d-7e6f5a4b3c2d',
-        '1253': 'c3d4e5f6-a7b8-4a5b-9c8d-7e6f5a4b3c2f',
-        '1252': 'b2c3d4e5-f6a7-4a5b-9c8d-7e6f5a4b3c2e',
-        1254: 'a1b2c3d4-e5f6-4a5b-9c8d-7e6f5a4b3c2d',
-        1253: 'c3d4e5f6-a7b8-4a5b-9c8d-7e6f5a4b3c2f',
-        1252: 'b2c3d4e5-f6a7-4a5b-9c8d-7e6f5a4b3c2e'
-      };
-      
-      let databaseIssueId = issue.id.toString();
-      if (issueIdMap[issue.id]) {
-        databaseIssueId = issueIdMap[issue.id];
-      }
+      const issueId = issue.id.toString();
       
       // Update the issue status in the database
       const { error: updateError } = await supabase
         .from('issues')
         .update({ status: newStatus })
-        .eq('id', databaseIssueId);
+        .eq('id', issueId);
       
       if (updateError) {
         console.error('Error updating status:', updateError);
         throw updateError;
       }
       
-      // Log the status change manually (in case the trigger doesn't work)
-      const { data: logData, error: logError } = await supabase.rpc('log_issue_activity', {
-        p_issue_id: databaseIssueId,
-        p_activity_type: 'status_change',
-        p_description: 'Issue status changed',
-        p_old_value: currentStatus,
-        p_new_value: newStatus
-      });
+      // Log the status change
+      const { error: logError } = await supabase
+        .from('issue_activity_log')
+        .insert({
+          issue_id: issueId,
+          activity_type: 'status_change',
+          description: 'Issue status changed',
+          old_value: currentStatus,
+          new_value: newStatus
+        });
       
       if (logError) {
         console.error('Error logging status change:', logError);
@@ -341,7 +302,7 @@ export const IssueDrawer: React.FC<IssueDrawerProps> = ({
       // Add the new activity to the local state
       const newActivity: IActivityLog = {
         id: `temp-${Date.now()}`,
-        issue_id: databaseIssueId,
+        issue_id: issueId,
         activity_type: 'status_change',
         description: 'Issue status changed',
         old_value: currentStatus,
@@ -546,10 +507,9 @@ export const IssueDrawer: React.FC<IssueDrawerProps> = ({
             Cancel
           </button>
           <button type="button"
-            className="inline-flex items-center rounded-md border border-transparent bg-[#D9E8FF] px-4 py-2 text-sm font-medium text-gray-900 shadow-sm hover:bg-[#D9E8FF]"
+            className="inline-flex items-center rounded-md border border-transparent bg-[#D9E8FF] px-4 py-2 text-sm font-medium text-gray-900 shadow-sm hover:bg-[#C8D7EE] focus:outline-none focus:ring-2 focus:ring-[#D9E8FF] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             onClick={handleAddComment}
             disabled={!comment.trim() || isSubmitting}
-            style={{opacity: 1}}
           >
             {isSubmitting ? 'Saving...' : 'Add Comment'}
           </button>
