@@ -71,7 +71,8 @@ export async function GET(request: NextRequest) {
     // Check if ZenRent's central WhatsApp is configured (for admin visibility)
     const isWhatsAppConfigured = !!(
       process.env.WHATSAPP_WABA_ID && 
-      process.env.WHATSAPP_SYSTEM_USER_TOKEN
+      process.env.WHATSAPP_SYSTEM_USER_TOKEN &&
+      process.env.WHATSAPP_PHONE_NUMBER_ID
     );
 
     console.log(`[WhatsApp Status] User ${user.id} - Enabled: ${userProfile.whatsapp_enabled}, Tenants: ${tenantCount}`);
